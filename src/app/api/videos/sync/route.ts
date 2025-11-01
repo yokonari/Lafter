@@ -13,10 +13,16 @@ type D1Database = {
   };
 };
 
-type Env = {
+export interface Env {
+  // If you set another name in the Wrangler config file for the value for 'binding',
+  // replace "DB" with the variable name you defined.
   lafter_db: D1Database;
-  YOUTUBE_API_KEY?: string;
-};
+}
+
+// type Env = {
+//   lafter_db: D1Database;
+//   YOUTUBE_API_KEY?: string;
+// };
 
 type SearchItem = {
   idKind: string;
@@ -75,7 +81,7 @@ export async function POST(
     );
   }
 
-  const apiKey = env.YOUTUBE_API_KEY ?? process.env.YOUTUBE_API_KEY;
+  const apiKey = process.env.YOUTUBE_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { message: "YouTube API キーが設定されていません。" },
