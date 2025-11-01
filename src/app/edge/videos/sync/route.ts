@@ -1,10 +1,9 @@
-// app/edge/videos/sync/route.ts
+// src/app/edge/videos/sync/route.ts
 import { NextResponse } from "next/server";
 
 export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-// Wrangler の binding 名に合わせる
 export interface Env {
   lafter_db: D1Database;
   YOUTUBE_API_KEY?: string;
@@ -31,17 +30,18 @@ const SEARCH_BASE_URL = "https://www.googleapis.com/youtube/v3/search";
 const DEFAULT_MAX_RESULTS = 50;
 const POSITIVE_VIDEO_KEYWORDS = ["ネタ", "漫才", "コント"];
 const NEGATIVE_VIDEO_KEYWORDS = [
-  "ラジオ", "トーク", "ゲーム配信", "♯", "実況", "インタビュー", "広告", "睡眠用", "作業用",
-  "高音質", "BGM", "聞き流し", "まとめ", "タイムスタンプ",
+  "ラジオ", "トーク", "ゲーム配信", "♯", "実況", "インタビュー",
+  "広告", "睡眠用", "作業用", "高音質", "BGM", "聞き流し", "まとめ", "タイムスタンプ",
 ];
 
-export async function POST(request: Request, { env }: { env: Env }) {
+export async function POST(request: Request, context: unknown) {
+  const env = (context as { env?: Env } | null | undefined)?.env;
   const db = env?.lafter_db;
   if (!db) {
     return NextResponse.json({ message: "D1 データベースに接続できません。" }, { status: 500 });
   }
 
-  const apiKey = env.YOUTUBE_API_KEY;
+  const apiKey = env?.YOUTUBE_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ message: "YouTube API キーが設定されていません。" }, { status: 500 });
   }
@@ -71,6 +71,7 @@ export async function POST(request: Request, { env }: { env: Env }) {
           });
           summary.videosProcessed += 1;
         }
+
         for (const item of playlistItems) {
           await upsertPlaylist(db, { id: item.playlistId!, title: item.title, channelId: item.channelId });
           summary.playlistsProcessed += 1;
@@ -89,16 +90,19 @@ export async function POST(request: Request, { env }: { env: Env }) {
   }
 }
 
-/* ===== Helpers ===== */
+/* =========================
+ * Helpers
+ * =======================*/
 
 async function loadArtists(request: Request): Promise<string[]> {
-  const csvUrl = new URL("/data/artists_list.csv", request.url); // public/data/～
+  // public/data/artists_list.csv を fetch で取得（Edge対応）
+  const csvUrl = new URL("/data/artists_list.csv", request.url);
   const res = await fetch(csvUrl.toString());
   if (!res.ok) throw new Error("artists_list.csv を読み込めませんでした。");
   const csv = await res.text();
 
   const lines = csv.trim().split(/\r?\n/);
-  const rows = lines.slice(1);
+  const rows = lines.slice(1); // 1行目ヘッダー想定
 
   const unique = new Set<string>();
   for (const line of rows) {
@@ -114,11 +118,13 @@ async function loadArtists(request: Request): Promise<string[]> {
   return Array.from(unique);
 }
 
+// ダブルクオート対応の CSV 1 行分割
 function splitCsvLine(line: string): string[] {
   const cols = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/g);
   return cols.map((s) => (s.startsWith('"') && s.endsWith('"') ? s.slice(1, -1) : s));
 }
 
+// かっこ内（全角/半角）を除去し、各種区切りで分割
 function expandArtistNames(raw: string): string[] {
   const noParens = raw.replace(/\s*\([^)]*\)/g, "").replace(/\s*（[^）]*）/g, "");
   return noParens
@@ -139,7 +145,6 @@ async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]
 
   const response = await fetch(url);
   if (!response.ok) throw new Error(`YouTube Search API の呼び出しに失敗 (${response.status}).`);
-
   const data = (await response.json()) as SearchAPIResponse;
   const items = Array.isArray(data.items) ? data.items : [];
 
@@ -157,8 +162,8 @@ async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]
       it.idKind === "youtube#video"
         ? Boolean(it.videoId && it.channelId && it.title)
         : it.idKind === "youtube#playlist"
-          ? Boolean(it.playlistId && it.channelId && it.title)
-          : false
+        ? Boolean(it.playlistId && it.channelId && it.title)
+        : false
     );
 }
 
