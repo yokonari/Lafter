@@ -1,28 +1,14 @@
+// app/api/videos/sync/route.ts
 import { NextResponse } from "next/server";
-import path from "node:path";
-import { readFile } from "node:fs/promises";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
-type D1Database = {
-  prepare(query: string): {
-    bind(...values: unknown[]): {
-      run(): Promise<{ success: boolean; error?: string }>;
-    };
-  };
-};
-
+// Wrangler 側で binding した名前に合わせること（例: lafter_db / YOUTUBE_API_KEY）
 export interface Env {
-  // If you set another name in the Wrangler config file for the value for 'binding',
-  // replace "DB" with the variable name you defined.
   lafter_db: D1Database;
+  YOUTUBE_API_KEY?: string;
 }
-
-// type Env = {
-//   lafter_db: D1Database;
-//   YOUTUBE_API_KEY?: string;
-// };
 
 type SearchItem = {
   idKind: string;
@@ -48,7 +34,6 @@ type SearchResponseItem = {
   };
 };
 
-const ARTIST_FILE_PATH = path.join(process.cwd(), "data", "artists_list.csv");
 const SEARCH_BASE_URL = "https://www.googleapis.com/youtube/v3/search";
 const DEFAULT_MAX_RESULTS = 50;
 const POSITIVE_VIDEO_KEYWORDS = ["ネタ", "漫才", "コント"];
@@ -69,28 +54,32 @@ const NEGATIVE_VIDEO_KEYWORDS = [
   "タイムスタンプ",
 ];
 
+// POST /api/videos/sync
 export async function POST(
-  _request: Request,
-  context: unknown,
+  request: Request,
+  { env }: { env: Env }
 ): Promise<NextResponse> {
-  const env = (context as { env?: Env } | null | undefined)?.env;
-  if (!env?.lafter_db) {
+  const db = env?.lafter_db;
+  if (!db) {
     return NextResponse.json(
       { message: "D1 データベースに接続できません。" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 
-  const apiKey = process.env.YOUTUBE_API_KEY;
+  // Edge では process.env ではなく env から取得
+  const apiKey = env.YOUTUBE_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { message: "YouTube API キーが設定されていません。" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 
   try {
-    const artists = await loadArtists();
+    // public/data/artists_list.csv を fetch で取得（Edge対応）
+    const artists = await loadArtists(request);
+
     const summary = {
       artistsProcessed: artists.length,
       videosProcessed: 0,
@@ -100,37 +89,33 @@ export async function POST(
 
     for (const artist of artists) {
       const query = `${artist} ネタ`;
+
       try {
         const searchItems = await searchVideos(query, apiKey);
-        const videoItems = searchItems.filter(
-          (item) => item.idKind === "youtube#video",
-        );
-        const playlistItems = searchItems.filter(
-          (item) => item.idKind === "youtube#playlist",
-        );
+        const videoItems = searchItems.filter((i) => i.idKind === "youtube#video");
+        const playlistItems = searchItems.filter((i) => i.idKind === "youtube#playlist");
 
-        if (videoItems.length === 0 && playlistItems.length === 0) {
-          continue;
-        }
+        if (videoItems.length === 0 && playlistItems.length === 0) continue;
 
+        // 動画 upsert
         for (const item of videoItems) {
-          if (shouldSkipVideo(item.title)) {
-            continue;
-          }
+          if (shouldSkipVideo(item.title)) continue;
 
-          await upsertVideo(env.lafter_db, {
+          await upsertVideo(db, {
             id: item.videoId!,
             title: item.title,
             channelId: item.channelId,
             publishedAt: item.publishedAt,
+            // ここでは未取得。必要なら Videos API で duration を別取得してください
             duration: "PT0S",
           });
 
           summary.videosProcessed += 1;
         }
 
+        // プレイリスト upsert
         for (const item of playlistItems) {
-          await upsertPlaylist(env.lafter_db, {
+          await upsertPlaylist(db, {
             id: item.playlistId!,
             title: item.title,
             channelId: item.channelId,
@@ -140,7 +125,7 @@ export async function POST(
         }
       } catch (artistError) {
         summary.errors.push(
-          `${artist}: ${(artistError as Error).message ?? "処理に失敗しました。"}`,
+          `${artist}: ${(artistError as Error)?.message ?? "処理に失敗しました。"}`
         );
       }
     }
@@ -152,41 +137,79 @@ export async function POST(
         message: "動画情報の取得中に予期せぬエラーが発生しました。",
         detail: (error as Error).message,
       },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }
 
-async function loadArtists(): Promise<string[]> {
-  // この関数では CSV から芸人名を丁寧に読み込み、（）内情報を除外しつつ / で分割した個別名を集約します。
-  const csv = await readFile(ARTIST_FILE_PATH, "utf8");
-  const [, ...rows] = csv.split(/\r?\n/);
-  const unique = new Set<string>();
+/* =========================
+ * Helpers
+ * =======================*/
 
+async function loadArtists(request: Request): Promise<string[]> {
+  // CSV は public/data/artists_list.csv に配置しておく
+  const csvUrl = new URL("/data/artists_list.csv", request.url);
+  const res = await fetch(csvUrl.toString());
+  if (!res.ok) throw new Error("artists_list.csv を読み込めませんでした。");
+  const csv = await res.text();
+
+  const lines = csv.trim().split(/\r?\n/);
+  const rows = lines.slice(1); // 1行目ヘッダー想定
+
+  const unique = new Set<string>();
   for (const line of rows) {
-    const [, artistRaw] = line.split(",");
-    const sanitizedNames = expandArtistNames(artistRaw?.trim() ?? "");
-    for (const name of sanitizedNames) {
-      if (name === "" || name === "–" || unique.has(name)) {
-        continue;
-      }
-      unique.add(name);
+    if (!line) continue;
+    const cols = splitCsvLine(line); // 引用符対応で分割
+    // 2列目（index=1）が「出演者」の想定。列が違う場合はインデックスを調整
+    const artistRaw = (cols[1] ?? "").trim();
+    if (!artistRaw) continue;
+
+    for (const name of expandArtistNames(artistRaw)) {
+      if (name && name !== "–") unique.add(name);
     }
   }
 
   return Array.from(unique);
 }
 
-async function searchVideos(
-  query: string,
-  apiKey: string,
-): Promise<SearchItem[]> {
-  // この関数では YouTube Search API を丁寧に呼び出し、動画候補の基本情報だけを抽出します。
+// ダブルクオート対応の CSV 1 行分割（,）
+// "a,b",c → ["a,b", "c"]
+function splitCsvLine(line: string): string[] {
+  const cols = line.split(/,(?=(?:[^"]*"[^"]*")*[^"]*$)/g);
+  return cols.map((s) => {
+    const m = s.match(/^"(.*)"$/);
+    return m ? m[1] : s;
+  });
+}
+
+// かっこ内（全角/半角）を除去し、各種区切りで分割
+function expandArtistNames(raw: string): string[] {
+  const noParens = raw
+    .replace(/\s*\([^)]*\)/g, "") // 半角()
+    .replace(/\s*（[^）]*）/g, ""); // 全角（）
+  return noParens
+    .split(/[\/／・、&＆]|(?<=\S)と(?=\S)/g) // "/", "／", "・", "、", "&", "と"
+    .map((s) =>
+      s
+        .normalize("NFKC")
+        .replace(/\s+/g, " ")
+        .trim()
+    )
+    .filter(Boolean);
+}
+
+type SearchAPIResponse = {
+  items?: SearchResponseItem[];
+};
+
+async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]> {
   const url = new URL(SEARCH_BASE_URL);
   url.searchParams.set("part", "snippet");
   url.searchParams.set("order", "relevance");
   url.searchParams.set("maxResults", DEFAULT_MAX_RESULTS.toString());
   url.searchParams.set("q", query);
+  url.searchParams.set("type", "video,playlist");
+  url.searchParams.set("safeSearch", "none");
   url.searchParams.set("key", apiKey);
 
   const response = await fetch(url);
@@ -194,13 +217,13 @@ async function searchVideos(
     throw new Error(`YouTube Search API の呼び出しに失敗しました (${response.status}).`);
   }
 
-  const data = await response.json();
-  return (data.items ?? [])
-    .filter(
-      (item: unknown): item is SearchResponseItem =>
-        typeof item === "object" && item !== null,
-    )
-    .map((item: SearchResponseItem) => ({
+  // ここがポイント：unknown を具体的な型にアサート
+  const data = (await response.json()) as SearchAPIResponse;
+
+  const items = Array.isArray(data.items) ? data.items : [];
+  return items
+    .filter((item: unknown): item is SearchResponseItem => typeof item === "object" && item !== null)
+    .map((item) => ({
       idKind: item.id?.kind ?? "",
       videoId: item.id?.videoId ?? "",
       playlistId: item.id?.playlistId ?? "",
@@ -209,7 +232,7 @@ async function searchVideos(
       publishedAt: item.snippet?.publishedAt ?? undefined,
       title: item.snippet?.title ?? "",
     }))
-    .filter((item: SearchItem) => {
+    .filter((item) => {
       if (item.idKind === "youtube#video") {
         return Boolean(item.videoId && item.channelId && item.title);
       }
@@ -227,26 +250,25 @@ async function upsertVideo(
     title: string;
     channelId: string;
     publishedAt?: string;
-    duration: string;
-  },
+    duration: string; // ISO8601, 例: PT3M12S
+  }
 ) {
-  // この関数では 動画のメタデータを丁寧に整形し、videos テーブルへ保存します。
   const durationSec = toSeconds(input.duration);
   const lastCheckedAt = new Date().toISOString();
 
   await db
     .prepare(
       `
-        INSERT INTO videos (id, title, channel_id, published_at, duration_sec, category, last_checked_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          title = excluded.title,
-          channel_id = excluded.channel_id,
-          published_at = excluded.published_at,
-          duration_sec = excluded.duration_sec,
-          category = excluded.category,
-          last_checked_at = excluded.last_checked_at
-      `,
+      INSERT INTO videos (id, title, channel_id, published_at, duration_sec, category, last_checked_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        title = excluded.title,
+        channel_id = excluded.channel_id,
+        published_at = excluded.published_at,
+        duration_sec = excluded.duration_sec,
+        category = excluded.category,
+        last_checked_at = excluded.last_checked_at
+    `
     )
     .bind(
       input.id,
@@ -254,69 +276,43 @@ async function upsertVideo(
       input.channelId,
       input.publishedAt ?? null,
       durationSec,
-      0,
-      lastCheckedAt,
+      0, // category: 未分類
+      lastCheckedAt
     )
     .run();
 }
 
 async function upsertPlaylist(
   db: D1Database,
-  input: {
-    id: string;
-    title: string;
-    channelId: string;
-  },
+  input: { id: string; title: string; channelId: string }
 ) {
-  // この関数では プレイリストのメタデータを丁寧に整形し、playlists テーブルへ保存します。
   const lastCheckedAt = new Date().toISOString();
 
   await db
     .prepare(
       `
-        INSERT INTO playlists (id, channel_id, name, is_included, status, last_checked)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(id) DO UPDATE SET
-          channel_id = excluded.channel_id,
-          name = excluded.name,
-          last_checked = excluded.last_checked
-      `,
+      INSERT INTO playlists (id, channel_id, name, is_included, status, last_checked)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(id) DO UPDATE SET
+        channel_id = excluded.channel_id,
+        name = excluded.name,
+        last_checked = excluded.last_checked
+    `
     )
     .bind(input.id, input.channelId, input.title, 0, 0, lastCheckedAt)
     .run();
 }
 
 function shouldSkipVideo(title: string): boolean {
-  // この関数では タイトルの含有語を丁寧に判定し、条件に合わない動画を除外します。
-  const hasPositive = POSITIVE_VIDEO_KEYWORDS.some((word) =>
-    title.includes(word),
-  );
-  const hasNegative = NEGATIVE_VIDEO_KEYWORDS.some((word) =>
-    title.includes(word),
-  );
+  const hasPositive = POSITIVE_VIDEO_KEYWORDS.some((w) => title.includes(w));
+  const hasNegative = NEGATIVE_VIDEO_KEYWORDS.some((w) => title.includes(w));
   return !hasPositive && hasNegative;
 }
 
-function expandArtistNames(raw: string): string[] {
-  // この関数では / で区切られた芸人名を丁寧に分割し、（）内の補足情報を除去します。
-  return raw
-    .split("/")
-    .map((part) =>
-      part
-        .replace(/\s*\([^)]*\)/g, "")
-        .replace(/\s*（[^）]*）/g, "")
-        .trim(),
-    )
-    .filter((name) => name !== "");
-}
-
 function toSeconds(isoDuration: string): number {
-  // この関数では ISO 8601 形式の再生時間を丁寧に秒数へ変換します。
   const pattern = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/;
   const match = pattern.exec(isoDuration);
-  if (!match) {
-    return 0;
-  }
+  if (!match) return 0;
 
   const [, hours, minutes, seconds] = match;
   const hourValue = hours ? Number(hours) * 3600 : 0;
