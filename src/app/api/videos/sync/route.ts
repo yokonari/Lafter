@@ -1,4 +1,5 @@
 // app/api/videos/sync/route.ts
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { NextResponse } from "next/server";
 
 export const runtime = "edge";
@@ -55,11 +56,10 @@ const NEGATIVE_VIDEO_KEYWORDS = [
 ];
 
 // POST /api/videos/sync
-export async function POST(
-  request: Request,
-  { env }: { env: Env }
-): Promise<NextResponse> {
-  const db = env?.lafter_db;
+export async function POST(request: Request): Promise<NextResponse> {
+  const { env } = getCloudflareContext();
+  const bindings = env as Env | undefined;
+  const db = bindings?.lafter_db;
   if (!db) {
     return NextResponse.json(
       { message: "D1 データベースに接続できません。" },
@@ -67,8 +67,8 @@ export async function POST(
     );
   }
 
-  // Edge では process.env ではなく env から取得
-  const apiKey = env.YOUTUBE_API_KEY;
+  // Edge では process.env ではなく Cloudflare bindings から取得します。
+  const apiKey = bindings?.YOUTUBE_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { message: "YouTube API キーが設定されていません。" },
