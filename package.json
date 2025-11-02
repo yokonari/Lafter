@@ -8,10 +8,15 @@
 		"start": "next start",
 		"lint": "next lint",
 		"preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-		"deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+		"deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+		"db:gen": "npx drizzle-kit generate",
+    	"db:apply:local": "wrangler d1 migrations apply lafter-db --local",
+    	"db:apply:remote": "wrangler d1 migrations apply lafter-db --remote"
 	},
 	"dependencies": {
 		"@opennextjs/cloudflare": "^1.11.0",
+		"drizzle-orm": "^0.44.7",
+		"hono": "^4.10.4",
 		"next": "15.4.6",
 		"react": "19.1.0",
 		"react-dom": "19.1.0"
@@ -22,6 +27,7 @@
 		"@types/node": "^20",
 		"@types/react": "^19",
 		"@types/react-dom": "^19",
+		"drizzle-kit": "^0.31.6",
 		"eslint": "^9",
 		"eslint-config-next": "15.4.6",
 		"tailwindcss": "^4",
