@@ -236,7 +236,6 @@ async function upsertVideo(
       title: input.title,
       channelId: input.channelId,
       publishedAt: input.publishedAt ?? null,
-      durationSec,
       category: 0,
     })
     .onConflictDoUpdate({
@@ -245,7 +244,6 @@ async function upsertVideo(
         title: input.title,
         channelId: input.channelId,
         publishedAt: input.publishedAt ?? null,
-        durationSec,
         category: 0,
       },
     });
