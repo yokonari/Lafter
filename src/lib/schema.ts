@@ -86,13 +86,79 @@ export const searchLogs = sqliteTable(
 
 // アプリのユーザー（管理者のみ運用でも可）
 export const users = sqliteTable("users", {
-  id: text("id").primaryKey(),                  // UUID（Better AuthのuserIdでもOK）
-  email: text("email").notNull().unique(),      // ログイン用メール
-  passwordHash: text("password_hash").notNull(),// argon2id / bcrypt などのハッシュ
-  createdAt: text("created_at")
+  id: text("id").primaryKey(),                         // UUID（Better AuthのuserIdでもOK）
+  email: text("email").notNull().unique(),             // ログイン用メール
+  name: text("name").notNull().default(""),            // 表示名（Better Auth要件に合わせます）
+  emailVerified: integer("email_verified", { mode: "boolean" })
     .notNull()
-    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
-  updatedAt: text("updated_at")
+    .default(false),                                   // メール確認フラグ
+  image: text("image"),                                // プロフィール画像URL
+  passwordHash: text("password_hash"),                 // argon2id / bcrypt などのハッシュ（Better Auth 利用時は accounts.password に保存されます）
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
-    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+    .default(sql`(cast(unixepoch('now') * 1000 as integer))`),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(cast(unixepoch('now') * 1000 as integer))`),
+});
+
+/* =========================
+   accounts
+   ========================= */
+export const accounts = sqliteTable("accounts", {
+  id: text("id").primaryKey(),                        // Better Auth のアカウント識別子
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  providerId: text("provider_id").notNull(),          // 認証プロバイダー識別子
+  accountId: text("account_id").notNull(),            // プロバイダー側のアカウントID
+  accessToken: text("access_token"),
+  refreshToken: text("refresh_token"),
+  idToken: text("id_token"),
+  accessTokenExpiresAt: integer("access_token_expires_at", { mode: "timestamp_ms" }),
+  refreshTokenExpiresAt: integer("refresh_token_expires_at", { mode: "timestamp_ms" }),
+  scope: text("scope"),
+  password: text("password"),                         // メール・パスワード認証向けのハッシュ格納先
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(cast(unixepoch('now') * 1000 as integer))`),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(cast(unixepoch('now') * 1000 as integer))`),
+});
+
+/* =========================
+   sessions
+   ========================= */
+export const sessions = sqliteTable("sessions", {
+  id: text("id").primaryKey(),                        // セッションID
+  userId: text("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  token: text("token").notNull(),                     // セッショントークン
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(), // 有効期限
+  ipAddress: text("ip_address"),                      // 発行元IP
+  userAgent: text("user_agent"),                      // UA文字列
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(cast(unixepoch('now') * 1000 as integer))`),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(cast(unixepoch('now') * 1000 as integer))`),
+});
+
+/* =========================
+   verifications
+   ========================= */
+export const verifications = sqliteTable("verifications", {
+  id: text("id").primaryKey(),                        // 検証ID
+  identifier: text("identifier").notNull(),           // メールアドレスなどの識別子
+  value: text("value").notNull(),                     // 検証トークン等
+  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(), // 有効期限
+  createdAt: integer("created_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(cast(unixepoch('now') * 1000 as integer))`),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+    .notNull()
+    .default(sql`(cast(unixepoch('now') * 1000 as integer))`),
 });

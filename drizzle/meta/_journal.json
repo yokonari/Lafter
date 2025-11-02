@@ -29,6 +29,20 @@
       "when": 1762096726187,
       "tag": "0003_clumsy_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1762108577828,
+      "tag": "0004_lumpy_shotgun",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1762108831522,
+      "tag": "0005_first_bill_hollister",
+      "breakpoints": true
     }
   ]
 }
