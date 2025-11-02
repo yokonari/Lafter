@@ -6,8 +6,15 @@ import { registerGetAdminVideos } from "./routes/get-admin-videos";
 import { registerPostAdminVideoBulk } from "./routes/post-admin-video-bulk";
 import { registerGetAdminPlaylists } from "./routes/get-admin-playlists";
 import { registerPostAdminPlaylistBulk } from "./routes/post-admin-playlist-bulk";
+import { authMiddleware } from "@/lib/middleware/auth";
+import type { AdminEnv } from "./types";
 
-const app = new Hono().basePath("/api");
+const app = new Hono<AdminEnv>().basePath("/api");
+
+// 管理者向けエンドポイント全体に丁寧な認証チェックを差し込みます。
+app.use("/admin/*", authMiddleware);
+
+export type AppType = typeof app;
 
 registerGetVideos(app);
 registerPostVideosSync(app);

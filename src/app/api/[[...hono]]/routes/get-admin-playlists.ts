@@ -3,10 +3,11 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { desc, eq } from "drizzle-orm";
 import { playlists } from "@/lib/schema";
 import { createDatabase } from "../context";
+import type { AdminEnv } from "../types";
 
 const MAX_LIMIT = 50;
 
-export function registerGetAdminPlaylists(app: Hono) {
+export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
   app.get("/admin/play_lists", async (c) => {
     const rawPage = c.req.query("page");
     const parsedPage = rawPage ? Number(rawPage) : 1;
