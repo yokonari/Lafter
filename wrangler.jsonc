@@ -20,9 +20,10 @@
 	},
 	"d1_databases": [
 		{
-			"binding": "lafter_db",
+			"binding": "DB",
 			"database_name": "lafter-db",
-			"database_id": "71bdfa4e-19df-4fde-a55c-c04de33eff3e"
+			"database_id": "71bdfa4e-19df-4fde-a55c-c04de33eff3e",
+			"migrations_dir": "drizzle"
 		}
 	]
 	/**
