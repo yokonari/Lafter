@@ -1,4 +1,4 @@
-import { playlists, videos } from "@/lib/schema";
+import { channels, playlists, videos } from "@/lib/schema";
 import { drizzle } from "drizzle-orm/d1";
 import type { D1Database } from "@cloudflare/workers-types";
 import { Hono } from "hono";
@@ -89,6 +89,8 @@ app.post("/videos/sync", async (c) => {
       playlistsProcessed: 0,
       errors: [] as string[],
     };
+    // 外部キー制約で失敗しないよう、処理済みチャンネルを控えさせていただきます。
+    const ensuredChannels = new Set<string>();
 
     for (const artist of artists) {
       const query = `${artist} ネタ`;
@@ -99,17 +101,18 @@ app.post("/videos/sync", async (c) => {
 
         for (const item of videoItems) {
           if (shouldSkipVideo(item.title)) continue;
+          await ensureChannel(db, ensuredChannels, item.channelId, item.channelTitle);
           await upsertVideo(db, {
             id: item.videoId!,
             title: item.title,
             channelId: item.channelId,
             publishedAt: item.publishedAt,
-            duration: "PT0S",
           });
           summary.videosProcessed += 1;
         }
 
         for (const item of playlistItems) {
+          await ensureChannel(db, ensuredChannels, item.channelId, item.channelTitle);
           await upsertPlaylist(db, {
             id: item.playlistId!,
             title: item.title,
@@ -217,6 +220,47 @@ async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]
     );
 }
 
+async function ensureChannel(
+  db: AppDatabase,
+  ensured: Set<string>,
+  channelId: string,
+  channelTitle: string,
+) {
+  if (ensured.has(channelId)) return;
+  if (!channelId) return;
+  if (!channelTitle) {
+    ensured.add(channelId);
+    return;
+  }
+  // チャンネル情報を先にご用意し、動画や再生リスト挿入時の外部キー違反を丁寧に避けさせていただきます。
+  await upsertChannel(db, {
+    id: channelId,
+    name: channelTitle,
+  });
+  ensured.add(channelId);
+}
+
+async function upsertChannel(
+  db: AppDatabase,
+  input: {
+    id: string;
+    name: string;
+  },
+) {
+  await db
+    .insert(channels)
+    .values({
+      id: input.id,
+      name: input.name,
+    })
+    .onConflictDoUpdate({
+      target: channels.id,
+      set: {
+        name: input.name,
+      },
+    });
+}
+
 async function upsertVideo(
   db: AppDatabase,
   input: {
@@ -224,10 +268,8 @@ async function upsertVideo(
     title: string;
     channelId: string;
     publishedAt?: string;
-    duration: string;
   },
 ) {
-  const durationSec = toSeconds(input.duration);
   // Drizzle の upsert で動画情報を丁寧に更新・挿入いたします。
   await db
     .insert(videos)
@@ -237,6 +279,8 @@ async function upsertVideo(
       channelId: input.channelId,
       publishedAt: input.publishedAt ?? null,
       category: 0,
+      isIncluded: 0,
+      status: 0,
     })
     .onConflictDoUpdate({
       target: videos.id,
@@ -245,6 +289,8 @@ async function upsertVideo(
         channelId: input.channelId,
         publishedAt: input.publishedAt ?? null,
         category: 0,
+        isIncluded: 0,
+        status: 0,
       },
     });
 }
@@ -275,13 +321,6 @@ function shouldSkipVideo(title: string): boolean {
   const hasPositive = POSITIVE_VIDEO_KEYWORDS.some((w) => title.includes(w));
   const hasNegative = NEGATIVE_VIDEO_KEYWORDS.some((w) => title.includes(w));
   return !hasPositive && hasNegative;
-}
-
-function toSeconds(iso: string): number {
-  const m = /PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/.exec(iso);
-  if (!m) return 0;
-  const [, H, M, S] = m;
-  return (H ? +H * 3600 : 0) + (M ? +M * 60 : 0) + (S ? +S : 0);
 }
 
 export const GET = handle(app);

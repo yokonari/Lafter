@@ -34,6 +34,7 @@ export const videos = sqliteTable(
     id: text("id").primaryKey(),
     title: text("title").notNull(),
     channelId: text("channel_id")
+      .notNull()
       .references(() => channels.id, { onDelete: "cascade", onUpdate: "cascade" }),
     publishedAt: text("published_at"),
     category: integer("category").default(0),
