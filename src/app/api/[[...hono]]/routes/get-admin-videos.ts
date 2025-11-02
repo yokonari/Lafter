@@ -3,10 +3,11 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { desc, eq } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
+import type { AdminEnv } from "../types";
 
 const MAX_LIMIT = 50;
 
-export function registerGetAdminVideos(app: Hono) {
+export function registerGetAdminVideos(app: Hono<AdminEnv>) {
   app.get("/admin/videos", async (c) => {
     const rawPage = c.req.query("page");
     const parsedPage = rawPage ? Number(rawPage) : 1;

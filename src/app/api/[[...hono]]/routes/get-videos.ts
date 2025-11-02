@@ -3,10 +3,11 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { and, desc, eq, like, or, sql } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
+import type { AdminEnv } from "../types";
 
 const MAX_LIMIT = 50;
 
-export function registerGetVideos(app: Hono) {
+export function registerGetVideos(app: Hono<AdminEnv>) {
   app.get("/videos", async (c) => {
     const { env } = getCloudflareContext();
     // 型定義済みの env から安全に DB インスタンスを取得いたします。

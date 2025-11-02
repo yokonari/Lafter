@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { channels, playlists, videos } from "@/lib/schema";
 import { createDatabase, type AppDatabase } from "../context";
+import type { AdminEnv } from "../types";
 
 type SearchItem = {
   idKind: string;
@@ -45,7 +46,7 @@ const NEGATIVE_VIDEO_KEYWORDS = [
   "タイムスタンプ",
 ];
 
-export function registerPostVideosSync(app: Hono) {
+export function registerPostVideosSync(app: Hono<AdminEnv>) {
   app.post("/videos/sync", async (c) => {
     const request = c.req.raw;
     const { env } = getCloudflareContext();

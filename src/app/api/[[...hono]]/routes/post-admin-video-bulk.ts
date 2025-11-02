@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
+import type { AdminEnv } from "../types";
 
 type BulkItem = {
   id?: unknown;
@@ -22,7 +23,7 @@ type ChannelInsert = typeof channels.$inferInsert;
 
 const MAX_ITEMS_PER_REQUEST = 100;
 
-export function registerPostAdminVideoBulk(app: Hono) {
+export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
   app.post("/admin/video/bulk", async (c) => {
     const { env } = getCloudflareContext();
     const db = createDatabase(env);

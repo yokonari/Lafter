@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { playlists } from "@/lib/schema";
 import { createDatabase } from "../context";
+import type { AdminEnv } from "../types";
 
 type BulkPlaylistItem = {
   id?: unknown;
@@ -16,7 +17,7 @@ type BulkPlaylistBody = {
 
 const MAX_ITEMS_PER_REQUEST = 100;
 
-export function registerPostAdminPlaylistBulk(app: Hono) {
+export function registerPostAdminPlaylistBulk(app: Hono<AdminEnv>) {
   app.post("/admin/play_list/bulk", async (c) => {
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
