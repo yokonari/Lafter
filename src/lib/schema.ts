@@ -83,3 +83,16 @@ export const searchLogs = sqliteTable(
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
   },
 );
+
+// アプリのユーザー（管理者のみ運用でも可）
+export const users = sqliteTable("users", {
+  id: text("id").primaryKey(),                  // UUID（Better AuthのuserIdでもOK）
+  email: text("email").notNull().unique(),      // ログイン用メール
+  passwordHash: text("password_hash").notNull(),// argon2id / bcrypt などのハッシュ
+  createdAt: text("created_at")
+    .notNull()
+    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+  updatedAt: text("updated_at")
+    .notNull()
+    .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`),
+});
