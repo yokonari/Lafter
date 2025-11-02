@@ -21,7 +21,22 @@ export default function AdminLoginPage() {
     setMessage(null);
     setLoading(true);
     try {
-      await authClient.signIn.email({ email, password });
+      const { error: responseError } = await authClient.signIn.email({ email, password });
+      // API が丁寧に返したエラーも画面で分かりやすく利用者へお伝えします。
+      if (responseError) {
+        let errorMessage = "ログインに失敗しました。";
+        if (typeof responseError === "object" && responseError !== null) {
+          if ("message" in responseError && typeof responseError.message === "string") {
+            errorMessage = responseError.message;
+          } else if ("statusText" in responseError && typeof responseError.statusText === "string") {
+            errorMessage = responseError.statusText;
+          }
+        } else if (typeof responseError === "string") {
+          errorMessage = responseError;
+        }
+        setMessage(errorMessage);
+        return;
+      }
       setMessage("ログインに成功しました。数秒後に画面が遷移します。");
     } catch (error) {
       // メールアドレス認証が失敗した場合も丁寧に利用者へお知らせします。
