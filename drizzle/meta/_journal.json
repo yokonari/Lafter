@@ -15,6 +15,13 @@
       "when": 1762082026356,
       "tag": "0001_optimal_mac_gargan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1762083415259,
+      "tag": "0002_flowery_tomas",
+      "breakpoints": true
     }
   ]
 }
