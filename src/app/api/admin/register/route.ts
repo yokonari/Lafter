@@ -1,4 +1,6 @@
 import { APIError } from "better-auth/api";
+import { statusCode as httpStatusCode } from "better-call";
+// better-call の HTTP ステータス対応表を丁寧に参照します。
 // エラーハンドリングでは公式 API モジュールの APIError を丁寧に参照します。
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getAuth } from "@/lib/admin-auth";
@@ -34,7 +36,8 @@ export async function POST(request: Request) {
   const auth = getAuth(env.DB);
 
   try {
-    const result = await auth.api.signUpEmail({
+    // better-auth の型定義が body を undefined と解釈してしまうため、丁寧にコンテキストを整形してお渡しします。
+    const signUpContext = {
       body: {
         name,
         email,
@@ -42,12 +45,15 @@ export async function POST(request: Request) {
       },
       headers: request.headers,
       request,
-    });
+    };
+    const result = await auth.api.signUpEmail(
+      signUpContext as unknown as Parameters<typeof auth.api.signUpEmail>[0],
+    );
 
     return Response.json(
       {
         message: "管理者登録が完了しました。",
-        token: result.token ?? null,
+        session: result.session ?? null,
         user: result.user,
       },
       { status: 201 },
@@ -56,11 +62,9 @@ export async function POST(request: Request) {
     // 認証ライブラリからのエラー内容も丁寧に変換してお知らせいたします。
     if (error instanceof APIError) {
       const statusCode =
-        typeof error.statusCode === "number"
-          ? error.statusCode
-          : typeof error.status === "number"
-            ? error.status
-            : undefined;
+        typeof error.status === "string"
+          ? httpStatusCode[error.status] ?? 400
+          : 400;
       const message =
         typeof error.message === "string" && error.message.trim() !== ""
           ? error.message

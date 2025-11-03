@@ -83,8 +83,9 @@ async function fetchAdminVideos(page: number): Promise<AdminVideosResponse> {
 
 type PageSearchParams = { page?: string };
 
+// Next.js 側で searchParams が Promise として渡される想定に丁寧に合わせます。
 type PageProps = {
-  searchParams?: PageSearchParams | Promise<PageSearchParams>;
+  searchParams?: Promise<PageSearchParams | undefined>;
 };
 
 export default async function AdminVideosPage({ searchParams }: PageProps) {

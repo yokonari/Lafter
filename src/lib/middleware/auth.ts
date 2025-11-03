@@ -1,6 +1,7 @@
 import { getAuth } from "@/lib/admin-auth";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import type { Session, User } from "better-auth";
+import type { Session, User } from "better-auth/types";
+// 認証情報を扱う型を better-auth/types から丁寧に参照します。
 import { createMiddleware } from "hono/factory";
 
 export const authMiddleware = createMiddleware<{
