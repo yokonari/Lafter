@@ -75,7 +75,8 @@ export default function AdminLoginPage() {
             window.location.href = responseData.url;
             return;
           }
-          window.location.reload();
+          // 認証完了後は丁寧に動画一覧ページへご案内し、管理作業へ素早く移れるようにいたします。
+          window.location.href = "/admin/videos";
         }, 1000);
       }
     } catch (error) {
