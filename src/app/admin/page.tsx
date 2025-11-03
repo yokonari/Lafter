@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useMemo, useState } from "react";
-import { createAuthClient } from "better-auth/client";
+import { createAuthClient } from "better-auth/react";
+import type { ClientOptions } from "better-auth/types";
+// Better Auth の公式型定義を丁寧に参照し、将来も安心して利用できるようにいたします。
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -9,10 +11,19 @@ export default function AdminLoginPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [submittingAction, setSubmittingAction] = useState<"login" | "register" | null>(null);
 
-  const authClient = useMemo(() => {
+  type BaseAuthClient = ReturnType<typeof createAuthClient<ClientOptions>>;
+  type AuthClient = BaseAuthClient & {
+    signIn: {
+      email: (params: { email: string; password: string }) => Promise<{
+        data?: Record<string, unknown> | null;
+        error?: unknown;
+      }>;
+    };
+  };
+  const authClient = useMemo<AuthClient>(() => {
     const baseURL =
       typeof window === "undefined" ? undefined : `${window.location.origin}/api/auth`;
-    return createAuthClient(baseURL ? { baseURL } : {});
+    return createAuthClient<ClientOptions>(baseURL ? { baseURL } : {}) as AuthClient;
   }, []);
 
   // 管理者認証 API へ丁寧にサインインを依頼します。
@@ -21,7 +32,10 @@ export default function AdminLoginPage() {
     setMessage(null);
     setSubmittingAction("login");
     try {
-      const { error: responseError } = await authClient.signIn.email({ email, password });
+      const { data: responseData, error: responseError } = await authClient.signIn.email({
+        email,
+        password,
+      });
       // API が丁寧に返したエラーも画面で分かりやすく利用者へお伝えします。
       if (responseError) {
         let errorMessage = "ログインに失敗しました。";
@@ -37,7 +51,33 @@ export default function AdminLoginPage() {
         setMessage(errorMessage);
         return;
       }
-      setMessage("ログインに成功しました。数秒後に画面が遷移します。");
+
+      const successMessage =
+        typeof responseData === "object" &&
+        responseData !== null &&
+        "message" in responseData &&
+        typeof responseData.message === "string" &&
+        responseData.message.trim() !== ""
+          ? responseData.message
+          : "ログインに成功しました。少々お待ちください。";
+      setMessage(successMessage);
+      if (typeof window !== "undefined") {
+        // 成功後は丁寧に画面を更新し、最新の認証状態を反映いたします。
+        setTimeout(() => {
+          if (
+            responseData &&
+            typeof responseData === "object" &&
+            "redirect" in responseData &&
+            responseData.redirect === true &&
+            "url" in responseData &&
+            typeof responseData.url === "string"
+          ) {
+            window.location.href = responseData.url;
+            return;
+          }
+          window.location.reload();
+        }, 1000);
+      }
     } catch (error) {
       // メールアドレス認証が失敗した場合も丁寧に利用者へお知らせします。
       const errorMessage =
