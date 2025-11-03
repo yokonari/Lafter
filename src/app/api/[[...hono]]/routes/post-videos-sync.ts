@@ -50,7 +50,11 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
   app.post("/videos/sync", async (c) => {
     const request = c.req.raw;
     const { env } = getCloudflareContext();
-    const apiKey = env.YOUTUBE_API_KEY;
+    const apiKey =
+      env.YOUTUBE_API_KEY ??
+      // ローカル開発時は process.env から丁寧に補完し、共有の環境変数設定を維持いたします。
+      process.env.YOUTUBE_API_KEY ??
+      "";
     if (!apiKey) {
       return c.json(
         { message: "YouTube API キーが設定されていません。" },
