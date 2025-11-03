@@ -43,6 +43,13 @@
       "when": 1762108831522,
       "tag": "0005_first_bill_hollister",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1762166234680,
+      "tag": "0006_perfect_omega_sentinel",
+      "breakpoints": true
     }
   ]
 }

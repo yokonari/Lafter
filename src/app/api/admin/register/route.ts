@@ -1,4 +1,5 @@
-import { APIError } from "better-auth";
+import { APIError } from "better-auth/api";
+// エラーハンドリングでは公式 API モジュールの APIError を丁寧に参照します。
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getAuth } from "@/lib/admin-auth";
 

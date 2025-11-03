@@ -135,7 +135,7 @@ export const sessions = sqliteTable("sessions", {
   userId: text("user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
-  token: text("token").notNull(),                     // セッショントークン
+  token: text("token"),                               // セッション作成直後はトークン未生成のため丁寧に null を許容します
   expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(), // 有効期限
   ipAddress: text("ip_address"),                      // 発行元IP
   userAgent: text("user_agent"),                      // UA文字列
