@@ -48,7 +48,6 @@ const NEGATIVE_VIDEO_KEYWORDS = [
 
 export function registerPostVideosSync(app: Hono<AdminEnv>) {
   app.post("/videos/sync", async (c) => {
-    const request = c.req.raw;
     const { env } = getCloudflareContext();
     const apiKey =
       env.YOUTUBE_API_KEY ??
@@ -65,7 +64,12 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
     const db = createDatabase(env);
 
     try {
-      const artists = await loadArtists(request);
+      const csv = await env.LAFTER.get('artists_list');
+      if (csv == null) return c.json(
+        { message: "CSVを取得できません。" },
+        500,
+      );
+      const artists = await loadArtists(csv);
 
       const summary = {
         artistsProcessed: artists.length,
@@ -117,6 +121,7 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
         {
           message: "動画情報の取得中に予期せぬエラーが発生しました。",
           detail: (error as Error).message,
+          keys: env.LAFTER
         },
         500,
       );
@@ -126,15 +131,7 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
 
 // 以下、YouTube 検索とデータ整形に関する補助関数を丁寧にご用意いたします。
 
-async function loadArtists(request: Request): Promise<string[]> {
-  // Edge 環境でも安定して参照できる CSV を fetch で読み込ませていただきます。
-  const csvUrl = new URL("/data/artists_list.csv", request.url);
-  const res = await fetch(csvUrl.toString());
-  if (!res.ok) {
-    throw new Error("artists_list.csv を読み込めませんでした。");
-  }
-  const csv = await res.text();
-
+async function loadArtists(csv: string): Promise<string[]> {
   const lines = csv.trim().split(/\r?\n/);
   const rows = lines.slice(1);
 

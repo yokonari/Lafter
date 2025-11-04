@@ -88,6 +88,34 @@ type PageProps = {
   searchParams?: Promise<PageSearchParams | undefined>;
 };
 
+// YouTube の視聴URLを埋め込み用URLへ丁寧に変換します。
+function toYouTubeEmbedUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, "");
+    if (hostname === "youtu.be") {
+      const videoId = parsed.pathname.slice(1);
+      return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+    }
+    if (hostname === "youtube.com" || hostname === "m.youtube.com" || hostname === "youtube-nocookie.com") {
+      if (parsed.pathname === "/watch") {
+        const videoId = parsed.searchParams.get("v");
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+      }
+      if (parsed.pathname.startsWith("/embed/")) {
+        return url;
+      }
+      if (parsed.pathname.startsWith("/shorts/")) {
+        const videoId = parsed.pathname.split("/")[2];
+        return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+      }
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
 export default async function AdminVideosPage({ searchParams }: PageProps) {
   // Next.js の Promise 化された searchParams に丁寧に対応します。
   const resolvedSearchParams = (await searchParams) ?? {};
@@ -166,14 +194,35 @@ export default async function AdminVideosPage({ searchParams }: PageProps) {
                         {video.is_registered_channel === 0 ? "未登録" : "登録済み"}
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        <a
-                          href={video.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-slate-900 underline underline-offset-4 hover:text-slate-700"
-                        >
-                          開く
-                        </a>
+                        {(() => {
+                          const embedUrl = toYouTubeEmbedUrl(video.url);
+                          if (!embedUrl) {
+                            return (
+                              <a
+                                href={video.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-slate-900 underline underline-offset-4 hover:text-slate-700"
+                              >
+                                開く
+                              </a>
+                            );
+                          }
+                          return (
+                            <div
+                              className="w-64 overflow-hidden rounded border border-slate-200 shadow-sm"
+                              style={{ aspectRatio: "16 / 9" }}
+                            >
+                              <iframe
+                                src={embedUrl}
+                                title={`video-${video.id}`}
+                                className="h-full w-full"
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                allowFullScreen
+                              />
+                            </div>
+                          );
+                        })()}
                       </td>
                     </tr>
                   ))
