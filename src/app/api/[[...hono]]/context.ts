@@ -6,6 +6,7 @@ declare global {
   interface CloudflareEnv {
     DB: D1Database;
     YOUTUBE_API_KEY?: string;
+    LAFTER: KVNamespace;
   }
 }
 

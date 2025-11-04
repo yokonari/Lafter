@@ -25,6 +25,16 @@
 			"database_id": "71bdfa4e-19df-4fde-a55c-c04de33eff3e",
 			"migrations_dir": "drizzle"
 		}
+	],
+	// Add this to your wrangler.jsonc
+	"kv_namespaces": [
+		{
+			"binding": "LAFTER",
+			"id": "51b18dfbf52a46aa8f9993f67bca584c",
+
+			// Optional: preview_id used when running `wrangler dev` for local dev
+			"preview_id": "415ea1f076054575b235810913b518ac"
+		}
 	]
 	/**
 	 * Smart Placement
