@@ -50,6 +50,13 @@
       "when": 1762166234680,
       "tag": "0006_perfect_omega_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1762351916474,
+      "tag": "0007_loving_vivisector",
+      "breakpoints": true
     }
   ]
 }

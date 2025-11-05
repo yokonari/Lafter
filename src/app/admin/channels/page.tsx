@@ -1,0 +1,138 @@
+import { headers } from "next/headers";
+import { AdminTabsLayout } from "../components/AdminTabsLayout";
+import { ChannelBulkManager } from "../components/ChannelBulkManager";
+
+type AdminChannel = {
+  id: string;
+  url: string;
+  name: string;
+  status: number;
+  keyword?: string;
+};
+
+type AdminChannelsResponse = {
+  channels: AdminChannel[];
+  page: number;
+};
+
+const PAGE_LIMIT = 50;
+
+// API から管理画面用のチャンネル一覧を丁寧に取り出します。
+async function fetchAdminChannels(page: number): Promise<AdminChannelsResponse> {
+  const headerList = await headers();
+  const protocol =
+    (await headerList).get("x-forwarded-proto") ??
+    (await headerList).get("x-forwarded-protocol") ??
+    "http";
+  const host = (await headerList).get("x-forwarded-host") ?? (await headerList).get("host");
+
+  if (!host) {
+    throw new Error("ホスト情報を取得できませんでした。");
+  }
+
+  const url = new URL("/api/admin/channels", `${protocol}://${host}`);
+  if (page > 1) {
+    url.searchParams.set("page", String(page));
+  }
+
+  // 認証済みの Cookie などを丁寧に引き継ぎ、API 側の認可を通過します。
+  const cookieHeader = headerList.get("cookie");
+  const authorizationHeader = headerList.get("authorization");
+
+  const response = await fetch(url.toString(), {
+    cache: "no-store",
+    headers: {
+      ...(cookieHeader ? { cookie: cookieHeader } : {}),
+      ...(authorizationHeader ? { authorization: authorizationHeader } : {}),
+    },
+  });
+
+  let payload: unknown = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!response.ok) {
+    const defaultMessage =
+      response.status === 401
+        ? "ログインの有効期限が切れています。お手数ですが再度ログインしてください。"
+        : `チャンネル一覧の取得に失敗しました。(HTTP ${response.status})`;
+    const message =
+      payload &&
+      typeof payload === "object" &&
+      payload !== null &&
+      "message" in payload &&
+      typeof (payload as { message?: string }).message === "string"
+        ? (payload as { message?: string }).message
+        : defaultMessage;
+    throw new Error(message);
+  }
+
+  if (
+    !payload ||
+    typeof payload !== "object" ||
+    !("channels" in payload) ||
+    !Array.isArray((payload as { channels: unknown }).channels) ||
+    !("page" in payload)
+  ) {
+    throw new Error("取得したチャンネル一覧の形式が正しくありません。");
+  }
+
+  return payload as AdminChannelsResponse;
+}
+
+type PageSearchParams = { page?: string };
+
+// Next.js 側で Promise として渡される searchParams に丁寧に合わせます。
+type PageProps = {
+  searchParams?: Promise<PageSearchParams | undefined>;
+};
+
+export default async function AdminChannelsPage({ searchParams }: PageProps) {
+  // 動的に渡される searchParams を丁寧に解決します。
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const rawPage = resolvedSearchParams.page ? Number(resolvedSearchParams.page) : 1;
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+
+  let data: AdminChannelsResponse | null = null;
+  let errorMessage: string | null = null;
+
+  try {
+    // 指定ページのチャンネル一覧を丁寧に取得し、管理者へご案内します。
+    data = await fetchAdminChannels(page);
+  } catch (error) {
+    errorMessage = error instanceof Error ? error.message : "チャンネル一覧の取得に失敗しました。";
+  }
+
+  const channelsData = data?.channels ?? [];
+  const currentPage = data?.page ?? page;
+  const hasPrev = currentPage > 1;
+  const hasNext = channelsData.length === PAGE_LIMIT;
+
+  const prevPage = currentPage - 1;
+  const nextPage = currentPage + 1;
+
+  const prevHref = hasPrev ? `/admin/channels${prevPage > 1 ? `?page=${prevPage}` : ""}` : "#";
+  const nextHref = hasNext ? `/admin/channels?page=${nextPage}` : "#";
+
+  return (
+    <AdminTabsLayout activeTab="channels">
+      {errorMessage ? (
+        <p className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      ) : (
+        <ChannelBulkManager
+          channels={channelsData}
+          currentPage={currentPage}
+          hasPrev={hasPrev}
+          hasNext={hasNext}
+          prevHref={prevHref}
+          nextHref={nextHref}
+        />
+      )}
+    </AdminTabsLayout>
+  );
+}

@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { KVNamespace } from "@cloudflare/workers-types";
-import { sql } from "drizzle-orm";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { eq } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
 import { createDatabase, type AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -39,7 +39,6 @@ const NEGATIVE_VIDEO_KEYWORDS = [
   "ラジオ",
   "トーク",
   "ゲーム配信",
-  "♯",
   "実況",
   "インタビュー",
   "広告",
@@ -50,6 +49,10 @@ const NEGATIVE_VIDEO_KEYWORDS = [
   "聞き流し",
   "まとめ",
   "タイムスタンプ",
+  "切り抜き",
+  "Shorts",
+  "shorts",
+  "MV",
 ];
 
 export function registerPostVideosSync(app: Hono<AdminEnv>) {
@@ -146,9 +149,14 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
 
           for (const item of videoItems) {
             if (shouldSkipVideo(item.title)) continue;
+            if (!item.videoId) continue;
+
             try {
-              await upsertVideo(client, {
-                id: item.videoId!,
+              const exists = await videoExists(client, item.videoId);
+              if (exists) continue;
+
+              await insertVideo(client, {
+                id: item.videoId,
                 title: item.title,
                 channelId: item.channelId,
                 publishedAt: item.publishedAt,
@@ -165,9 +173,14 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
           }
 
           for (const item of playlistItems) {
+            if (!item.playlistId) continue;
+
             try {
-              await upsertPlaylist(client, {
-                id: item.playlistId!,
+              const exists = await playlistExists(client, item.playlistId);
+              if (exists) continue;
+
+              await insertPlaylist(client, {
+                id: item.playlistId,
                 title: item.title,
                 channelId: item.channelId,
               });
@@ -345,37 +358,49 @@ async function ensureChannel(
     throw new Error("チャンネル名を取得できませんでした。");
   }
   // チャンネル情報を先にご用意し、動画や再生リスト挿入時の外部キー違反を丁寧に避けさせていただきます。
-  await upsertChannel(db, {
-    id: channelId,
-    name: channelTitle,
-  });
+  const exists = await channelExists(db, channelId);
+  if (!exists) {
+    await insertChannel(db, {
+      id: channelId,
+      name: channelTitle,
+    });
+  }
   ensured.add(channelId);
 }
 
-async function upsertChannel(
+async function channelExists(db: DatabaseClient, channelId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: channels.id })
+    .from(channels)
+    .where(eq(channels.id, channelId))
+    .limit(1);
+  return rows.length > 0;
+}
+
+async function insertChannel(
   db: DatabaseClient,
   input: {
     id: string;
     name: string;
   },
 ) {
-  const query = db
-    .insert(channels)
-    .values({
-      id: input.id,
-      name: input.name,
-    })
-    .onConflictDoUpdate({
-      target: sql`"id"`,
-      set: {
-        name: input.name,
-      },
-    });
-  logQueryOnce("upsertChannel", query);
-  await query.execute();
+  await db.insert(channels).values({
+    id: input.id,
+    name: input.name,
+    lastChecked: new Date().toISOString(),
+  });
 }
 
-async function upsertVideo(
+async function videoExists(db: DatabaseClient, videoId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: videos.id })
+    .from(videos)
+    .where(eq(videos.id, videoId))
+    .limit(1);
+  return rows.length > 0;
+}
+
+async function insertVideo(
   db: DatabaseClient,
   input: {
     id: string;
@@ -384,78 +409,41 @@ async function upsertVideo(
     publishedAt?: string;
   },
 ) {
-  // Drizzle の upsert で動画情報を丁寧に更新・挿入いたします。
-  const query = db
-    .insert(videos)
-    .values({
-      id: input.id,
-      title: input.title,
-      channelId: input.channelId,
-      publishedAt: input.publishedAt ?? null,
-      category: 0,
-      isIncluded: 0,
-      status: 0,
-    })
-    .onConflictDoUpdate({
-      target: sql`"id"`,
-      set: {
-        title: input.title,
-        channelId: input.channelId,
-        publishedAt: input.publishedAt ?? null,
-        category: 0,
-        isIncluded: 0,
-        status: 0,
-      },
-    });
-  logQueryOnce("upsertVideo", query);
-  await query.execute();
+  await db.insert(videos).values({
+    id: input.id,
+    title: input.title,
+    channelId: input.channelId,
+    publishedAt: input.publishedAt ?? null,
+    category: 0,
+    isIncluded: 0,
+    status: 0,
+    lastCheckedAt: new Date().toISOString(),
+  });
 }
 
-async function upsertPlaylist(
+async function playlistExists(db: DatabaseClient, playlistId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: playlists.id })
+    .from(playlists)
+    .where(eq(playlists.id, playlistId))
+    .limit(1);
+  return rows.length > 0;
+}
+
+async function insertPlaylist(
   db: DatabaseClient,
   input: { id: string; title: string; channelId: string },
 ) {
-  const query = db
-    .insert(playlists)
-    .values({
-      id: input.id,
-      channelId: input.channelId,
-      name: input.title,
-      lastChecked: new Date().toISOString(),
-    })
-    .onConflictDoUpdate({
-      target: sql`"id"`,
-      set: {
-        channelId: input.channelId,
-        name: input.title,
-        lastChecked: new Date().toISOString(),
-      },
-    });
-  logQueryOnce("upsertPlaylist", query);
-  await query.execute();
+  await db.insert(playlists).values({
+    id: input.id,
+    channelId: input.channelId,
+    name: input.title,
+    lastChecked: new Date().toISOString(),
+  });
 }
 
 function shouldSkipVideo(title: string): boolean {
   const hasPositive = POSITIVE_VIDEO_KEYWORDS.some((w) => title.includes(w));
   const hasNegative = NEGATIVE_VIDEO_KEYWORDS.some((w) => title.includes(w));
   return !hasPositive && hasNegative;
-}
-
-const SQL_LOG_FLAGS = new Set<string>();
-const SHOULD_LOG_SQL =
-  typeof process !== "undefined" && process?.env?.NODE_ENV !== "production";
-
-function logQueryOnce(
-  label: string,
-  query: { toSQL: () => { sql: string; params: unknown[] } },
-) {
-  if (!SHOULD_LOG_SQL) return;
-  if (SQL_LOG_FLAGS.has(label)) return;
-  try {
-    const { sql } = query.toSQL();
-    console.debug(`[SQL:${label}] ${sql}`);
-    SQL_LOG_FLAGS.add(label);
-  } catch {
-    // toSQL を利用できない環境では静かにスキップし、処理を継続いたします。
-  }
 }

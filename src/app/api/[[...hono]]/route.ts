@@ -5,7 +5,9 @@ import { registerPostVideosSync } from "./routes/post-videos-sync";
 import { registerGetAdminVideos } from "./routes/get-admin-videos";
 import { registerPostAdminVideoBulk } from "./routes/post-admin-video-bulk";
 import { registerGetAdminPlaylists } from "./routes/get-admin-playlists";
+import { registerGetAdminChannels } from "./routes/get-admin-channels";
 import { registerPostAdminPlaylistBulk } from "./routes/post-admin-playlist-bulk";
+import { registerPostAdminChannelBulk } from "./routes/post-admin-channel-bulk";
 import { authMiddleware } from "@/lib/middleware/auth";
 import type { AdminEnv } from "./types";
 
@@ -22,6 +24,8 @@ registerGetAdminVideos(app);
 registerPostAdminVideoBulk(app);
 registerGetAdminPlaylists(app);
 registerPostAdminPlaylistBulk(app);
+registerGetAdminChannels(app);
+registerPostAdminChannelBulk(app);
 
 export const GET = handle(app);
 export const POST = handle(app);

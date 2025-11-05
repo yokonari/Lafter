@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { headers } from "next/headers";
+import { AdminTabsLayout } from "../components/AdminTabsLayout";
 
 type AdminVideo = {
   id: string;
@@ -144,126 +145,117 @@ export default async function AdminVideosPage({ searchParams }: PageProps) {
   const nextHref = hasNext ? `/admin/videos?page=${nextPage}` : "#";
 
   return (
-    <main className="min-h-screen bg-slate-100 p-6">
-      <section className="mx-auto flex w-full max-w-5xl flex-col gap-4 rounded-lg bg-white p-6 shadow">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-semibold text-slate-900">管理者用動画一覧</h1>
-          <p className="text-sm text-slate-600">
-            取得対象は登録ステータスが保留の動画です。認証済みでない場合はログイン画面へ戻されます。
-          </p>
-        </div>
-
-        {errorMessage ? (
-          <p className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-            {errorMessage}
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
-              <thead className="bg-slate-50">
+    <AdminTabsLayout activeTab="videos">
+      {errorMessage ? (
+        <p className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {errorMessage}
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+            <thead className="bg-slate-50">
+              <tr>
+                <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                  動画タイトル
+                </th>
+                <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                  チャンネル
+                </th>
+                <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                  ステータス
+                </th>
+                <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                  YouTube
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 bg-white">
+              {videos.length === 0 ? (
                 <tr>
-                  <th scope="col" className="px-4 py-3 font-medium text-slate-700">
-                    動画タイトル
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium text-slate-700">
-                    チャンネル
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium text-slate-700">
-                    ステータス
-                  </th>
-                  <th scope="col" className="px-4 py-3 font-medium text-slate-700">
-                    YouTube
-                  </th>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                    表示できる動画がありません。
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {videos.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
-                      表示できる動画がありません。
+              ) : (
+                videos.map((video) => (
+                  <tr key={video.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 font-medium text-slate-900">{video.title}</td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {video.channel_name || "チャンネル未登録"}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {video.is_registered_channel === 0 ? "未登録" : "登録済み"}
+                    </td>
+                    <td className="px-4 py-3 text-slate-600">
+                      {(() => {
+                        const embedUrl = toYouTubeEmbedUrl(video.url);
+                        if (!embedUrl) {
+                          return (
+                            <a
+                              href={video.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-slate-900 underline underline-offset-4 hover:text-slate-700"
+                            >
+                              開く
+                            </a>
+                          );
+                        }
+                        return (
+                          <div
+                            className="w-64 overflow-hidden rounded border border-slate-200 shadow-sm"
+                            style={{ aspectRatio: "16 / 9" }}
+                          >
+                            <iframe
+                              src={embedUrl}
+                              title={`video-${video.id}`}
+                              className="h-full w-full"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                              allowFullScreen
+                            />
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
-                ) : (
-                  videos.map((video) => (
-                    <tr key={video.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 font-medium text-slate-900">{video.title}</td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {video.channel_name || "チャンネル未登録"}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {video.is_registered_channel === 0 ? "未登録" : "登録済み"}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">
-                        {(() => {
-                          const embedUrl = toYouTubeEmbedUrl(video.url);
-                          if (!embedUrl) {
-                            return (
-                              <a
-                                href={video.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-slate-900 underline underline-offset-4 hover:text-slate-700"
-                              >
-                                開く
-                              </a>
-                            );
-                          }
-                          return (
-                            <div
-                              className="w-64 overflow-hidden rounded border border-slate-200 shadow-sm"
-                              style={{ aspectRatio: "16 / 9" }}
-                            >
-                              <iframe
-                                src={embedUrl}
-                                title={`video-${video.id}`}
-                                className="h-full w-full"
-                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                allowFullScreen
-                              />
-                            </div>
-                          );
-                        })()}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        <div className="flex items-center justify-between pt-2">
-          <span className="text-sm text-slate-600">ページ {currentPage}</span>
-          <div className="flex gap-2">
-            {hasPrev ? (
-              <Link
-                href={prevHref}
-                prefetch={false}
-                className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
-              >
-                前のページ
-              </Link>
-            ) : (
-              <span className="cursor-not-allowed rounded border border-slate-200 px-3 py-2 text-sm text-slate-300">
-                前のページ
-              </span>
-            )}
-            {hasNext ? (
-              <Link
-                href={nextHref}
-                prefetch={false}
-                className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
-              >
-                次のページ
-              </Link>
-            ) : (
-              <span className="cursor-not-allowed rounded border border-slate-200 px-3 py-2 text-sm text-slate-300">
-                次のページ
-              </span>
-            )}
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      </section>
-    </main>
+      )}
+
+      <div className="flex items-center justify-between pt-2">
+        <span className="text-sm text-slate-600">ページ {currentPage}</span>
+        <div className="flex gap-2">
+          {hasPrev ? (
+            <Link
+              href={prevHref}
+              prefetch={false}
+              className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
+            >
+              前のページ
+            </Link>
+          ) : (
+            <span className="cursor-not-allowed rounded border border-slate-200 px-3 py-2 text-sm text-slate-300">
+              前のページ
+            </span>
+          )}
+          {hasNext ? (
+            <Link
+              href={nextHref}
+              prefetch={false}
+              className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
+            >
+              次のページ
+            </Link>
+          ) : (
+            <span className="cursor-not-allowed rounded border border-slate-200 px-3 py-2 text-sm text-slate-300">
+              次のページ
+            </span>
+          )}
+        </div>
+      </div>
+    </AdminTabsLayout>
   );
 }
