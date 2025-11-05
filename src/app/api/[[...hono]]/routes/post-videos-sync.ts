@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { KVNamespace } from "@cloudflare/workers-types";
+import { sql } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
 import { createDatabase, type AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -365,7 +366,7 @@ async function upsertChannel(
       name: input.name,
     })
     .onConflictDoUpdate({
-      target: channels.id,
+      target: sql`"id"`,
       set: {
         name: input.name,
       },
@@ -396,7 +397,7 @@ async function upsertVideo(
       status: 0,
     })
     .onConflictDoUpdate({
-      target: videos.id,
+      target: sql`"id"`,
       set: {
         title: input.title,
         channelId: input.channelId,
@@ -423,7 +424,7 @@ async function upsertPlaylist(
       lastChecked: new Date().toISOString(),
     })
     .onConflictDoUpdate({
-      target: playlists.id,
+      target: sql`"id"`,
       set: {
         channelId: input.channelId,
         name: input.title,
