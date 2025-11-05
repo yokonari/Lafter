@@ -1,8 +1,13 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import type { KVNamespace } from "@cloudflare/workers-types";
 import { channels, playlists, videos } from "@/lib/schema";
 import { createDatabase, type AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
+
+type TransactionClient = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
+type DatabaseClient = AppDatabase | TransactionClient;
+type CloudflareBindings = Parameters<typeof createDatabase>[0];
 
 type SearchItem = {
   idKind: string;
@@ -64,11 +69,7 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
     const db = createDatabase(env);
 
     try {
-      const csv = await env.LAFTER.get('artists_list');
-      if (csv == null) return c.json(
-        { message: "CSVを取得できません。" },
-        500,
-      );
+      const csv = await fetchArtistsCsv(env);
       const artists = await loadArtists(csv);
 
       const summary = {
@@ -77,8 +78,14 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
         playlistsProcessed: 0,
         errors: [] as string[],
       };
-      // 外部キー制約で失敗しないよう、処理済みチャンネルを控えさせていただきます。
+
       const ensuredChannels = new Set<string>();
+      const pendingResults: Array<{
+        artist: string;
+        channels: { channelId: string; channelTitle: string }[];
+        videos: SearchItem[];
+        playlists: SearchItem[];
+      }> = [];
 
       for (const artist of artists) {
         const query = `${artist} ネタ`;
@@ -87,30 +94,111 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
           const videoItems = searchItems.filter((i) => i.idKind === "youtube#video");
           const playlistItems = searchItems.filter((i) => i.idKind === "youtube#playlist");
 
+          const combinedChannels = [...videoItems, ...playlistItems].map((item) => ({
+            channelId: item.channelId,
+            channelTitle: item.channelTitle ?? "",
+          }));
+          const seenChannelIds = new Set<string>();
+          const uniqueChannels: { channelId: string; channelTitle: string }[] = [];
+          for (const entry of combinedChannels) {
+            if (!entry.channelId || seenChannelIds.has(entry.channelId)) continue;
+            seenChannelIds.add(entry.channelId);
+            uniqueChannels.push(entry);
+          }
+
+          pendingResults.push({
+            artist,
+            channels: uniqueChannels,
+            videos: videoItems,
+            playlists: playlistItems,
+          });
+        } catch (error) {
+          summary.errors.push(
+            `${artist}: ${(error as Error)?.message ?? "検索処理に失敗しました。"}`,
+          );
+        }
+      }
+
+      const processPendingResults = async (client: DatabaseClient) => {
+        for (const result of pendingResults) {
+          const { artist, channels, videos: videoItems, playlists: playlistItems } = result;
+          let channelFailed = false;
+
+          for (const entry of channels) {
+            try {
+              await ensureChannel(client, ensuredChannels, entry.channelId, entry.channelTitle);
+            } catch (error) {
+              logSqlError(error);
+              summary.errors.push(
+                `${artist}: ${
+                  (error as Error)?.message ?? "チャンネル情報の保存に失敗しました。"
+                }`,
+              );
+              channelFailed = true;
+              break;
+            }
+          }
+
+          if (channelFailed) {
+            continue;
+          }
+
           for (const item of videoItems) {
             if (shouldSkipVideo(item.title)) continue;
-            await ensureChannel(db, ensuredChannels, item.channelId, item.channelTitle);
-            await upsertVideo(db, {
-              id: item.videoId!,
-              title: item.title,
-              channelId: item.channelId,
-              publishedAt: item.publishedAt,
-            });
-            summary.videosProcessed += 1;
+            try {
+              await upsertVideo(client, {
+                id: item.videoId!,
+                title: item.title,
+                channelId: item.channelId,
+                publishedAt: item.publishedAt,
+              });
+              summary.videosProcessed += 1;
+            } catch (error) {
+              logSqlError(error);
+              summary.errors.push(
+                `${artist}: ${
+                  (error as Error)?.message ?? "動画情報の保存に失敗しました。"
+                }`,
+              );
+            }
           }
 
           for (const item of playlistItems) {
-            await ensureChannel(db, ensuredChannels, item.channelId, item.channelTitle);
-            await upsertPlaylist(db, {
-              id: item.playlistId!,
-              title: item.title,
-              channelId: item.channelId,
-            });
-            summary.playlistsProcessed += 1;
+            try {
+              await upsertPlaylist(client, {
+                id: item.playlistId!,
+                title: item.title,
+                channelId: item.channelId,
+              });
+              summary.playlistsProcessed += 1;
+            } catch (error) {
+              logSqlError(error);
+              summary.errors.push(
+                `${artist}: ${
+                  (error as Error)?.message ?? "再生リスト情報の保存に失敗しました。"
+                }`,
+              );
+            }
           }
-        } catch (error) {
+        }
+      };
+
+      try {
+        await db.transaction(async (tx) => {
+          await processPendingResults(tx);
+        });
+      } catch (error) {
+        logSqlError(error);
+        if (
+          error instanceof Error &&
+          /Failed query:\s*begin/i.test(error.message ?? "")
+        ) {
+          await processPendingResults(db);
+        } else {
           summary.errors.push(
-            `${artist}: ${(error as Error)?.message ?? "処理に失敗しました。"}`,
+            `トランザクション処理中にエラーが発生しました: ${
+              (error as Error)?.message ?? "保存処理に失敗しました。"
+            }`,
           );
         }
       }
@@ -121,7 +209,6 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
         {
           message: "動画情報の取得中に予期せぬエラーが発生しました。",
           detail: (error as Error).message,
-          keys: env.LAFTER
         },
         500,
       );
@@ -130,6 +217,47 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
 }
 
 // 以下、YouTube 検索とデータ整形に関する補助関数を丁寧にご用意いたします。
+
+function logSqlError(error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  const sqlText =
+    typeof error === "object" && error !== null && "sql" in error
+      ? String((error as { sql?: unknown }).sql)
+      : undefined;
+  console.error(message, sqlText);
+}
+
+function isKvNamespace(value: unknown): value is KVNamespace {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "get" in value &&
+    typeof (value as { get?: unknown }).get === "function"
+  );
+}
+
+function resolveArtistsKv(env: CloudflareBindings): KVNamespace | null {
+  const record = env as unknown as Record<string, unknown>;
+  for (const key of ["lafter-artist", "LAFTER"]) {
+    const value = record[key];
+    if (isKvNamespace(value)) {
+      return value;
+    }
+  }
+  return null;
+}
+
+async function fetchArtistsCsv(env: CloudflareBindings): Promise<string> {
+  const kv = resolveArtistsKv(env);
+  if (!kv) {
+    throw new Error("KV バインディング lafter-artist を取得できませんでした。");
+  }
+  const csv = await kv.get("artists_list", "text");
+  if (!csv) {
+    throw new Error("Workers KV から artists_list を読み込めませんでした。");
+  }
+  return csv;
+}
 
 async function loadArtists(csv: string): Promise<string[]> {
   const lines = csv.trim().split(/\r?\n/);
@@ -203,16 +331,17 @@ async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]
 }
 
 async function ensureChannel(
-  db: AppDatabase,
+  db: DatabaseClient,
   ensured: Set<string>,
   channelId: string,
   channelTitle: string,
 ) {
+  if (!channelId) {
+    throw new Error("チャンネルIDを取得できませんでした。");
+  }
   if (ensured.has(channelId)) return;
-  if (!channelId) return;
   if (!channelTitle) {
-    ensured.add(channelId);
-    return;
+    throw new Error("チャンネル名を取得できませんでした。");
   }
   // チャンネル情報を先にご用意し、動画や再生リスト挿入時の外部キー違反を丁寧に避けさせていただきます。
   await upsertChannel(db, {
@@ -223,13 +352,13 @@ async function ensureChannel(
 }
 
 async function upsertChannel(
-  db: AppDatabase,
+  db: DatabaseClient,
   input: {
     id: string;
     name: string;
   },
 ) {
-  await db
+  const query = db
     .insert(channels)
     .values({
       id: input.id,
@@ -241,10 +370,12 @@ async function upsertChannel(
         name: input.name,
       },
     });
+  logQueryOnce("upsertChannel", query);
+  await query.execute();
 }
 
 async function upsertVideo(
-  db: AppDatabase,
+  db: DatabaseClient,
   input: {
     id: string;
     title: string;
@@ -253,7 +384,7 @@ async function upsertVideo(
   },
 ) {
   // Drizzle の upsert で動画情報を丁寧に更新・挿入いたします。
-  await db
+  const query = db
     .insert(videos)
     .values({
       id: input.id,
@@ -275,13 +406,15 @@ async function upsertVideo(
         status: 0,
       },
     });
+  logQueryOnce("upsertVideo", query);
+  await query.execute();
 }
 
 async function upsertPlaylist(
-  db: AppDatabase,
+  db: DatabaseClient,
   input: { id: string; title: string; channelId: string },
 ) {
-  await db
+  const query = db
     .insert(playlists)
     .values({
       id: input.id,
@@ -297,10 +430,31 @@ async function upsertPlaylist(
         lastChecked: new Date().toISOString(),
       },
     });
+  logQueryOnce("upsertPlaylist", query);
+  await query.execute();
 }
 
 function shouldSkipVideo(title: string): boolean {
   const hasPositive = POSITIVE_VIDEO_KEYWORDS.some((w) => title.includes(w));
   const hasNegative = NEGATIVE_VIDEO_KEYWORDS.some((w) => title.includes(w));
   return !hasPositive && hasNegative;
+}
+
+const SQL_LOG_FLAGS = new Set<string>();
+const SHOULD_LOG_SQL =
+  typeof process !== "undefined" && process?.env?.NODE_ENV !== "production";
+
+function logQueryOnce(
+  label: string,
+  query: { toSQL: () => { sql: string; params: unknown[] } },
+) {
+  if (!SHOULD_LOG_SQL) return;
+  if (SQL_LOG_FLAGS.has(label)) return;
+  try {
+    const { sql } = query.toSQL();
+    console.debug(`[SQL:${label}] ${sql}`);
+    SQL_LOG_FLAGS.add(label);
+  } catch {
+    // toSQL を利用できない環境では静かにスキップし、処理を継続いたします。
+  }
 }
