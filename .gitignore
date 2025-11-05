@@ -6,6 +6,7 @@
 .pnp.js
 .yarn/install-state.gz
 .wrangler/
+public/data/
 
 # testing
 /coverage
