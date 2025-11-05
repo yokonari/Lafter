@@ -74,26 +74,22 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
       const channelUpdates: Partial<ChannelInsert> = {};
 
       const videoStatus = normalizeInt(item.video_status);
-      if (videoStatus === undefined || (videoStatus !== 0 && videoStatus !== 1)) {
-        return fail(`${path}.video_status には 0 または 1 を指定してください。`);
+      if (videoStatus === undefined || ![0, 1, 2].includes(videoStatus)) {
+        return fail(`${path}.video_status には 0〜2 の整数を指定してください。`);
       }
       videoUpdates.status = videoStatus;
 
-      let videoCategory: number | undefined;
+      const videoCategoryInput = normalizeInt(item.video_category);
       if (videoStatus === 1) {
-        videoCategory = normalizeInt(item.video_category);
-        if (videoCategory === undefined || videoCategory < 1 || videoCategory > 4) {
-          return fail(`${path}.video_category は 1〜4 の整数で必須です。`);
+        if (videoCategoryInput === undefined || videoCategoryInput < 0 || videoCategoryInput > 4) {
+          return fail(`${path}.video_category は 0〜4 の整数で必須です。`);
         }
+        videoUpdates.category = videoCategoryInput;
       } else if (item.video_category !== undefined) {
-        const optionalCategory = normalizeInt(item.video_category);
-        if (optionalCategory === undefined || optionalCategory < 1 || optionalCategory > 4) {
-          return fail(`${path}.video_category は 1〜4 の整数を指定してください。`);
+        if (videoCategoryInput === undefined || videoCategoryInput < 0 || videoCategoryInput > 4) {
+          return fail(`${path}.video_category は 0〜4 の整数を指定してください。`);
         }
-        videoCategory = optionalCategory;
-      }
-      if (videoCategory !== undefined) {
-        videoUpdates.category = videoCategory;
+        videoUpdates.category = videoCategoryInput;
       }
 
       const existingChannelStatus = videoRow.channelStatus === 1 ? 1 : 0;
