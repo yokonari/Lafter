@@ -41,6 +41,7 @@ export const videos = sqliteTable(
     category: integer("category").default(0),
     isIncluded: integer("is_included").notNull().default(0),
     status: integer("status").notNull().default(0),
+    lastCheckedAt: text("last_checked_at"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
