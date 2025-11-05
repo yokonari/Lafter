@@ -7,6 +7,7 @@ type ChannelRow = {
   id: string;
   name: string;
   url: string;
+  status?: number | null;
   keyword?: string | null;
 };
 
@@ -21,10 +22,18 @@ type ChannelBulkManagerProps = {
 
 type ChannelSelection = {
   selected: boolean;
+  status: string;
   category: string;
   artistName: string;
   keywordId: string;
 };
+
+const STATUS_OPTIONS = [
+  { value: "", label: "変更しない" },
+  { value: "0", label: "０：待ち" },
+  { value: "1", label: "１：OK" },
+  { value: "2", label: "２：NG" },
+];
 
 const CATEGORY_OPTIONS = [
   { value: "", label: "変更しない" },
@@ -57,9 +66,10 @@ export function ChannelBulkManager({
     for (const row of channels) {
       initial[row.id] = {
         selected: false,
-        category: "",
+        status: "2",
+        category: "1",
         artistName: row.name,
-        keywordId: "",
+        keywordId: "1",
       };
     }
     return initial;
@@ -83,21 +93,25 @@ export function ChannelBulkManager({
     const items = Object.entries(selections)
       .filter(([, entry]) => entry.selected)
       .map(([id, entry]) => {
-        const payload: Record<string, unknown> = {
-          id,
-          channel_status: 1,
-        };
-        if (entry.category !== "") {
+        const payload: Record<string, unknown> = { id };
+        const isOfficial = entry.status === "1";
+
+        // ステータスが OK (1) の場合のみ、追加情報を丁寧に送信いたします。
+        if (entry.status !== "") {
+          payload.channel_status = Number(entry.status);
+        }
+        if (isOfficial && entry.category !== "") {
           payload.channel_category = Number(entry.category);
         }
-        if (entry.artistName.trim() !== "") {
+        if (isOfficial && entry.artistName.trim() !== "") {
           payload.artist_name = entry.artistName.trim();
         }
-        if (entry.keywordId.trim() !== "") {
+        if (isOfficial && entry.keywordId.trim() !== "") {
           payload.keyword_id = Number(entry.keywordId);
         }
         return payload;
-      });
+      })
+      .filter((payload) => Object.keys(payload).length > 1);
 
     if (items.length === 0) {
       setMessage("更新対象の行を選択してください。");
@@ -160,7 +174,7 @@ export function ChannelBulkManager({
           disabled={submitting}
           className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
         >
-          {submitting ? "送信中…" : "選択したチャンネルを更新"}
+          {submitting ? "送信中…" : "更新"}
         </button>
       </div>
 
@@ -170,7 +184,163 @@ export function ChannelBulkManager({
         </p>
       ) : null}
 
-      <div className="overflow-x-auto">
+      <div className="grid gap-3 sm:hidden">
+        {channels.length === 0 ? (
+          <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+            表示できるチャンネルがありません。
+          </p>
+        ) : (
+          channels.map((channel) => {
+            const entry = selections[channel.id] ?? {
+              selected: false,
+              status: channel.status !== undefined && channel.status !== null ? String(channel.status) : "2",
+              category: "1",
+              artistName: channel.name,
+              keywordId: "1",
+            };
+            return (
+              <article
+                key={channel.id}
+                className="rounded border border-slate-200 bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-center justify-between">
+                  <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                      checked={entry.selected}
+                      onChange={(event) =>
+                        setSelections((prev) => ({
+                          ...prev,
+                          [channel.id]: {
+                            ...entry,
+                            selected: event.target.checked,
+                          },
+                        }))
+                      }
+                    />
+                    {channel.name}
+                  </label>
+                  <a
+                    href={channel.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-slate-900 underline underline-offset-4 hover:text-slate-700"
+                  >
+                    開く
+                  </a>
+                </div>
+                <div className="mt-3 space-y-3 text-sm">
+                  <div className="flex items-center justify-between gap-2">
+                    <label htmlFor={`status-${channel.id}`} className="text-slate-600">
+                      ステータス
+                    </label>
+                    <select
+                      id={`status-${channel.id}`}
+                      className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      value={entry.status}
+                      onChange={(event) =>
+                        setSelections((prev) => ({
+                          ...prev,
+                          [channel.id]: {
+                            ...entry,
+                            status: event.target.value,
+                            category: event.target.value === "1" ? entry.category : "",
+                            keywordId: event.target.value === "1" ? entry.keywordId : "",
+                          },
+                        }))
+                      }
+                    >
+                      {STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  {entry.status === "1" ? (
+                    <>
+                      <div className="flex items-center justify-between gap-2">
+                        <label htmlFor={`category-${channel.id}`} className="text-slate-600">
+                          カテゴリ
+                        </label>
+                        <select
+                          id={`category-${channel.id}`}
+                          className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                          value={entry.category}
+                          onChange={(event) =>
+                            setSelections((prev) => ({
+                              ...prev,
+                              [channel.id]: {
+                                ...entry,
+                                category: event.target.value,
+                              },
+                            }))
+                          }
+                        >
+                          {CATEGORY_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <label htmlFor={`artist-${channel.id}`} className="text-slate-600">
+                          芸人名
+                        </label>
+                        <input
+                          id={`artist-${channel.id}`}
+                          type="text"
+                          value={entry.artistName}
+                          onChange={(event) =>
+                            setSelections((prev) => ({
+                              ...prev,
+                              [channel.id]: {
+                                ...entry,
+                                artistName: event.target.value,
+                              },
+                            }))
+                          }
+                          className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                          placeholder="変更しない場合は空欄"
+                        />
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <label htmlFor={`keyword-${channel.id}`} className="text-slate-600">
+                          キーワード
+                        </label>
+                        <select
+                          id={`keyword-${channel.id}`}
+                          className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                          value={entry.keywordId}
+                          onChange={(event) =>
+                            setSelections((prev) => ({
+                              ...prev,
+                              [channel.id]: {
+                                ...entry,
+                                keywordId: event.target.value,
+                              },
+                            }))
+                          }
+                        >
+                          {KEYWORD_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </>
+                  ) : null}
+                </div>
+              </article>
+            );
+          })
+        )}
+      </div>
+
+      <div className="hidden overflow-x-auto sm:block">
         <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
           <thead className="bg-slate-50">
             <tr>
@@ -179,6 +349,9 @@ export function ChannelBulkManager({
               </th>
               <th scope="col" className="px-4 py-3 font-medium text-slate-700">
                 チャンネル名
+              </th>
+              <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                ステータス更新
               </th>
               <th scope="col" className="px-4 py-3 font-medium text-slate-700">
                 カテゴリ更新
@@ -197,7 +370,7 @@ export function ChannelBulkManager({
           <tbody className="divide-y divide-slate-200 bg-white">
             {channels.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
                   表示できるチャンネルがありません。
                 </td>
               </tr>
@@ -205,9 +378,10 @@ export function ChannelBulkManager({
               channels.map((channel) => {
                 const entry = selections[channel.id] ?? {
                   selected: false,
-                  category: "",
+                  status: channel.status !== undefined && channel.status !== null ? String(channel.status) : "2",
+                  category: "1",
                   artistName: channel.name,
-                  keywordId: "",
+                  keywordId: "1",
                 };
                 return (
                   <tr key={channel.id} className="hover:bg-slate-50">
@@ -232,24 +406,26 @@ export function ChannelBulkManager({
                       <div className="font-medium text-slate-900">{channel.name}</div>
                     </td>
                     <td className="px-4 py-3">
-                      <label className="sr-only" htmlFor={`category-${channel.id}`}>
-                        カテゴリ更新
+                      <label className="sr-only" htmlFor={`status-${channel.id}`}>
+                        ステータス更新
                       </label>
                       <select
-                        id={`category-${channel.id}`}
-                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:bg-slate-100"
-                        value={entry.category}
+                        id={`status-${channel.id}`}
+                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                        value={entry.status}
                         onChange={(event) =>
                           setSelections((prev) => ({
                             ...prev,
                             [channel.id]: {
                               ...entry,
-                              category: event.target.value,
+                              status: event.target.value,
+                              category: event.target.value === "1" ? entry.category : "",
+                              keywordId: event.target.value === "1" ? entry.keywordId : "",
                             },
                           }))
                         }
                       >
-                        {CATEGORY_OPTIONS.map((option) => (
+                        {STATUS_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
@@ -257,50 +433,87 @@ export function ChannelBulkManager({
                       </select>
                     </td>
                     <td className="px-4 py-3">
-                      <label className="sr-only" htmlFor={`artist-${channel.id}`}>
-                        芸人名更新
-                      </label>
-                      <input
-                        id={`artist-${channel.id}`}
-                        type="text"
-                        value={entry.artistName}
-                        onChange={(event) =>
-                          setSelections((prev) => ({
-                            ...prev,
-                            [channel.id]: {
-                              ...entry,
-                              artistName: event.target.value,
-                            },
-                          }))
-                        }
-                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                        placeholder="変更しない場合は空欄"
-                      />
+                      {entry.status === "1" ? (
+                        <>
+                          <label className="sr-only" htmlFor={`category-${channel.id}`}>
+                            カテゴリ更新
+                          </label>
+                          <select
+                            id={`category-${channel.id}`}
+                            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            value={entry.category}
+                            onChange={(event) =>
+                              setSelections((prev) => ({
+                                ...prev,
+                                [channel.id]: {
+                                  ...entry,
+                                  category: event.target.value,
+                                },
+                              }))
+                            }
+                          >
+                            {CATEGORY_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3">
-                      <label className="sr-only" htmlFor={`keyword-${channel.id}`}>
-                        キーワード更新
-                      </label>
-                      <select
-                        id={`keyword-${channel.id}`}
-                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                        value={entry.keywordId}
-                        onChange={(event) =>
-                          setSelections((prev) => ({
-                            ...prev,
-                            [channel.id]: {
-                              ...entry,
-                              keywordId: event.target.value,
-                            },
-                          }))
-                        }
-                      >
-                        {KEYWORD_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
+                      {entry.status === "1" ? (
+                        <>
+                          <label className="sr-only" htmlFor={`artist-${channel.id}`}>
+                            芸人名更新
+                          </label>
+                          <input
+                            id={`artist-${channel.id}`}
+                            type="text"
+                            value={entry.artistName}
+                            onChange={(event) =>
+                              setSelections((prev) => ({
+                                ...prev,
+                                [channel.id]: {
+                                  ...entry,
+                                  artistName: event.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            placeholder="変更しない場合は空欄"
+                          />
+                        </>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3">
+                      {entry.status === "1" ? (
+                        <>
+                          <label className="sr-only" htmlFor={`keyword-${channel.id}`}>
+                            キーワード更新
+                          </label>
+                          <select
+                            id={`keyword-${channel.id}`}
+                            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                            value={entry.keywordId}
+                            onChange={(event) =>
+                              setSelections((prev) => ({
+                                ...prev,
+                                [channel.id]: {
+                                  ...entry,
+                                  keywordId: event.target.value,
+                                },
+                              }))
+                            }
+                          >
+                            {KEYWORD_OPTIONS.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3 text-slate-600">
                       <a
