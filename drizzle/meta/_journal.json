@@ -57,6 +57,13 @@
       "when": 1762351916474,
       "tag": "0007_loving_vivisector",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1762356078017,
+      "tag": "0008_parched_millenium_guard",
+      "breakpoints": true
     }
   ]
 }

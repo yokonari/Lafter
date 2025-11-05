@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { channels } from "@/lib/schema";
+import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
@@ -58,8 +58,8 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
       const update: ChannelUpdate = {};
 
       const channelStatusInput = normalizeInt(item.channel_status);
-      if (channelStatusInput !== undefined && channelStatusInput !== 0 && channelStatusInput !== 1) {
-        return fail(`${path}.channel_status には 0 または 1 を指定してください。`);
+      if (channelStatusInput !== undefined && ![0, 1, 2].includes(channelStatusInput)) {
+        return fail(`${path}.channel_status には 0〜2 の整数を指定してください。`);
       }
       if (channelStatusInput !== undefined) {
         update.status = channelStatusInput;
@@ -78,6 +78,10 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
 
       const keywordIdInput = normalizeInt(item.keyword_id);
       if (keywordIdInput !== undefined) {
+        // ステータスが OK(1) のときのみキーワードを丁寧に紐付けられるよう制御します。
+        if (channelStatusInput !== 1) {
+          return fail(`${path}.keyword_id を指定する場合は channel_status を 1 にしてください。`);
+        }
         const mappedKeyword = KEYWORD_MAP[keywordIdInput];
         if (!mappedKeyword) {
           return fail(`${path}.keyword_id には 1〜3 の整数を指定してください。`);
@@ -90,6 +94,10 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
           ? item.artist_name.trim()
           : undefined;
       if (artistNameInput !== undefined) {
+        // ステータスが OK(1) の場合のみ芸人名を丁寧に更新します。
+        if (channelStatusInput !== 1) {
+          return fail(`${path}.artist_name を更新する場合は channel_status を 1 にしてください。`);
+        }
         update.artistName = artistNameInput;
       }
 
@@ -105,6 +113,14 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
 
       if (result.length === 0) {
         return fail(`${path}.id に該当するチャンネルが存在しません。`);
+      }
+
+      if (channelStatusInput === 2) {
+        // ステータスを NG(2) にした際は、紐づく動画も丁寧に NG へそろえます。
+        await db
+          .update(videos)
+          .set({ status: 2 })
+          .where(eq(videos.channelId, channelId));
       }
 
       processed += 1;
