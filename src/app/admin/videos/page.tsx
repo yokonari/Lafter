@@ -83,7 +83,7 @@ function AdminVideosPageContent() {
       const initialChannelStatus = row.is_registered_channel === 2 ? "2" : "0";
       next[row.id] = {
         selected: false,
-        videoStatus: "0",
+        videoStatus: "2",
         videoCategory: "0",
         channelStatus: initialChannelStatus,
       };
@@ -294,7 +294,7 @@ function AdminVideosPageContent() {
                   videos.map((video) => {
                     const entry = selections[video.id] ?? {
                       selected: false,
-                      videoStatus: "0",
+                      videoStatus: "2",
                       videoCategory: "0",
                       channelStatus: video.is_registered_channel === 2 ? "2" : "0",
                     };
@@ -401,6 +401,8 @@ function AdminVideosPageContent() {
                                   [video.id]: {
                                     ...entry,
                                     channelStatus: event.target.value,
+                                    videoStatus:
+                                      event.target.value === "2" ? "2" : entry.videoStatus,
                                   },
                                 }))
                               }
@@ -463,7 +465,7 @@ function AdminVideosPageContent() {
                       videos.map((video) => {
                         const entry = selections[video.id] ?? {
                           selected: false,
-                          videoStatus: "0",
+                          videoStatus: "2",
                           videoCategory: "0",
                           channelStatus: video.is_registered_channel === 2 ? "2" : "0",
                         };
@@ -544,19 +546,21 @@ function AdminVideosPageContent() {
                               <div className="flex flex-col gap-2">
                                 <select
                                   id={`channel-status-${video.id}`}
-                                  className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                                  value={entry.channelStatus}
-                                  onChange={(event) =>
-                                    setSelections((prev) => ({
-                                      ...prev,
-                                      [video.id]: {
-                                        ...entry,
-                                        channelStatus: event.target.value,
-                                      },
-                                    }))
-                                  }
-                                >
-                                  {CHANNEL_STATUS_OPTIONS.map((option) => (
+                              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                              value={entry.channelStatus}
+                              onChange={(event) =>
+                                setSelections((prev) => ({
+                                  ...prev,
+                                  [video.id]: {
+                                    ...entry,
+                                    channelStatus: event.target.value,
+                                    videoStatus:
+                                      event.target.value === "2" ? "2" : entry.videoStatus,
+                                  },
+                                }))
+                              }
+                            >
+                              {CHANNEL_STATUS_OPTIONS.map((option) => (
                                     <option key={option.value} value={option.value}>
                                       {option.label}
                                     </option>

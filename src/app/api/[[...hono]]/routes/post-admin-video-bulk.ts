@@ -78,19 +78,6 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
       }
       videoUpdates.status = videoStatus;
 
-      const videoCategoryInput = normalizeInt(item.video_category);
-      if (videoStatus === 1) {
-        if (videoCategoryInput === undefined || videoCategoryInput < 0 || videoCategoryInput > 4) {
-          return fail(`${path}.video_category は 0〜4 の整数で必須です。`);
-        }
-        videoUpdates.category = videoCategoryInput;
-      } else if (item.video_category !== undefined) {
-        if (videoCategoryInput === undefined || videoCategoryInput < 0 || videoCategoryInput > 4) {
-          return fail(`${path}.video_category は 0〜4 の整数を指定してください。`);
-        }
-        videoUpdates.category = videoCategoryInput;
-      }
-
       const existingChannelStatus =
         typeof videoRow.channelStatus === "number" ? videoRow.channelStatus : 0;
       const channelStatusInput = normalizeInt(item.channel_status);
@@ -107,8 +94,25 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
         );
       }
 
+      const videoCategoryInput = normalizeInt(item.video_category);
+      if (videoStatus === 1 && channelStatusInput !== 2) {
+        if (videoCategoryInput === undefined || videoCategoryInput < 0 || videoCategoryInput > 4) {
+          return fail(`${path}.video_category は 0〜4 の整数で必須です。`);
+        }
+        videoUpdates.category = videoCategoryInput;
+      } else if (item.video_category !== undefined) {
+        if (videoCategoryInput === undefined || videoCategoryInput < 0 || videoCategoryInput > 4) {
+          return fail(`${path}.video_category は 0〜4 の整数を指定してください。`);
+        }
+        videoUpdates.category = videoCategoryInput;
+      }
+
       if (channelStatusInput !== undefined) {
         channelUpdates.status = channelStatusInput;
+        if (channelStatusInput === 2) {
+          // チャンネルが NG 判定の場合、動画ステータスも丁寧に NG へ揃えます。
+          videoUpdates.status = 2;
+        }
       }
 
       if (Object.keys(videoUpdates).length > 0) {
