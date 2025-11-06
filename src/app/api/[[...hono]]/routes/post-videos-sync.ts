@@ -170,6 +170,9 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
               });
               summary.videosProcessed += 1;
             } catch (error) {
+              if (isUniqueConstraintError(error)) {
+                continue;
+              }
               logSqlError(error);
               summary.errors.push(
                 `${artist}: ${
@@ -196,6 +199,9 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
               });
               summary.playlistsProcessed += 1;
             } catch (error) {
+              if (isUniqueConstraintError(error)) {
+                continue;
+              }
               logSqlError(error);
               summary.errors.push(
                 `${artist}: ${
@@ -243,6 +249,12 @@ function logSqlError(error: unknown): void {
       ? String((error as { sql?: unknown }).sql)
       : undefined;
   console.error(message, sqlText);
+}
+
+// UNIQUE 制約違反かどうかを丁寧に判定し、重複挿入時の握り潰し判定に活用いたします。
+function isUniqueConstraintError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /UNIQUE constraint failed/i.test(message) || /SQLITE_CONSTRAINT/i.test(message);
 }
 
 function isKvNamespace(value: unknown): value is KVNamespace {
@@ -374,10 +386,16 @@ async function ensureChannel(
   // チャンネル情報を先にご用意し、動画や再生リスト挿入時の外部キー違反を丁寧に避けさせていただきます。
   const exists = await channelExists(db, channelId);
   if (!exists) {
-    await insertChannel(db, {
-      id: channelId,
-      name: channelTitle,
-    });
+    try {
+      await insertChannel(db, {
+        id: channelId,
+        name: channelTitle,
+      });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
+    }
   }
   ensured.add(channelId);
 }
