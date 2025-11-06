@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
-import { ChannelBulkManager } from "../components/ChannelBulkManager";
+import { ChannelAdminSection } from "./ChannelAdminSection";
 
 type AdminChannel = {
   id: string;
@@ -126,8 +126,8 @@ export default async function AdminChannelsPage({ searchParams }: PageProps) {
           {errorMessage}
         </p>
       ) : (
-        <ChannelBulkManager
-          channels={channelsData}
+        <ChannelAdminSection
+          initialChannels={channelsData}
           currentPage={currentPage}
           hasPrev={hasPrev}
           hasNext={hasNext}

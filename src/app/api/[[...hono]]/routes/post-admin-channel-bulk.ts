@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { channels, videos } from "@/lib/schema";
+import { channels, playlists, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
@@ -116,11 +116,16 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
       }
 
       if (channelStatusInput === 2) {
-        // ステータスを NG(2) にした際は、紐づく動画も丁寧に NG へそろえます。
+        // ステータスを NG(2) にした際は、紐づく動画や再生リストも丁寧に NG へそろえます。
         await db
           .update(videos)
           .set({ status: 2 })
           .where(eq(videos.channelId, channelId));
+
+        await db
+          .update(playlists)
+          .set({ status: 2 })
+          .where(eq(playlists.channelId, channelId));
       }
 
       processed += 1;

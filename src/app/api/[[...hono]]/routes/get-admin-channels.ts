@@ -1,11 +1,11 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, like } from "drizzle-orm";
 import { channels } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
-const MAX_LIMIT = 10;
+const LIMIT = 10;
 
 export function registerGetAdminChannels(app: Hono<AdminEnv>) {
   app.get("/admin/channels", async (c) => {
@@ -13,10 +13,17 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
     const parsedPage = rawPage ? Number(rawPage) : 1;
     const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1;
 
+    const rawKeyword = c.req.query("q") ?? "";
+    const keyword = rawKeyword.trim();
+
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
 
-    const rows = await db
+    const whereExpression = keyword
+      ? and(eq(channels.status, 0), like(channels.name, `%${keyword}%`))
+      : eq(channels.status, 0);
+
+    const baseQuery = db
       .select({
         id: channels.id,
         name: channels.name,
@@ -24,12 +31,14 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
         keyword: channels.keyword,
       })
       .from(channels)
-      .where(eq(channels.status, 0))
-      .orderBy(desc(channels.createdAt))
-      .limit(MAX_LIMIT)
-      .offset((page - 1) * MAX_LIMIT);
+      .where(whereExpression);
 
-    const hasNext = rows.length === MAX_LIMIT;
+    const rows = await baseQuery
+      .orderBy(keyword ? asc(channels.name) : desc(channels.createdAt))
+      .limit(LIMIT)
+      .offset((page - 1) * LIMIT);
+
+    const hasNext = rows.length === LIMIT;
 
     const payload = rows.map((row) => ({
       id: row.id,
@@ -41,13 +50,13 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
 
     // 管理画面向けチャンネル一覧を丁寧にご提供いたします。
     return c.json(
-      {
-        channels: payload,
-        page,
-        limit: MAX_LIMIT,
-        hasNext,
-      },
-      200,
-    );
+        {
+          channels: payload,
+          page,
+          limit: LIMIT,
+          hasNext,
+        },
+        200,
+      );
   });
 }
