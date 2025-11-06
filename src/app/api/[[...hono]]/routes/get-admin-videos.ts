@@ -5,7 +5,7 @@ import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
-const MAX_LIMIT = 50;
+const MAX_LIMIT = 10;
 
 export function registerGetAdminVideos(app: Hono<AdminEnv>) {
   app.get("/admin/videos", async (c) => {
@@ -30,12 +30,15 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       .limit(MAX_LIMIT)
       .offset((page - 1) * MAX_LIMIT);
 
+    const hasNext = rows.length === MAX_LIMIT;
+
     const payload = rows.map((row) => ({
       id: row.id,
       url: `https://www.youtube.com/watch?v=${row.id}`,
       title: row.title,
       channel_name: row.channelName ?? "",
-      is_registered_channel: typeof row.channelStatus === "number" ? row.channelStatus : 0,
+      is_registered_channel:
+        typeof row.channelStatus === "number" && row.channelStatus === 2 ? 2 : 0,
     }));
 
     // 管理画面向けに整形した一覧データを丁寧にお返しいたします。
@@ -43,6 +46,8 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       {
         videos: payload,
         page,
+        limit: MAX_LIMIT,
+        hasNext,
       },
       200,
     );

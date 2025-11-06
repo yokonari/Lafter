@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
 
@@ -15,6 +15,8 @@ type AdminVideo = {
 type AdminVideosResponse = {
   videos: AdminVideo[];
   page: number;
+  limit: number;
+  hasNext: boolean;
 };
 
 type VideoSelection = {
@@ -22,10 +24,7 @@ type VideoSelection = {
   videoStatus: string;
   videoCategory: string;
   channelStatus: string;
-  channelCategory: string;
 };
-
-const PAGE_LIMIT = 50;
 
 const VIDEO_STATUS_OPTIONS = [
   { value: "0", label: "０：待ち" },
@@ -42,19 +41,27 @@ const VIDEO_CATEGORY_OPTIONS = [
 ];
 
 const CHANNEL_STATUS_OPTIONS = [
-  { value: "", label: "変更しない" },
   { value: "0", label: "０：待ち" },
-  { value: "1", label: "１：OK" },
-];
-
-const CHANNEL_CATEGORY_OPTIONS = [
-  { value: "1", label: "１：コンビ" },
-  { value: "2", label: "２：トリオ" },
-  { value: "3", label: "３：ピン" },
-  { value: "4", label: "４：その他（劇場など）" },
+  { value: "2", label: "２：NG" },
 ];
 
 export default function AdminVideosPage() {
+  return (
+    <Suspense
+      fallback={
+        <AdminTabsLayout activeTab="videos">
+          <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+            画面を読み込んでいます…
+          </p>
+        </AdminTabsLayout>
+      }
+    >
+      <AdminVideosPageContent />
+    </Suspense>
+  );
+}
+
+function AdminVideosPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pageParam = searchParams.get("page");
@@ -68,16 +75,17 @@ export default function AdminVideosPage() {
   const [currentPage, setCurrentPage] = useState(page);
   const [selections, setSelections] = useState<Record<string, VideoSelection>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(false);
 
   const createInitialSelections = useCallback((rows: AdminVideo[]) => {
     const next: Record<string, VideoSelection> = {};
     for (const row of rows) {
+      const initialChannelStatus = row.is_registered_channel === 2 ? "2" : "0";
       next[row.id] = {
         selected: false,
         videoStatus: "0",
         videoCategory: "0",
-        channelStatus: "",
-        channelCategory: "",
+        channelStatus: initialChannelStatus,
       };
     }
     return next;
@@ -120,6 +128,7 @@ export default function AdminVideosPage() {
           setErrorMessage(messageText);
           setVideos([]);
           setSelections({});
+          setHasNextPage(false);
           setCurrentPage(targetPage);
           return;
         }
@@ -138,12 +147,14 @@ export default function AdminVideosPage() {
         setVideos(data.videos);
         setCurrentPage(data.page);
         setSelections(createInitialSelections(data.videos));
+        setHasNextPage(Boolean(data.hasNext));
       } catch (error) {
         const fallback =
           error instanceof Error ? error.message : "動画一覧の取得に失敗しました。";
         setErrorMessage(fallback);
         setVideos([]);
         setSelections({});
+        setHasNextPage(false);
       } finally {
         setLoading(false);
       }
@@ -161,7 +172,7 @@ export default function AdminVideosPage() {
   );
 
   const hasPrev = currentPage > 1;
-  const hasNext = videos.length === PAGE_LIMIT;
+  const hasNext = hasNextPage;
 
   const handleToggleAll = (checked: boolean) => {
     const next: Record<string, VideoSelection> = {};
@@ -173,37 +184,18 @@ export default function AdminVideosPage() {
 
   const handleSubmit = async () => {
     setMessage(null);
+    // 選択済みの行だけを丁寧にリクエスト形式へ整えます。
     const items = Object.entries(selections)
       .filter(([, entry]) => entry.selected)
-      .map(([id, entry]) => {
-        const payload: Record<string, unknown> = {
-          id,
-          video_status: Number(entry.videoStatus),
-          video_category: Number(entry.videoCategory),
-        };
-        let missingChannelCategory = false;
-        if (entry.channelStatus !== "") {
-          payload.channel_status = Number(entry.channelStatus);
-        }
-        if (entry.channelStatus === "1") {
-          if (entry.channelCategory === "") {
-            missingChannelCategory = true;
-          } else {
-            payload.channel_category = Number(entry.channelCategory);
-          }
-        }
-        return { payload, missingChannelCategory };
-      });
+      .map(([id, entry]) => ({
+        id,
+        video_status: Number(entry.videoStatus),
+        video_category: Number(entry.videoCategory),
+        channel_status: Number(entry.channelStatus),
+      }));
 
-    const prepared = items.filter((entry) => entry.payload !== undefined);
-    if (prepared.length === 0) {
+    if (items.length === 0) {
       setMessage("更新対象の行を選択してください。");
-      return;
-    }
-
-    const hasMissingCategory = prepared.some((entry) => entry.missingChannelCategory);
-    if (hasMissingCategory) {
-      setMessage("チャンネルステータスを「１：OK」にする場合はカテゴリも選択してください。");
       return;
     }
 
@@ -214,7 +206,7 @@ export default function AdminVideosPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ items: prepared.map((entry) => entry.payload) }),
+        body: JSON.stringify({ items }),
       });
       const data = (await response.json()) as { message?: string; processed?: number };
       if (!response.ok) {
@@ -228,7 +220,7 @@ export default function AdminVideosPage() {
       const successMessage =
         typeof data?.message === "string" && data.message.trim() !== ""
           ? data.message
-          : `動画の更新が完了しました。（${data?.processed ?? prepared.length}件）`;
+          : `動画の更新が完了しました。（${data?.processed ?? items.length}件）`;
       setMessage(successMessage);
       await loadVideos(currentPage);
     } catch (error) {
@@ -304,8 +296,7 @@ export default function AdminVideosPage() {
                       selected: false,
                       videoStatus: "0",
                       videoCategory: "0",
-                      channelStatus: "",
-                      channelCategory: "",
+                      channelStatus: video.is_registered_channel === 2 ? "2" : "0",
                     };
                     return (
                       <article
@@ -410,10 +401,6 @@ export default function AdminVideosPage() {
                                   [video.id]: {
                                     ...entry,
                                     channelStatus: event.target.value,
-                                    channelCategory:
-                                      event.target.value === "1"
-                                        ? entry.channelCategory || "1"
-                                        : "",
                                   },
                                 }))
                               }
@@ -425,37 +412,6 @@ export default function AdminVideosPage() {
                               ))}
                             </select>
                           </div>
-                          {entry.channelStatus === "1" ? (
-                            <div className="flex items-center justify-between gap-2">
-                              <label
-                                htmlFor={`channel-category-${video.id}`}
-                                className="text-slate-600"
-                              >
-                                チャンネルカテゴリ
-                              </label>
-                              <select
-                                id={`channel-category-${video.id}`}
-                                className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                                value={entry.channelCategory}
-                                onChange={(event) =>
-                                  setSelections((prev) => ({
-                                    ...prev,
-                                    [video.id]: {
-                                      ...entry,
-                                      channelCategory: event.target.value,
-                                    },
-                                  }))
-                                }
-                              >
-                                <option value="">選択してください</option>
-                                {VIDEO_CATEGORY_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          ) : null}
                           <div
                             className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
                             style={{ aspectRatio: "16 / 9" }}
@@ -470,28 +426,28 @@ export default function AdminVideosPage() {
               </div>
 
               <div className="hidden overflow-x-auto sm:block">
-                <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+                <table className="min-w-full table-fixed divide-y divide-slate-200 text-left text-sm">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th scope="col" className="px-4 py-3">
+                      <th scope="col" className="w-8 px-4 py-3">
                         <span className="sr-only">選択</span>
                       </th>
-                      <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                         動画タイトル
                       </th>
-                      <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                         チャンネル
                       </th>
-                      <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                         動画ステータス
                       </th>
-                      <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                         動画カテゴリ
                       </th>
-                      <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                         チャンネル設定
                       </th>
-                      <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                         YouTube
                       </th>
                     </tr>
@@ -509,12 +465,11 @@ export default function AdminVideosPage() {
                           selected: false,
                           videoStatus: "0",
                           videoCategory: "0",
-                          channelStatus: "",
-                          channelCategory: "",
+                          channelStatus: video.is_registered_channel === 2 ? "2" : "0",
                         };
                         return (
                           <tr key={video.id} className="hover:bg-slate-50">
-                            <td className="px-4 py-3">
+                            <td className="w-8 px-4 py-3">
                               <input
                                 type="checkbox"
                                 className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
@@ -531,11 +486,11 @@ export default function AdminVideosPage() {
                                 aria-label={`${video.title} を選択`}
                               />
                             </td>
-                            <td className="px-4 py-3 font-medium text-slate-900">{video.title}</td>
-                            <td className="px-4 py-3 text-slate-600">
+                            <td className="w-1/6 px-4 py-3 font-medium text-slate-900">{video.title}</td>
+                            <td className="w-1/6 px-4 py-3 text-slate-600">
                               {video.channel_name || "チャンネル未登録"}
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="w-1/6 px-4 py-3">
                               <label className="sr-only" htmlFor={`video-status-${video.id}`}>
                                 動画ステータス
                               </label>
@@ -560,7 +515,7 @@ export default function AdminVideosPage() {
                                 ))}
                               </select>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="w-1/6 px-4 py-3">
                               <label className="sr-only" htmlFor={`video-category-${video.id}`}>
                                 動画カテゴリ
                               </label>
@@ -585,7 +540,7 @@ export default function AdminVideosPage() {
                                 ))}
                               </select>
                             </td>
-                            <td className="px-4 py-3">
+                            <td className="w-1/6 px-4 py-3">
                               <div className="flex flex-col gap-2">
                                 <select
                                   id={`channel-status-${video.id}`}
@@ -597,10 +552,6 @@ export default function AdminVideosPage() {
                                       [video.id]: {
                                         ...entry,
                                         channelStatus: event.target.value,
-                                        channelCategory:
-                                          event.target.value === "1"
-                                            ? entry.channelCategory || "1"
-                                            : "",
                                       },
                                     }))
                                   }
@@ -611,32 +562,9 @@ export default function AdminVideosPage() {
                                     </option>
                                   ))}
                                 </select>
-                                {entry.channelStatus === "1" ? (
-                                  <select
-                                    id={`channel-category-${video.id}`}
-                                    className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                                    value={entry.channelCategory}
-                                    onChange={(event) =>
-                                      setSelections((prev) => ({
-                                        ...prev,
-                                        [video.id]: {
-                                          ...entry,
-                                          channelCategory: event.target.value,
-                                        },
-                                      }))
-                                    }
-                                  >
-                                    <option value="">選択してください</option>
-                                    {VIDEO_CATEGORY_OPTIONS.map((option) => (
-                                      <option key={option.value} value={option.value}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                ) : null}
                               </div>
                             </td>
-                            <td className="px-4 py-3 text-slate-600">
+                            <td className="w-1/6 px-4 py-3 text-slate-600">
                               <div
                                 className="w-64 overflow-hidden rounded border border-slate-200 shadow-sm"
                                 style={{ aspectRatio: "16 / 9" }}

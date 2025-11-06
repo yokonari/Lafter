@@ -341,28 +341,28 @@ export function ChannelBulkManager({
       </div>
 
       <div className="hidden overflow-x-auto sm:block">
-        <table className="min-w-full divide-y divide-slate-200 text-left text-sm">
+        <table className="min-w-full table-fixed divide-y divide-slate-200 text-left text-sm">
           <thead className="bg-slate-50">
             <tr>
-              <th scope="col" className="px-4 py-3">
+              <th scope="col" className="w-8 px-4 py-3">
                 <span className="sr-only">選択</span>
               </th>
-              <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+              <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                 チャンネル名
               </th>
-              <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+              <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                 ステータス更新
               </th>
-              <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+              <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                 カテゴリ更新
               </th>
-              <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+              <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                 芸人名更新
               </th>
-              <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+              <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                 キーワード更新
               </th>
-              <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+              <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                 YouTube
               </th>
             </tr>
@@ -385,7 +385,7 @@ export function ChannelBulkManager({
                 };
                 return (
                   <tr key={channel.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
+                    <td className="w-8 px-4 py-3">
                       <input
                         type="checkbox"
                         className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
@@ -402,10 +402,10 @@ export function ChannelBulkManager({
                         aria-label={`${channel.name} を選択`}
                       />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="w-1/6 px-4 py-3">
                       <div className="font-medium text-slate-900">{channel.name}</div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="w-1/6 px-4 py-3">
                       <label className="sr-only" htmlFor={`status-${channel.id}`}>
                         ステータス更新
                       </label>
@@ -432,7 +432,7 @@ export function ChannelBulkManager({
                         ))}
                       </select>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="w-1/6 px-4 py-3">
                       {entry.status === "1" ? (
                         <>
                           <label className="sr-only" htmlFor={`category-${channel.id}`}>
@@ -461,7 +461,7 @@ export function ChannelBulkManager({
                         </>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="w-1/6 px-4 py-3">
                       {entry.status === "1" ? (
                         <>
                           <label className="sr-only" htmlFor={`artist-${channel.id}`}>
@@ -486,7 +486,7 @@ export function ChannelBulkManager({
                         </>
                       ) : null}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="w-1/6 px-4 py-3">
                       {entry.status === "1" ? (
                         <>
                           <label className="sr-only" htmlFor={`keyword-${channel.id}`}>

@@ -13,9 +13,9 @@ type AdminChannel = {
 type AdminChannelsResponse = {
   channels: AdminChannel[];
   page: number;
+  limit: number;
+  hasNext: boolean;
 };
-
-const PAGE_LIMIT = 50;
 
 // API から管理画面用のチャンネル一覧を丁寧に取り出します。
 async function fetchAdminChannels(page: number): Promise<AdminChannelsResponse> {
@@ -75,7 +75,9 @@ async function fetchAdminChannels(page: number): Promise<AdminChannelsResponse> 
     typeof payload !== "object" ||
     !("channels" in payload) ||
     !Array.isArray((payload as { channels: unknown }).channels) ||
-    !("page" in payload)
+    !("page" in payload) ||
+    !("limit" in payload) ||
+    !("hasNext" in payload)
   ) {
     throw new Error("取得したチャンネル一覧の形式が正しくありません。");
   }
@@ -109,7 +111,7 @@ export default async function AdminChannelsPage({ searchParams }: PageProps) {
   const channelsData = data?.channels ?? [];
   const currentPage = data?.page ?? page;
   const hasPrev = currentPage > 1;
-  const hasNext = channelsData.length === PAGE_LIMIT;
+  const hasNext = Boolean(data?.hasNext);
 
   const prevPage = currentPage - 1;
   const nextPage = currentPage + 1;
