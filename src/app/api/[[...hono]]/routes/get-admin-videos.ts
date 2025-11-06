@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, and } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -21,11 +21,15 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
         id: videos.id,
         title: videos.title,
         channelName: channels.name,
-        channelStatus: channels.status,
       })
       .from(videos)
-      .leftJoin(channels, eq(videos.channelId, channels.id))
-      .where(eq(videos.status, 0))
+      .innerJoin(channels, eq(videos.channelId, channels.id))
+      .where(
+        and(
+          eq(videos.status, 0),
+          eq(channels.status, 1),
+        ),
+      )
       .orderBy(desc(videos.createdAt))
       .limit(MAX_LIMIT)
       .offset((page - 1) * MAX_LIMIT);
@@ -37,8 +41,6 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       url: `https://www.youtube.com/watch?v=${row.id}`,
       title: row.title,
       channel_name: row.channelName ?? "",
-      is_registered_channel:
-        typeof row.channelStatus === "number" && row.channelStatus === 1 ? 1 : 0,
     }));
 
     // 管理画面向けに整形した一覧データを丁寧にお返しいたします。

@@ -9,7 +9,6 @@ type AdminVideo = {
   url: string;
   title: string;
   channel_name: string;
-  is_registered_channel: number;
 };
 
 type AdminVideosResponse = {
@@ -23,7 +22,6 @@ type VideoSelection = {
   selected: boolean;
   videoStatus: string;
   videoCategory: string;
-  channelStatus: string;
 };
 
 const VIDEO_STATUS_OPTIONS = [
@@ -38,17 +36,6 @@ const VIDEO_CATEGORY_OPTIONS = [
   { value: "2", label: "🎬 コント" },
   { value: "3", label: "🎭 ピン" },
   { value: "4", label: "🏢 その他" },
-];
-
-const CHANNEL_STATUS_LABELS = {
-  "0": "⏳ 待ち",
-  "1": "✅ OK",
-  "2": "⛔ NG",
-} as const;
-
-const CHANNEL_STATUS_OPTIONS = [
-  { value: "0", label: CHANNEL_STATUS_LABELS["0"] },
-  { value: "2", label: CHANNEL_STATUS_LABELS["2"] },
 ];
 
 export default function AdminVideosPage() {
@@ -86,15 +73,10 @@ function AdminVideosPageContent() {
   const createInitialSelections = useCallback((rows: AdminVideo[]) => {
     const next: Record<string, VideoSelection> = {};
     for (const row of rows) {
-      const initialChannelStatus =
-        row.is_registered_channel === null || row.is_registered_channel === undefined
-          ? "0"
-          : String(row.is_registered_channel);
       next[row.id] = {
         selected: false,
         videoStatus: "2",
         videoCategory: "0",
-        channelStatus: initialChannelStatus,
       };
     }
     return next;
@@ -200,7 +182,6 @@ function AdminVideosPageContent() {
         id,
         video_status: Number(entry.videoStatus),
         video_category: Number(entry.videoCategory),
-        channel_status: Number(entry.channelStatus),
       }));
 
     if (items.length === 0) {
@@ -295,10 +276,6 @@ function AdminVideosPageContent() {
                       selected: false,
                       videoStatus: "2",
                       videoCategory: "0",
-                      channelStatus:
-                        video.is_registered_channel === null || video.is_registered_channel === undefined
-                          ? "0"
-                          : String(video.is_registered_channel),
                     };
                     return (
                       <article
@@ -386,44 +363,8 @@ function AdminVideosPageContent() {
                               ))}
                             </select>
                           </div>
-                         <div className="flex items-center justify-between gap-2">
-                           <label
-                             htmlFor={`channel-status-${video.id}`}
-                             className="text-slate-600"
-                           >
-                             チャンネル
-                           </label>
-                            {entry.channelStatus === "1" ? (
-                              <span className="w-2/3 text-right text-sm text-slate-700">
-                                {CHANNEL_STATUS_LABELS["1"]}
-                              </span>
-                            ) : (
-                              <select
-                                id={`channel-status-${video.id}`}
-                                className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                                value={entry.channelStatus}
-                                onChange={(event) =>
-                                  setSelections((prev) => ({
-                                    ...prev,
-                                    [video.id]: {
-                                      ...entry,
-                                      channelStatus: event.target.value,
-                                      videoStatus:
-                                        event.target.value === "2" ? "2" : entry.videoStatus,
-                                    },
-                                  }))
-                                }
-                              >
-                                {CHANNEL_STATUS_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            )}
-                         </div>
-                         <div
-                           className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
+                          <div
+                            className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
                            style={{ aspectRatio: "16 / 9" }}
                          >
                             {renderEmbeddedVideo(video)}
@@ -455,9 +396,6 @@ function AdminVideosPageContent() {
                         動画カテゴリ
                       </th>
                       <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
-                        チャンネル設定
-                      </th>
-                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                         YouTube
                       </th>
                     </tr>
@@ -465,21 +403,17 @@ function AdminVideosPageContent() {
                   <tbody className="divide-y divide-slate-200 bg-white">
                     {videos.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                        <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                           表示できる動画がありません。
                         </td>
                       </tr>
                     ) : (
                       videos.map((video) => {
-                    const entry = selections[video.id] ?? {
-                      selected: false,
-                      videoStatus: "2",
-                      videoCategory: "0",
-                      channelStatus:
-                        video.is_registered_channel === null || video.is_registered_channel === undefined
-                          ? "0"
-                          : String(video.is_registered_channel),
-                    };
+                        const entry = selections[video.id] ?? {
+                          selected: false,
+                          videoStatus: "2",
+                          videoCategory: "0",
+                        };
                         return (
                           <tr key={video.id} className="hover:bg-slate-50">
                             <td className="w-8 px-4 py-3">
@@ -552,36 +486,6 @@ function AdminVideosPageContent() {
                                   </option>
                                 ))}
                               </select>
-                            </td>
-                            <td className="w-1/6 px-4 py-3">
-                              {entry.channelStatus === "1" ? (
-                                <span className="text-sm text-slate-700">
-                                  {CHANNEL_STATUS_LABELS["1"]}
-                                </span>
-                              ) : (
-                                <select
-                                  id={`channel-status-${video.id}`}
-                                  className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                                  value={entry.channelStatus}
-                                  onChange={(event) =>
-                                    setSelections((prev) => ({
-                                      ...prev,
-                                      [video.id]: {
-                                        ...entry,
-                                        channelStatus: event.target.value,
-                                        videoStatus:
-                                          event.target.value === "2" ? "2" : entry.videoStatus,
-                                      },
-                                    }))
-                                  }
-                                >
-                                  {CHANNEL_STATUS_OPTIONS.map((option) => (
-                                    <option key={option.value} value={option.value}>
-                                      {option.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              )}
                             </td>
                             <td className="w-1/6 px-4 py-3 text-slate-600">
                               <div
