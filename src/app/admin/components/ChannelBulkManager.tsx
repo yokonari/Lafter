@@ -10,6 +10,7 @@ export type ChannelRow = {
   url: string;
   status?: number | null;
   keyword?: string | null;
+  latestVideoTitle?: string | null;
 };
 
 type ChannelBulkManagerProps = {
@@ -221,27 +222,32 @@ export function ChannelBulkManager({
               >
                 <div className="flex items-center justify-between">
                   <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                      checked={entry.selected}
-                      onChange={(event) =>
-                        setSelections((prev) => ({
-                          ...prev,
-                          [channel.id]: {
-                            ...entry,
-                            selected: event.target.checked,
-                          },
-                        }))
-                      }
-                    />
-                    {channel.name}
-                  </label>
-                  <a
-                    href={channel.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-slate-900 underline underline-offset-4 hover:text-slate-700"
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+              checked={entry.selected}
+              onChange={(event) =>
+                setSelections((prev) => ({
+                  ...prev,
+                  [channel.id]: {
+                    ...entry,
+                    selected: event.target.checked,
+                  },
+                }))
+              }
+            />
+            <span className="flex flex-col">
+              <span>{channel.name}</span>
+              {channel.latestVideoTitle ? (
+                <span className="text-xs text-slate-500">{channel.latestVideoTitle}</span>
+              ) : null}
+            </span>
+          </label>
+          <a
+            href={channel.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-slate-900 underline underline-offset-4 hover:text-slate-700"
                   >
                     開く
                   </a>
@@ -420,6 +426,9 @@ export function ChannelBulkManager({
                     </td>
                     <td className="w-1/6 px-4 py-3">
                       <div className="font-medium text-slate-900">{channel.name}</div>
+                      {channel.latestVideoTitle ? (
+                        <div className="mt-1 text-xs text-slate-500">{channel.latestVideoTitle}</div>
+                      ) : null}
                     </td>
                     <td className="w-1/6 px-4 py-3">
                       <label className="sr-only" htmlFor={`status-${channel.id}`}>

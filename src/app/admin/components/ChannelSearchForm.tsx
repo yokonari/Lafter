@@ -8,6 +8,7 @@ export type ChannelSearchResult = {
   url: string;
   status?: number | null;
   keyword?: string | null;
+  latest_video_title?: string | null;
 };
 
 type ChannelSearchFormProps = {

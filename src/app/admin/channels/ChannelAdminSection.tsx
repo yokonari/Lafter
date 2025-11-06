@@ -68,6 +68,7 @@ export function ChannelAdminSection({
       url: item.url,
       status: item.status ?? 0,
       keyword: item.keyword ?? null,
+      latestVideoTitle: item.latest_video_title ?? null,
     }));
     setChannels(mapped);
     setPagination({
