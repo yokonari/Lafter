@@ -73,33 +73,32 @@ export function ChannelSearchForm({ onResults, onReset }: ChannelSearchFormProps
   };
 
   return (
-    <section>
-      <form className="flex flex-col gap-3 sm:flex-row" onSubmit={handleSubmit}>
-        <label className="flex-1 text-sm text-slate-600">
-          <span className="sr-only">チャンネル名で検索</span>
+    <section className="space-y-3">
+      <form onSubmit={handleSubmit}>
+        <div className="relative flex-1 text-sm text-slate-600">
+          <label className="sr-only" htmlFor="channel-search-input">
+            チャンネル名で検索
+          </label>
           <input
+            id="channel-search-input"
             type="text"
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
             placeholder="チャンネル名で検索"
             className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
           />
-        </label>
-        <button
-          type="submit"
-          disabled={loading}
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
-        >
-          {loading ? "検索中…" : "検索"}
-        </button>
-        <button
-          type="button"
-          onClick={handleReset}
-          disabled={loading}
-          className="rounded border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-60"
-        >
-          クリア
-        </button>
+          {keyword ? (
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={loading}
+              className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-600 hover:bg-slate-200 disabled:opacity-60"
+              aria-label="検索欄をクリア"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
       </form>
       {message ? (
         <p className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">

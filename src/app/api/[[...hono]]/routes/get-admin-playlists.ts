@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { desc, eq } from "drizzle-orm";
-import { playlists } from "@/lib/schema";
+import { and, desc, eq } from "drizzle-orm";
+import { channels, playlists } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
@@ -23,7 +23,13 @@ export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
         status: playlists.status,
       })
       .from(playlists)
-      .where(eq(playlists.status, 0))
+      .innerJoin(channels, eq(playlists.channelId, channels.id))
+      .where(
+        and(
+          eq(playlists.status, 0),
+          eq(channels.status, 1),
+        ),
+      )
       .orderBy(desc(playlists.createdAt))
       .limit(MAX_LIMIT)
       .offset((page - 1) * MAX_LIMIT);

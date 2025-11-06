@@ -66,11 +66,9 @@ export function ChannelBulkManager({
   const [selections, setSelections] = useState<Record<string, ChannelSelection>>(() => {
     const initial: Record<string, ChannelSelection> = {};
     for (const row of channels) {
-      const statusValue =
-        row.status !== undefined && row.status !== null ? String(row.status) : "2";
       initial[row.id] = {
         selected: false,
-        status: statusValue,
+        status: "2",
         category: "1",
         artistName: row.name,
         keywordId: "1",
@@ -85,13 +83,11 @@ export function ChannelBulkManager({
       const nextSelections: Record<string, ChannelSelection> = {};
       for (const row of channels) {
         const existing = prev[row.id];
-        const statusValue =
-          row.status !== undefined && row.status !== null ? String(row.status) : "2";
         nextSelections[row.id] = existing
           ? existing
           : {
               selected: false,
-              status: statusValue,
+              status: "2",
               category: "1",
               artistName: row.name,
               keywordId: "1",
