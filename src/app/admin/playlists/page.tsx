@@ -24,8 +24,8 @@ type PlaylistSelection = {
 };
 
 const PLAYLIST_STATUS_OPTIONS = [
-  { value: "1", label: "１：OK" },
-  { value: "2", label: "２：NG" },
+  { value: "1", label: "✅ OK" },
+  { value: "2", label: "⛔ NG" },
 ];
 
 export default function AdminPlaylistsPage() {
@@ -224,31 +224,21 @@ function AdminPlaylistsPageContent() {
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                  checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
-                  onChange={(event) => handleToggleAll(event.target.checked)}
-                  aria-label="全て選択"
-                  disabled={loading || playlists.length === 0}
-                />
-                全て選択
-              </label>
-              <span className="text-sm text-slate-500">
-                選択中: {selectedCount} / {playlists.length}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading || submitting || playlists.length === 0}
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
-            >
-              {submitting ? "送信中…" : "更新"}
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
+                onChange={(event) => handleToggleAll(event.target.checked)}
+                aria-label="全て選択"
+                disabled={loading || playlists.length === 0}
+              />
+              全て選択
+            </label>
+            <span className="text-sm text-slate-500">
+              選択中: {selectedCount} / {playlists.length}
+            </span>
           </div>
 
           {message ? (
@@ -417,6 +407,18 @@ function AdminPlaylistsPageContent() {
               </div>
             </>
           )}
+
+          <div className="flex justify-end">
+            {/* テーブルを見終えた直後に更新できるよう、ボタンを一覧の直下へ丁寧に配置いたします。 */}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading || submitting || playlists.length === 0}
+              className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
+            >
+              {submitting ? "送信中…" : "更新"}
+            </button>
+          </div>
 
           <div className="flex items-center justify-between pt-2">
             <span className="text-sm text-slate-600">ページ {currentPage}</span>
