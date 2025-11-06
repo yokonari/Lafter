@@ -124,7 +124,10 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
         }
       }
 
-      const processPendingResults = async (client: DatabaseClient) => {
+      const processPendingResults = async (
+        client: DatabaseClient,
+        options: { abortOnError: boolean },
+      ) => {
         for (const result of pendingResults) {
           const { artist, channels, videos: videoItems, playlists: playlistItems } = result;
           let channelFailed = false;
@@ -140,6 +143,9 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
                 }`,
               );
               channelFailed = true;
+              if (options.abortOnError) {
+                throw error;
+              }
               break;
             }
           }
@@ -170,6 +176,9 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
                   (error as Error)?.message ?? "動画情報の保存に失敗しました。"
                 }`,
               );
+              if (options.abortOnError) {
+                throw error;
+              }
             }
           }
 
@@ -193,6 +202,9 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
                   (error as Error)?.message ?? "再生リスト情報の保存に失敗しました。"
                 }`,
               );
+              if (options.abortOnError) {
+                throw error;
+              }
             }
           }
         }
@@ -200,24 +212,13 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
 
       try {
         await db.transaction(async (tx) => {
-          await processPendingResults(tx);
+          await processPendingResults(tx, { abortOnError: true });
         });
       } catch (error) {
         logSqlError(error);
-        if (
-          error instanceof Error &&
-          /Failed query:\s*begin/i.test(error.message ?? "")
-        ) {
-          // トランザクションがロールバックされた場合、確保済みチャンネル集合を丁寧に初期化し直し、再処理で外部キー不整合を防ぎます。
-          ensuredChannels.clear();
-          await processPendingResults(db);
-        } else {
-          summary.errors.push(
-            `トランザクション処理中にエラーが発生しました: ${
-              (error as Error)?.message ?? "保存処理に失敗しました。"
-            }`,
-          );
-        }
+        // トランザクション内で1件でも失敗した場合は、確保済みチャンネル集合を丁寧に初期化し直した上で非トランザクション処理へ切り替え、残りの同期を続行いたします。
+        ensuredChannels.clear();
+        await processPendingResults(db, { abortOnError: false });
       }
 
       return c.json(summary, 200);
