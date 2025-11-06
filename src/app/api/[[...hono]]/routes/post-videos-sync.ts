@@ -208,6 +208,8 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
           error instanceof Error &&
           /Failed query:\s*begin/i.test(error.message ?? "")
         ) {
+          // トランザクションがロールバックされた場合、確保済みチャンネル集合を丁寧に初期化し直し、再処理で外部キー不整合を防ぎます。
+          ensuredChannels.clear();
           await processPendingResults(db);
         } else {
           summary.errors.push(
