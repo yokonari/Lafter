@@ -53,6 +53,7 @@ const NEGATIVE_VIDEO_KEYWORDS = [
   "Shorts",
   "shorts",
   "MV",
+  '#shorts',
 ];
 
 export function registerPostVideosSync(app: Hono<AdminEnv>) {
@@ -275,12 +276,23 @@ async function fetchArtistsCsv(env: CloudflareBindings): Promise<string> {
 
 async function loadArtists(csv: string): Promise<string[]> {
   const lines = csv.trim().split(/\r?\n/);
+  const header = lines[0] ?? "";
+  const headerColumns = header ? splitCsvLine(header) : [];
+  // ヘッダー情報から status 列の位置を丁寧に特定し、未定義の場合は従来通り全件を対象といたします。
+  const statusColumnIndex = headerColumns.findIndex(
+    (name) => name.trim().toLowerCase() === "status",
+  );
   const rows = lines.slice(1);
 
   const unique = new Set<string>();
   for (const line of rows) {
     if (!line) continue;
     const cols = splitCsvLine(line);
+    if (statusColumnIndex >= 0) {
+      const statusValue = (cols[statusColumnIndex] ?? "").trim();
+      // status 列が追加されましたので、0 の行のみ丁寧に処理対象へ含めさせていただきます。
+      if (statusValue !== "0") continue;
+    }
     const artistRaw = (cols[1] ?? "").trim();
     if (!artistRaw) continue;
 
@@ -311,7 +323,6 @@ function expandArtistNames(raw: string): string[] {
 async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]> {
   const url = new URL(SEARCH_BASE_URL);
   url.searchParams.set("part", "snippet");
-  url.searchParams.set("order", "relevance");
   url.searchParams.set("maxResults", DEFAULT_MAX_RESULTS.toString());
   url.searchParams.set("q", query);
   url.searchParams.set("type", "video,playlist");
