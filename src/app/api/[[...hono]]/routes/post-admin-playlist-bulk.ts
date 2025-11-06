@@ -47,7 +47,7 @@ export function registerPostAdminPlaylistBulk(app: Hono<AdminEnv>) {
 
       const status = normalizeStatus(item.status);
       if (status === undefined) {
-        return fail(`${path}.status には 0 または 1 を指定してください。`);
+        return fail(`${path}.status には 1 または 2 を指定してください。`);
       }
 
       const [existing] = await db
@@ -68,14 +68,14 @@ export function registerPostAdminPlaylistBulk(app: Hono<AdminEnv>) {
   });
 }
 
-function normalizeStatus(value: unknown): 0 | 1 | undefined {
-  if (typeof value === "number" && (value === 0 || value === 1)) {
+function normalizeStatus(value: unknown): 1 | 2 | undefined {
+  if (typeof value === "number" && (value === 1 || value === 2)) {
     return value;
   }
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (trimmed === "0" || trimmed === "1") {
-      return trimmed === "1" ? 1 : 0;
+    if (trimmed === "1" || trimmed === "2") {
+      return trimmed === "2" ? 2 : 1;
     }
   }
   return undefined;

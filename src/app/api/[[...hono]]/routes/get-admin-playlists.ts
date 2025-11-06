@@ -5,7 +5,7 @@ import { playlists } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
-const MAX_LIMIT = 50;
+const MAX_LIMIT = 10;
 
 export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
   app.get("/admin/play_lists", async (c) => {
@@ -20,6 +20,7 @@ export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
       .select({
         id: playlists.id,
         name: playlists.name,
+        status: playlists.status,
       })
       .from(playlists)
       .where(eq(playlists.status, 0))
@@ -27,10 +28,13 @@ export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
       .limit(MAX_LIMIT)
       .offset((page - 1) * MAX_LIMIT);
 
+    const hasNext = rows.length === MAX_LIMIT;
+
     const payload = rows.map((row) => ({
       id: row.id,
       url: `https://www.youtube.com/playlist?list=${row.id}`,
       title: row.name,
+      status: row.status ?? 0,
     }));
 
     // 管理画面向けプレイリスト一覧を丁寧にご提供いたします。
@@ -38,6 +42,8 @@ export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
       {
         play_lists: payload,
         page,
+        limit: MAX_LIMIT,
+        hasNext,
       },
       200,
     );
