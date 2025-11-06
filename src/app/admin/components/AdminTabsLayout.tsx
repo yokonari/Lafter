@@ -6,9 +6,9 @@ type AdminTabsLayoutProps = {
 };
 
 const TAB_ITEMS: Array<{ key: "videos" | "channels" | "playlists"; name: string; href: string }> = [
-  { key: "videos", name: "動画一覧", href: "/admin/videos" },
-  { key: "channels", name: "チャンネル一覧", href: "/admin/channels" },
-  { key: "playlists", name: "プレイリスト一覧", href: "/admin/playlists" },
+  { key: "videos", name: "動画", href: "/admin/videos" },
+  { key: "channels", name: "チャンネル", href: "/admin/channels" },
+  { key: "playlists", name: "プレイリスト", href: "/admin/playlists" },
 ];
 
 export function AdminTabsLayout({ activeTab, children }: AdminTabsLayoutProps) {

@@ -27,22 +27,28 @@ type VideoSelection = {
 };
 
 const VIDEO_STATUS_OPTIONS = [
-  { value: "0", label: "０：待ち" },
-  { value: "1", label: "１：OK" },
-  { value: "2", label: "２：NG" },
+  { value: "0", label: "⏳ 待ち" },
+  { value: "1", label: "✅ OK" },
+  { value: "2", label: "⛔ NG" },
 ];
 
 const VIDEO_CATEGORY_OPTIONS = [
-  { value: "0", label: "０：未分類" },
-  { value: "1", label: "１：漫才" },
-  { value: "2", label: "２：コント" },
-  { value: "3", label: "３：ピン" },
-  { value: "4", label: "４：その他" },
+  { value: "0", label: "🗂️ 未分類" },
+  { value: "1", label: "🎙️ 漫才" },
+  { value: "2", label: "🎬 コント" },
+  { value: "3", label: "🎭 ピン" },
+  { value: "4", label: "🏢 その他" },
 ];
 
+const CHANNEL_STATUS_LABELS = {
+  "0": "⏳ 待ち",
+  "1": "✅ OK",
+  "2": "⛔ NG",
+} as const;
+
 const CHANNEL_STATUS_OPTIONS = [
-  { value: "0", label: "０：待ち" },
-  { value: "2", label: "２：NG" },
+  { value: "0", label: CHANNEL_STATUS_LABELS["0"] },
+  { value: "2", label: CHANNEL_STATUS_LABELS["2"] },
 ];
 
 export default function AdminVideosPage() {
@@ -80,7 +86,10 @@ function AdminVideosPageContent() {
   const createInitialSelections = useCallback((rows: AdminVideo[]) => {
     const next: Record<string, VideoSelection> = {};
     for (const row of rows) {
-      const initialChannelStatus = row.is_registered_channel === 2 ? "2" : "0";
+      const initialChannelStatus =
+        row.is_registered_channel === null || row.is_registered_channel === undefined
+          ? "0"
+          : String(row.is_registered_channel);
       next[row.id] = {
         selected: false,
         videoStatus: "2",
@@ -246,31 +255,21 @@ function AdminVideosPageContent() {
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                  checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
-                  onChange={(event) => handleToggleAll(event.target.checked)}
-                  aria-label="全て選択"
-                  disabled={loading || videos.length === 0}
-                />
-                全て選択
-              </label>
-              <span className="text-sm text-slate-500">
-                選択中: {selectedCount} / {videos.length}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading || submitting || videos.length === 0}
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
-            >
-              {submitting ? "送信中…" : "更新"}
-            </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
+                onChange={(event) => handleToggleAll(event.target.checked)}
+                aria-label="全て選択"
+                disabled={loading || videos.length === 0}
+              />
+              全て選択
+            </label>
+            <span className="text-sm text-slate-500">
+              選択中: {selectedCount} / {videos.length}
+            </span>
           </div>
 
           {message ? (
@@ -296,7 +295,10 @@ function AdminVideosPageContent() {
                       selected: false,
                       videoStatus: "2",
                       videoCategory: "0",
-                      channelStatus: video.is_registered_channel === 2 ? "2" : "0",
+                      channelStatus:
+                        video.is_registered_channel === null || video.is_registered_channel === undefined
+                          ? "0"
+                          : String(video.is_registered_channel),
                     };
                     return (
                       <article
@@ -384,40 +386,46 @@ function AdminVideosPageContent() {
                               ))}
                             </select>
                           </div>
-                          <div className="flex items-center justify-between gap-2">
-                            <label
-                              htmlFor={`channel-status-${video.id}`}
-                              className="text-slate-600"
-                            >
-                              チャンネル
-                            </label>
-                            <select
-                              id={`channel-status-${video.id}`}
-                              className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                              value={entry.channelStatus}
-                              onChange={(event) =>
-                                setSelections((prev) => ({
-                                  ...prev,
-                                  [video.id]: {
-                                    ...entry,
-                                    channelStatus: event.target.value,
-                                    videoStatus:
-                                      event.target.value === "2" ? "2" : entry.videoStatus,
-                                  },
-                                }))
-                              }
-                            >
-                              {CHANNEL_STATUS_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                          <div
-                            className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
-                            style={{ aspectRatio: "16 / 9" }}
-                          >
+                         <div className="flex items-center justify-between gap-2">
+                           <label
+                             htmlFor={`channel-status-${video.id}`}
+                             className="text-slate-600"
+                           >
+                             チャンネル
+                           </label>
+                            {entry.channelStatus === "1" ? (
+                              <span className="w-2/3 text-right text-sm text-slate-700">
+                                {CHANNEL_STATUS_LABELS["1"]}
+                              </span>
+                            ) : (
+                              <select
+                                id={`channel-status-${video.id}`}
+                                className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                value={entry.channelStatus}
+                                onChange={(event) =>
+                                  setSelections((prev) => ({
+                                    ...prev,
+                                    [video.id]: {
+                                      ...entry,
+                                      channelStatus: event.target.value,
+                                      videoStatus:
+                                        event.target.value === "2" ? "2" : entry.videoStatus,
+                                    },
+                                  }))
+                                }
+                              >
+                                {CHANNEL_STATUS_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            )}
+                         </div>
+                         <div
+                           className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
+                           style={{ aspectRatio: "16 / 9" }}
+                         >
                             {renderEmbeddedVideo(video)}
                           </div>
                         </div>
@@ -463,12 +471,15 @@ function AdminVideosPageContent() {
                       </tr>
                     ) : (
                       videos.map((video) => {
-                        const entry = selections[video.id] ?? {
-                          selected: false,
-                          videoStatus: "2",
-                          videoCategory: "0",
-                          channelStatus: video.is_registered_channel === 2 ? "2" : "0",
-                        };
+                    const entry = selections[video.id] ?? {
+                      selected: false,
+                      videoStatus: "2",
+                      videoCategory: "0",
+                      channelStatus:
+                        video.is_registered_channel === null || video.is_registered_channel === undefined
+                          ? "0"
+                          : String(video.is_registered_channel),
+                    };
                         return (
                           <tr key={video.id} className="hover:bg-slate-50">
                             <td className="w-8 px-4 py-3">
@@ -543,30 +554,34 @@ function AdminVideosPageContent() {
                               </select>
                             </td>
                             <td className="w-1/6 px-4 py-3">
-                              <div className="flex flex-col gap-2">
+                              {entry.channelStatus === "1" ? (
+                                <span className="text-sm text-slate-700">
+                                  {CHANNEL_STATUS_LABELS["1"]}
+                                </span>
+                              ) : (
                                 <select
                                   id={`channel-status-${video.id}`}
-                              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                              value={entry.channelStatus}
-                              onChange={(event) =>
-                                setSelections((prev) => ({
-                                  ...prev,
-                                  [video.id]: {
-                                    ...entry,
-                                    channelStatus: event.target.value,
-                                    videoStatus:
-                                      event.target.value === "2" ? "2" : entry.videoStatus,
-                                  },
-                                }))
-                              }
-                            >
-                              {CHANNEL_STATUS_OPTIONS.map((option) => (
+                                  className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                  value={entry.channelStatus}
+                                  onChange={(event) =>
+                                    setSelections((prev) => ({
+                                      ...prev,
+                                      [video.id]: {
+                                        ...entry,
+                                        channelStatus: event.target.value,
+                                        videoStatus:
+                                          event.target.value === "2" ? "2" : entry.videoStatus,
+                                      },
+                                    }))
+                                  }
+                                >
+                                  {CHANNEL_STATUS_OPTIONS.map((option) => (
                                     <option key={option.value} value={option.value}>
                                       {option.label}
                                     </option>
                                   ))}
                                 </select>
-                              </div>
+                              )}
                             </td>
                             <td className="w-1/6 px-4 py-3 text-slate-600">
                               <div
@@ -585,6 +600,18 @@ function AdminVideosPageContent() {
               </div>
             </>
           )}
+
+          <div className="flex justify-end">
+            {/* 一覧を確認した直後に送信できるよう、テーブル直下へ更新ボタンを丁寧に配置いたします。 */}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={loading || submitting || videos.length === 0}
+              className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
+            >
+              {submitting ? "送信中…" : "更新"}
+            </button>
+          </div>
 
           <div className="flex items-center justify-between pt-2">
             <span className="text-sm text-slate-600">ページ {currentPage}</span>

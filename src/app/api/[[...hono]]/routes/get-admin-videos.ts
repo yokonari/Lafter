@@ -38,7 +38,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       title: row.title,
       channel_name: row.channelName ?? "",
       is_registered_channel:
-        typeof row.channelStatus === "number" && row.channelStatus === 2 ? 2 : 0,
+        typeof row.channelStatus === "number" && row.channelStatus === 1 ? 1 : 0,
     }));
 
     // 管理画面向けに整形した一覧データを丁寧にお返しいたします。

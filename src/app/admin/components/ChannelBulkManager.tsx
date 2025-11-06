@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 type ChannelRow = {
   id: string;
@@ -30,24 +31,24 @@ type ChannelSelection = {
 
 const STATUS_OPTIONS = [
   { value: "", label: "変更しない" },
-  { value: "0", label: "０：待ち" },
-  { value: "1", label: "１：OK" },
-  { value: "2", label: "２：NG" },
+  { value: "0", label: "待ち" },
+  { value: "1", label: "✅ OK" },
+  { value: "2", label: "⛔ NG" },
 ];
 
 const CATEGORY_OPTIONS = [
   { value: "", label: "変更しない" },
-  { value: "1", label: "１：コンビ" },
-  { value: "2", label: "２：トリオ" },
-  { value: "3", label: "３：ピン" },
-  { value: "4", label: "４：その他（劇場など）" },
+  { value: "1", label: "🧑‍🤝‍🧑 コンビ" },
+  { value: "2", label: "👪 トリオ" },
+  { value: "3", label: "🧍‍♂️ ピン" },
+  { value: "4", label: "🏢 その他（劇場など）" },
 ];
 
 const KEYWORD_OPTIONS = [
   { value: "", label: "変更しない" },
-  { value: "1", label: "漫才 (1)" },
-  { value: "2", label: "コント (2)" },
-  { value: "3", label: "ネタ (3)" },
+  { value: "1", label: "🎙️ 漫才" },
+  { value: "2", label: "🎬 コント" },
+  { value: "3", label: "🎯 ネタ" },
 ];
 
 export function ChannelBulkManager({
@@ -58,6 +59,7 @@ export function ChannelBulkManager({
   prevHref,
   nextHref,
 }: ChannelBulkManagerProps) {
+  const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -74,6 +76,26 @@ export function ChannelBulkManager({
     }
     return initial;
   });
+
+  useEffect(() => {
+    // サーバー側で再取得されたチャンネル一覧が流れてきた際に、選択状態を丁寧に初期化し直します。
+    setSelections((prev) => {
+      const nextSelections: Record<string, ChannelSelection> = {};
+      for (const row of channels) {
+        const existing = prev[row.id];
+        nextSelections[row.id] = existing
+          ? existing
+          : {
+              selected: false,
+              status: "2",
+              category: "1",
+              artistName: row.name,
+              keywordId: "1",
+            };
+      }
+      return nextSelections;
+    });
+  }, [channels]);
 
   const selectedCount = useMemo(
     () => Object.values(selections).filter((item) => item.selected).length,
@@ -141,6 +163,8 @@ export function ChannelBulkManager({
           ? data.message
           : `チャンネルの更新が完了しました。（${data?.processed ?? items.length}件）`;
       setMessage(successMessage);
+      // 更新完了後に最新のチャンネル一覧へ差し替えるため、Next.js のルーターへ再描画を依頼いたします。
+      router.refresh();
     } catch (error) {
       const fallback =
         error instanceof Error ? error.message : "チャンネル更新中に予期せぬエラーが発生しました。";
@@ -168,14 +192,6 @@ export function ChannelBulkManager({
             選択中: {selectedCount} / {channels.length}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitting}
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
-        >
-          {submitting ? "送信中…" : "更新"}
-        </button>
       </div>
 
       {message ? (
@@ -235,14 +251,14 @@ export function ChannelBulkManager({
                     <label htmlFor={`status-${channel.id}`} className="text-slate-600">
                       ステータス
                     </label>
-                    <select
-                      id={`status-${channel.id}`}
-                      className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      value={entry.status}
-                      onChange={(event) =>
-                        setSelections((prev) => ({
-                          ...prev,
-                          [channel.id]: {
+                <select
+                  id={`status-${channel.id}`}
+                  className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                  value={entry.status}
+                  onChange={(event) =>
+                    setSelections((prev) => ({
+                      ...prev,
+                      [channel.id]: {
                             ...entry,
                             status: event.target.value,
                             category: event.target.value === "1" ? entry.category : "",
@@ -531,6 +547,18 @@ export function ChannelBulkManager({
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="flex justify-end">
+        {/* 一覧を確認した直後に送信できるよう、テーブル直下へ更新ボタンを丁寧に配置します。 */}
+        <button
+          type="button"
+          onClick={handleSubmit}
+          disabled={submitting}
+          className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
+        >
+          {submitting ? "送信中…" : "更新"}
+        </button>
       </div>
 
       <div className="flex items-center justify-between pt-2">

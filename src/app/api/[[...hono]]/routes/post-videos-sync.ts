@@ -1,7 +1,6 @@
 import type { Hono } from "hono";
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { eq } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
 import { createDatabase, type AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -50,10 +49,14 @@ const NEGATIVE_VIDEO_KEYWORDS = [
   "まとめ",
   "タイムスタンプ",
   "切り抜き",
+  "#切り抜き",
   "Shorts",
   "shorts",
   "MV",
   '#shorts',
+  '生配信',
+  'インスタライブ',
+  'ミュージックビデオ',
 ];
 
 export function registerPostVideosSync(app: Hono<AdminEnv>) {
@@ -159,9 +162,6 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
             if (!item.videoId) continue;
 
             try {
-              const exists = await videoExists(client, item.videoId);
-              if (exists) continue;
-
               await insertVideo(client, {
                 id: item.videoId,
                 title: item.title,
@@ -189,9 +189,6 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
             if (!item.playlistId) continue;
 
             try {
-              const exists = await playlistExists(client, item.playlistId);
-              if (exists) continue;
-
               await insertPlaylist(client, {
                 id: item.playlistId,
                 title: item.title,
@@ -384,29 +381,17 @@ async function ensureChannel(
     throw new Error("チャンネル名を取得できませんでした。");
   }
   // チャンネル情報を先にご用意し、動画や再生リスト挿入時の外部キー違反を丁寧に避けさせていただきます。
-  const exists = await channelExists(db, channelId);
-  if (!exists) {
-    try {
-      await insertChannel(db, {
-        id: channelId,
-        name: channelTitle,
-      });
-    } catch (error) {
-      if (!isUniqueConstraintError(error)) {
-        throw error;
-      }
+  try {
+    await insertChannel(db, {
+      id: channelId,
+      name: channelTitle,
+    });
+  } catch (error) {
+    if (!isUniqueConstraintError(error)) {
+      throw error;
     }
   }
   ensured.add(channelId);
-}
-
-async function channelExists(db: DatabaseClient, channelId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: channels.id })
-    .from(channels)
-    .where(eq(channels.id, channelId))
-    .limit(1);
-  return rows.length > 0;
 }
 
 async function insertChannel(
@@ -421,15 +406,6 @@ async function insertChannel(
     name: input.name,
     lastChecked: new Date().toISOString(),
   });
-}
-
-async function videoExists(db: DatabaseClient, videoId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: videos.id })
-    .from(videos)
-    .where(eq(videos.id, videoId))
-    .limit(1);
-  return rows.length > 0;
 }
 
 async function insertVideo(
@@ -450,15 +426,6 @@ async function insertVideo(
     status: 0,
     lastCheckedAt: new Date().toISOString(),
   });
-}
-
-async function playlistExists(db: DatabaseClient, playlistId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: playlists.id })
-    .from(playlists)
-    .where(eq(playlists.id, playlistId))
-    .limit(1);
-  return rows.length > 0;
 }
 
 async function insertPlaylist(
