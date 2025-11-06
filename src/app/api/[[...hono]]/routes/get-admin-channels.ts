@@ -5,7 +5,7 @@ import { channels } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
-const MAX_LIMIT = 50;
+const MAX_LIMIT = 10;
 
 export function registerGetAdminChannels(app: Hono<AdminEnv>) {
   app.get("/admin/channels", async (c) => {
@@ -29,6 +29,8 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       .limit(MAX_LIMIT)
       .offset((page - 1) * MAX_LIMIT);
 
+    const hasNext = rows.length === MAX_LIMIT;
+
     const payload = rows.map((row) => ({
       id: row.id,
       url: `https://www.youtube.com/channel/${row.id}`,
@@ -42,6 +44,8 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       {
         channels: payload,
         page,
+        limit: MAX_LIMIT,
+        hasNext,
       },
       200,
     );

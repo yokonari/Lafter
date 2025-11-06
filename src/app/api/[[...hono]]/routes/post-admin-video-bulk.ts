@@ -11,7 +11,6 @@ type BulkItem = {
   video_status?: unknown;
   video_category?: unknown;
   channel_status?: unknown;
-  channel_category?: unknown;
 };
 
 type BulkRequestBody = {
@@ -92,39 +91,24 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
         videoUpdates.category = videoCategoryInput;
       }
 
-      const existingChannelStatus = videoRow.channelStatus === 1 ? 1 : 0;
+      const existingChannelStatus =
+        typeof videoRow.channelStatus === "number" ? videoRow.channelStatus : 0;
       const channelStatusInput = normalizeInt(item.channel_status);
-      if (channelStatusInput !== undefined && channelStatusInput !== 0 && channelStatusInput !== 1) {
-        return fail(`${path}.channel_status には 0 または 1 を指定してください。`);
+      if (
+        channelStatusInput !== undefined &&
+        ![0, 1, 2].includes(channelStatusInput)
+      ) {
+        return fail(`${path}.channel_status には 0〜2 の整数を指定してください。`);
       }
 
-      if (videoStatus === 1 && existingChannelStatus === 0 && channelStatusInput === undefined) {
+      if (videoStatus === 1 && existingChannelStatus !== 1 && channelStatusInput === undefined) {
         return fail(
           `${path}.channel_status は video_status が 1 かつ既存チャンネルが未登録の場合に必須です。`,
         );
       }
 
-      const channelCategoryInput = normalizeInt(item.channel_category);
-      if (
-        channelCategoryInput !== undefined &&
-        (channelCategoryInput < 1 || channelCategoryInput > 4)
-      ) {
-        return fail(`${path}.channel_category は 1〜4 の整数を指定してください。`);
-      }
-
-      const effectiveChannelStatus = channelStatusInput ?? existingChannelStatus;
-      if (channelStatusInput === 1 && channelCategoryInput === undefined) {
-        return fail(`${path}.channel_category は channel_status が 1 のとき必須です。`);
-      }
-      if (channelCategoryInput !== undefined && effectiveChannelStatus !== 1) {
-        return fail(`${path}.channel_category は channel_status が 1 の場合にのみ指定してください。`);
-      }
-
       if (channelStatusInput !== undefined) {
         channelUpdates.status = channelStatusInput;
-      }
-      if (channelCategoryInput !== undefined) {
-        channelUpdates.category = channelCategoryInput;
       }
 
       if (Object.keys(videoUpdates).length > 0) {
