@@ -8,6 +8,7 @@ type AdminChannel = {
   name: string;
   status: number;
   keyword?: string;
+  latestVideoTitle?: string | null;
 };
 
 type AdminChannelsResponse = {
@@ -82,7 +83,35 @@ async function fetchAdminChannels(page: number): Promise<AdminChannelsResponse> 
     throw new Error("取得したチャンネル一覧の形式が正しくありません。");
   }
 
-  return payload as AdminChannelsResponse;
+  const raw = payload as {
+    channels: Array<{
+      id: string;
+      url: string;
+      name: string;
+      status: number;
+      keyword?: string | null;
+      latest_video_title?: string | null;
+    }>;
+    page: number;
+    limit: number;
+    hasNext: boolean;
+  };
+
+  const channels = raw.channels.map((channel) => ({
+    id: channel.id,
+    url: channel.url,
+    name: channel.name,
+    status: channel.status,
+    keyword: channel.keyword ?? undefined,
+    latestVideoTitle: channel.latest_video_title ?? null,
+  }));
+
+  return {
+    channels,
+    page: raw.page,
+    limit: raw.limit,
+    hasNext: raw.hasNext,
+  };
 }
 
 type PageSearchParams = { page?: string };

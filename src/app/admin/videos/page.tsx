@@ -176,18 +176,29 @@ function AdminVideosPageContent() {
   const handleSubmit = async () => {
     setMessage(null);
     // 選択済みの行だけを丁寧にリクエスト形式へ整えます。
-    const items = Object.entries(selections)
-      .filter(([, entry]) => entry.selected)
-      .map(([id, entry]) => ({
+    const selectedEntries = Object.entries(selections).filter(([, entry]) => entry.selected);
+
+    if (selectedEntries.length === 0) {
+      setMessage("更新対象の行を選択してください。");
+      return;
+    }
+
+    const invalid = selectedEntries.find(([, entry]) => {
+      const videoStatus = Number(entry.videoStatus);
+      const videoCategory = Number(entry.videoCategory);
+      return videoStatus === 1 && ![1, 2, 3, 4].includes(videoCategory);
+    });
+
+    if (invalid) {
+      setMessage("動画ステータスを ✅ OK にする場合は、カテゴリを指定してください。");
+      return;
+    }
+
+    const items = selectedEntries.map(([id, entry]) => ({
         id,
         video_status: Number(entry.videoStatus),
         video_category: Number(entry.videoCategory),
       }));
-
-    if (items.length === 0) {
-      setMessage("更新対象の行を選択してください。");
-      return;
-    }
 
     setSubmitting(true);
     try {
@@ -383,19 +394,19 @@ function AdminVideosPageContent() {
                       <th scope="col" className="w-8 px-4 py-3">
                         <span className="sr-only">選択</span>
                       </th>
-                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/5 px-4 py-3 font-medium text-slate-700">
                         動画タイトル
                       </th>
-                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/5 px-4 py-3 font-medium text-slate-700">
                         チャンネル
                       </th>
-                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/5 px-4 py-3 font-medium text-slate-700">
                         動画ステータス
                       </th>
-                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/5 px-4 py-3 font-medium text-slate-700">
                         動画カテゴリ
                       </th>
-                      <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
+                      <th scope="col" className="w-1/5 px-4 py-3 font-medium text-slate-700">
                         YouTube
                       </th>
                     </tr>
@@ -433,11 +444,11 @@ function AdminVideosPageContent() {
                                 aria-label={`${video.title} を選択`}
                               />
                             </td>
-                            <td className="w-1/6 px-4 py-3 font-medium text-slate-900">{video.title}</td>
-                            <td className="w-1/6 px-4 py-3 text-slate-600">
+                            <td className="w-1/5 px-4 py-3 font-medium text-slate-900">{video.title}</td>
+                            <td className="w-1/5 px-4 py-3 text-slate-600">
                               {video.channel_name || "チャンネル未登録"}
                             </td>
-                            <td className="w-1/6 px-4 py-3">
+                            <td className="w-1/5 px-4 py-3">
                               <label className="sr-only" htmlFor={`video-status-${video.id}`}>
                                 動画ステータス
                               </label>
@@ -462,7 +473,7 @@ function AdminVideosPageContent() {
                                 ))}
                               </select>
                             </td>
-                            <td className="w-1/6 px-4 py-3">
+                            <td className="w-1/5 px-4 py-3">
                               <label className="sr-only" htmlFor={`video-category-${video.id}`}>
                                 動画カテゴリ
                               </label>
@@ -487,7 +498,7 @@ function AdminVideosPageContent() {
                                 ))}
                               </select>
                             </td>
-                            <td className="w-1/6 px-4 py-3 text-slate-600">
+                            <td className="w-1/5 px-4 py-3 text-slate-600">
                               <div
                                 className="w-64 overflow-hidden rounded border border-slate-200 shadow-sm"
                                 style={{ aspectRatio: "16 / 9" }}

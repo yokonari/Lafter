@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, asc, desc, eq, like } from "drizzle-orm";
-import { channels } from "@/lib/schema";
+import { and, asc, desc, eq, inArray, like } from "drizzle-orm";
+import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
@@ -40,12 +40,32 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
 
     const hasNext = rows.length === LIMIT;
 
+    const latestVideoByChannel = new Map<string, string>();
+    if (rows.length > 0) {
+      const channelIds = rows.map((row) => row.id);
+      const videoRows = await db
+        .select({
+          channelId: videos.channelId,
+          title: videos.title,
+        })
+        .from(videos)
+        .where(inArray(videos.channelId, channelIds))
+        .orderBy(desc(videos.createdAt));
+      for (const video of videoRows) {
+        if (!video.channelId) continue;
+        if (!latestVideoByChannel.has(video.channelId)) {
+          latestVideoByChannel.set(video.channelId, video.title ?? "");
+        }
+      }
+    }
+
     const payload = rows.map((row) => ({
       id: row.id,
       url: `https://www.youtube.com/channel/${row.id}`,
       name: row.name,
       status: row.status ?? 0,
       keyword: row.keyword ?? "",
+      latest_video_title: latestVideoByChannel.get(row.id) ?? null,
     }));
 
     // 管理画面向けチャンネル一覧を丁寧にご提供いたします。
