@@ -21,6 +21,11 @@ type AdminVideosResponse = {
   hasNext: boolean;
 };
 
+type SelectionDefaults = {
+  videoStatus: string;
+  videoCategory: string;
+};
+
 type VideoSelection = {
   selected: boolean;
   videoStatus: string;
@@ -74,7 +79,35 @@ function AdminVideosPageContent() {
   const [hasNextPage, setHasNextPage] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
 
-  const createInitialSelections = useCallback((rows: AdminVideo[]) => {
+  const createInitialSelections = useCallback(
+    (rows: AdminVideo[], defaults?: SelectionDefaults) => {
+      const statusDefault = defaults?.videoStatus ?? "2";
+      const categoryDefault = defaults?.videoCategory ?? "0";
+      const next: Record<string, VideoSelection> = {};
+      for (const row of rows) {
+        next[row.id] = {
+          selected: true,
+          videoStatus: statusDefault,
+          videoCategory: categoryDefault,
+        };
+      }
+      return next;
+    },
+    [],
+  );
+
+  const applySearchResults = useCallback(
+    (results: AdminVideo[], meta: { hasNext: boolean }, defaults?: SelectionDefaults) => {
+      setVideos(results);
+      setSelections(createInitialSelections(results, defaults));
+      setCurrentPage(1);
+      setHasNextPage(Boolean(meta.hasNext));
+      setSearchActive(true);
+    },
+    [createInitialSelections],
+  );
+
+  const createDefaultSelections = useCallback((rows: AdminVideo[]) => {
     const next: Record<string, VideoSelection> = {};
     for (const row of rows) {
       next[row.id] = {
@@ -141,7 +174,7 @@ function AdminVideosPageContent() {
         const data = payload as AdminVideosResponse;
         setVideos(data.videos);
         setCurrentPage(data.page);
-        setSelections(createInitialSelections(data.videos));
+        setSelections(createDefaultSelections(data.videos));
         setHasNextPage(Boolean(data.hasNext));
         setSearchActive(false);
       } catch (error) {
@@ -155,7 +188,7 @@ function AdminVideosPageContent() {
         setLoading(false);
       }
     },
-    [createInitialSelections],
+    [createDefaultSelections],
   );
 
   useEffect(() => {
@@ -164,13 +197,9 @@ function AdminVideosPageContent() {
 
   const handleSearchResults = useCallback(
     (results: AdminVideo[], meta: { hasNext: boolean }) => {
-      setVideos(results);
-      setSelections(createInitialSelections(results));
-      setCurrentPage(1);
-      setHasNextPage(meta.hasNext);
-      setSearchActive(true);
+      applySearchResults(results, meta, { videoStatus: "1", videoCategory: "1" });
     },
-    [createInitialSelections],
+    [applySearchResults],
   );
 
   const handleSearchReset = useCallback(() => {
@@ -218,6 +247,35 @@ function AdminVideosPageContent() {
     }
     setSelections(next);
   };
+
+  const handleShortcutSearch = useCallback(
+    async (keyword: string, defaults: SelectionDefaults) => {
+      setMessage(null);
+      setLoading(true);
+      try {
+        const result = await executeVideoSearch(keyword);
+        applySearchResults(result.items, { hasNext: result.hasNext }, defaults);
+        if (result.items.length === 0) {
+          setMessage("該当する動画が見つかりませんでした。");
+        }
+      } catch (error) {
+        const fallback =
+          error instanceof Error ? error.message : "検索に失敗しました。再度お試しください。";
+        setMessage(fallback);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [executeVideoSearch, applySearchResults],
+  );
+
+  const handleManzaiShortcut = useCallback(() => {
+    return handleShortcutSearch("漫才", { videoStatus: "1", videoCategory: "1" });
+  }, [handleShortcutSearch]);
+
+  const handleConteShortcut = useCallback(() => {
+    return handleShortcutSearch("コント", { videoStatus: "1", videoCategory: "2" });
+  }, [handleShortcutSearch]);
 
   const handleSubmit = async () => {
     setMessage(null);
@@ -317,6 +375,25 @@ function AdminVideosPageContent() {
             onResults={handleSearchResults}
             onReset={handleSearchReset}
           />
+          {/* よく使う漫才・コント検索をワンタップで呼び出せる補助ボタンをテーブル直前に配置します。 */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleManzaiShortcut}
+              className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-60"
+              disabled={loading}
+            >
+              漫才
+            </button>
+            <button
+              type="button"
+              onClick={handleConteShortcut}
+              className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-60"
+              disabled={loading}
+            >
+              コント
+            </button>
+          </div>
           {message ? (
             <p className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               {message}
