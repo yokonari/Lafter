@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { YouTubeEmbed } from "@next/third-parties/google";
-import { VideoSearchForm } from "../components/VideoSearchForm";
+import { SearchForm } from "../components/SearchForm";
 
 export type AdminVideo = {
   id: string;
@@ -177,6 +177,30 @@ function AdminVideosPageContent() {
     loadVideos(page);
   }, [loadVideos, page]);
 
+  const executeVideoSearch = useCallback(async (keyword: string) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set("q", keyword);
+    searchParams.set("page", "1");
+    const response = await fetch(`/api/admin/videos?${searchParams.toString()}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+      const payload = (await response.json().catch(() => null)) as
+        | { message?: string }
+        | null;
+    if (!response.ok) {
+      const message =
+        payload && typeof payload === "object" && typeof payload.message === "string"
+          ? payload.message
+          : "検索に失敗しました。再度お試しください。";
+      throw new Error(message);
+    }
+    const data = payload as AdminVideosResponse | null;
+    const items = Array.isArray(data?.videos) ? data!.videos : [];
+    return { items, hasNext: Boolean(data?.hasNext) };
+  }, []);
+
   const selectedCount = useMemo(
     () => Object.values(selections).filter((item) => item.selected).length,
     [selections],
@@ -207,11 +231,11 @@ function AdminVideosPageContent() {
     const invalid = selectedEntries.find(([, entry]) => {
       const videoStatus = Number(entry.videoStatus);
       const videoCategory = Number(entry.videoCategory);
-      return videoStatus === 1 && ![1, 2, 3, 4].includes(videoCategory);
+      return videoStatus === 1 && ![1, 2].includes(videoCategory);
     });
 
     if (invalid) {
-      setMessage("動画ステータスを ✅ OK にする場合は、カテゴリを指定してください。");
+      setMessage("動画ステータスを ✅ OK にする場合は、カテゴリを漫才またはコントに指定してください。");
       return;
     }
 
@@ -282,7 +306,16 @@ function AdminVideosPageContent() {
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          <VideoSearchForm onResults={handleSearchResults} onReset={handleSearchReset} />
+          <SearchForm<AdminVideo>
+            title="動画検索"
+            placeholder="動画タイトルで検索"
+            ariaLabel="動画タイトルで検索"
+            emptyMessage="該当する動画が見つかりませんでした。"
+            inputId="video-search-input"
+            executeSearch={executeVideoSearch}
+            onResults={handleSearchResults}
+            onReset={handleSearchReset}
+          />
           <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex items-center gap-2 text-sm text-slate-600">
               <input
