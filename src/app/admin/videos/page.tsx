@@ -207,10 +207,13 @@ function AdminVideosPageContent() {
     loadVideos(page);
   }, [loadVideos, page]);
 
-  const executeVideoSearch = useCallback(async (keyword: string) => {
+  const fetchVideosByKeyword = useCallback(async (keyword: string, pageNumber = 1) => {
     const searchParams = new URLSearchParams();
-    searchParams.set("q", keyword);
-    searchParams.set("page", "1");
+    searchParams.set("page", String(pageNumber));
+    const trimmed = keyword.trim();
+    if (trimmed) {
+      searchParams.set("q", trimmed);
+    }
     const response = await fetch(`/api/admin/videos?${searchParams.toString()}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
@@ -226,10 +229,24 @@ function AdminVideosPageContent() {
           : "検索に失敗しました。再度お試しください。";
       throw new Error(message);
     }
-    const data = payload as AdminVideosResponse | null;
-    const items = Array.isArray(data?.videos) ? data!.videos : [];
-    return { items, hasNext: Boolean(data?.hasNext) };
+    if (
+      !payload ||
+      typeof payload !== "object" ||
+      !("videos" in payload) ||
+      !Array.isArray((payload as { videos: unknown }).videos)
+    ) {
+      throw new Error("検索結果の形式が正しくありません。");
+    }
+    return payload as AdminVideosResponse;
   }, []);
+
+  const executeVideoSearch = useCallback(
+    async (keyword: string) => {
+      const data = await fetchVideosByKeyword(keyword, 1);
+      return { items: data.videos, hasNext: Boolean(data.hasNext) };
+    },
+    [fetchVideosByKeyword],
+  );
 
   const selectedCount = useMemo(
     () => Object.values(selections).filter((item) => item.selected).length,
@@ -253,10 +270,22 @@ function AdminVideosPageContent() {
       setMessage(null);
       setLoading(true);
       try {
-        const result = await executeVideoSearch(keyword);
-        applySearchResults(result.items, { hasNext: result.hasNext }, defaults);
-        if (result.items.length === 0) {
+        const aggregated: AdminVideo[] = [];
+        let pageNumber = 1;
+        const MAX_PAGES = 20;
+        while (pageNumber <= MAX_PAGES) {
+          const data = await fetchVideosByKeyword(keyword, pageNumber);
+          aggregated.push(...data.videos);
+          if (!data.hasNext) {
+            break;
+          }
+          pageNumber += 1;
+        }
+        applySearchResults(aggregated, { hasNext: false }, defaults);
+        if (aggregated.length === 0) {
           setMessage("該当する動画が見つかりませんでした。");
+        } else if (pageNumber > MAX_PAGES) {
+          setMessage("検索結果が多すぎるため、先頭200件までを表示しました。");
         }
       } catch (error) {
         const fallback =
@@ -266,7 +295,7 @@ function AdminVideosPageContent() {
         setLoading(false);
       }
     },
-    [executeVideoSearch, applySearchResults],
+    [fetchVideosByKeyword, applySearchResults],
   );
 
   const handleManzaiShortcut = useCallback(() => {
