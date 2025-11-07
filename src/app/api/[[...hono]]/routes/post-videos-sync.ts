@@ -1,6 +1,7 @@
 import type { Hono } from "hono";
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { eq } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
 import { createDatabase, type AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -33,8 +34,8 @@ type SearchAPIResponse = { items?: SearchResponseItem[] };
 
 const SEARCH_BASE_URL = "https://www.googleapis.com/youtube/v3/search";
 const DEFAULT_MAX_RESULTS = 50;
-const POSITIVE_VIDEO_KEYWORDS = ["ネタ", "漫才", "コント"];
-const NEGATIVE_VIDEO_KEYWORDS = [
+const POSITIVE_KEYWORDS = ["ネタ", "漫才", "コント"];
+const NEGATIVE_KEYWORDS = [
   "ラジオ",
   "トーク",
   "ゲーム配信",
@@ -143,13 +144,16 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
           for (const item of videoItems) {
             if (shouldSkipVideo(item.title)) continue;
             if (!item.videoId || !item.channelId) continue;
+            const resolvedChannelTitle =
+              channelTitleMap.get(item.channelId) ||
+              item.channelTitle ||
+              item.channelId ||
+              "";
+            if (shouldSkipChannel(resolvedChannelTitle)) continue;
 
             try {
-              const resolvedChannelTitle =
-                channelTitleMap.get(item.channelId ?? "") ||
-                item.channelTitle ||
-                item.channelId ||
-                "Unknown Channel";
+              const exists = await videoExists(client, item.videoId);
+              if (exists) continue;
               await ensureChannel(
                 client,
                 ensuredChannels,
@@ -182,8 +186,16 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
           for (const item of playlistItems) {
             if (!item.playlistId) continue;
             if (!item.channelId || !ensuredChannels.has(item.channelId)) continue;
+            const resolvedChannelTitle =
+              channelTitleMap.get(item.channelId) ||
+              item.channelTitle ||
+              item.channelId ||
+              "";
+            if (shouldSkipChannel(resolvedChannelTitle)) continue;
 
             try {
+              const exists = await playlistExists(client, item.playlistId);
+              if (exists) continue;
               await insertPlaylist(client, {
                 id: item.playlistId,
                 title: item.title,
@@ -375,18 +387,29 @@ async function ensureChannel(
   if (!channelTitle) {
     throw new Error("チャンネル名を取得できませんでした。");
   }
-  // チャンネル情報を先にご用意し、動画や再生リスト挿入時の外部キー違反を丁寧に避けさせていただきます。
-  try {
-    await insertChannel(db, {
-      id: channelId,
-      name: channelTitle,
-    });
-  } catch (error) {
-    if (!isUniqueConstraintError(error)) {
-      throw error;
+  const exists = await channelExists(db, channelId);
+  if (!exists) {
+    try {
+      await insertChannel(db, {
+        id: channelId,
+        name: channelTitle,
+      });
+    } catch (error) {
+      if (!isUniqueConstraintError(error)) {
+        throw error;
+      }
     }
   }
   ensured.add(channelId);
+}
+
+async function channelExists(db: DatabaseClient, channelId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: channels.id })
+    .from(channels)
+    .where(eq(channels.id, channelId))
+    .limit(1);
+  return rows.length > 0;
 }
 
 async function insertChannel(
@@ -401,6 +424,15 @@ async function insertChannel(
     name: input.name,
     lastChecked: new Date().toISOString(),
   });
+}
+
+async function videoExists(db: DatabaseClient, videoId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: videos.id })
+    .from(videos)
+    .where(eq(videos.id, videoId))
+    .limit(1);
+  return rows.length > 0;
 }
 
 async function insertVideo(
@@ -436,7 +468,24 @@ async function insertPlaylist(
 }
 
 function shouldSkipVideo(title: string): boolean {
-  const hasPositive = POSITIVE_VIDEO_KEYWORDS.some((w) => title.includes(w));
-  const hasNegative = NEGATIVE_VIDEO_KEYWORDS.some((w) => title.includes(w));
+  const normalized = title.toLowerCase();
+  const hasPositive = POSITIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
+  const hasNegative = NEGATIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
+  return !hasPositive && hasNegative;
+}
+
+async function playlistExists(db: DatabaseClient, playlistId: string): Promise<boolean> {
+  const rows = await db
+    .select({ id: playlists.id })
+    .from(playlists)
+    .where(eq(playlists.id, playlistId))
+    .limit(1);
+  return rows.length > 0;
+}
+
+function shouldSkipChannel(name: string): boolean {
+  const normalized = name.toLowerCase();
+  const hasPositive = POSITIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
+  const hasNegative = NEGATIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
   return !hasPositive && hasNegative;
 }

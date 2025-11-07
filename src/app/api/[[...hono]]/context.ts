@@ -6,6 +6,7 @@ declare global {
   interface CloudflareEnv {
     DB: D1Database;
     YOUTUBE_API_KEY?: string;
+    ADMIN_EMAIL?: string;
     LAFTER?: KVNamespace;
     "lafter-artist"?: KVNamespace;
   }
