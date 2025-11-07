@@ -34,6 +34,23 @@ export async function POST(request: Request) {
 
   const { env } = getCloudflareContext();
   const auth = getAuth(env.DB);
+  const allowedEmail =
+    (typeof env.ADMIN_EMAIL === "string" ? env.ADMIN_EMAIL : undefined) ??
+    (typeof process.env.ADMIN_EMAIL === "string" ? process.env.ADMIN_EMAIL : undefined);
+
+  if (!allowedEmail) {
+    return Response.json(
+      { message: "管理者用メールアドレスが設定されていません。" },
+      { status: 500 },
+    );
+  }
+
+  if (email.toLowerCase() !== allowedEmail.trim().toLowerCase()) {
+    return Response.json(
+      { message: "登録できません。" },
+      { status: 403 },
+    );
+  }
 
   try {
     // better-auth の型定義が body を undefined と解釈してしまうため、丁寧にコンテキストを整形してお渡しします。
