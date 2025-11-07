@@ -1,14 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   ChannelBulkManager,
   type ChannelRow,
 } from "../components/ChannelBulkManager";
-import {
-  ChannelSearchForm,
-  type ChannelSearchResult,
-} from "../components/ChannelSearchForm";
+import { SearchForm } from "../components/SearchForm";
 
 type ChannelAdminSectionProps = {
   initialChannels: ChannelRow[];
@@ -59,18 +56,10 @@ export function ChannelAdminSection({
   }, [initialChannels, currentPage, hasPrev, hasNext, prevHref, nextHref]);
 
   const handleSearchResults = (
-    results: ChannelSearchResult[],
+    results: ChannelRow[],
     meta: { hasNext: boolean },
   ) => {
-    const mapped: ChannelRow[] = results.map((item) => ({
-      id: item.id,
-      name: item.name,
-      url: item.url,
-      status: item.status ?? 0,
-      keyword: item.keyword ?? null,
-      latestVideoTitle: item.latest_video_title ?? null,
-    }));
-    setChannels(mapped);
+    setChannels(results);
     setPagination({
       currentPage: 1,
       hasPrev: false,
@@ -93,9 +82,65 @@ export function ChannelAdminSection({
     setSearchMode(false);
   };
 
+  const executeSearch = useCallback(async (keyword: string) => {
+    const searchParams = new URLSearchParams();
+    searchParams.set("q", keyword);
+    searchParams.set("page", "1");
+
+    const response = await fetch(`/api/admin/channels?${searchParams.toString()}`, {
+      method: "GET",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+    });
+    const payload = (await response.json().catch(() => null)) as
+      | { message?: string }
+      | null;
+    if (!response.ok) {
+      const message =
+        payload && typeof payload === "object" && typeof payload.message === "string"
+          ? payload.message
+          : "検索に失敗しました。再度お試しください。";
+      throw new Error(message);
+    }
+
+    const data = payload as {
+      channels?: Array<{
+        id: string;
+        url: string;
+        name: string;
+        status?: number | null;
+        keyword?: string | null;
+        latest_video_title?: string | null;
+      }>;
+      hasNext?: boolean;
+    };
+
+    const mapped: ChannelRow[] = Array.isArray(data?.channels)
+      ? data.channels.map((item) => ({
+          id: item.id,
+          name: item.name,
+          url: item.url,
+          status: item.status ?? 0,
+          keyword: item.keyword ?? null,
+          latestVideoTitle: item.latest_video_title ?? null,
+        }))
+      : [];
+
+    return { items: mapped, hasNext: Boolean(data?.hasNext) };
+  }, []);
+
   return (
     <div className="flex flex-col gap-6">
-      <ChannelSearchForm onResults={handleSearchResults} onReset={handleReset} />
+      <SearchForm<ChannelRow>
+        title="チャンネル検索"
+        placeholder="チャンネル名で検索"
+        ariaLabel="チャンネル名で検索"
+        emptyMessage="該当するチャンネルが見つかりませんでした。"
+        inputId="channel-search-input"
+        executeSearch={executeSearch}
+        onResults={handleSearchResults}
+        onReset={handleReset}
+      />
       <ChannelBulkManager
         channels={channels}
         currentPage={pagination.currentPage}
