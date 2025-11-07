@@ -3,8 +3,10 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
+import { YouTubeEmbed } from "@next/third-parties/google";
+import { VideoSearchForm } from "../components/VideoSearchForm";
 
-type AdminVideo = {
+export type AdminVideo = {
   id: string;
   url: string;
   title: string;
@@ -69,6 +71,7 @@ function AdminVideosPageContent() {
   const [selections, setSelections] = useState<Record<string, VideoSelection>>({});
   const [submitting, setSubmitting] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
+  const [searchActive, setSearchActive] = useState(false);
 
   const createInitialSelections = useCallback((rows: AdminVideo[]) => {
     const next: Record<string, VideoSelection> = {};
@@ -139,6 +142,7 @@ function AdminVideosPageContent() {
         setCurrentPage(data.page);
         setSelections(createInitialSelections(data.videos));
         setHasNextPage(Boolean(data.hasNext));
+        setSearchActive(false);
       } catch (error) {
         const fallback =
           error instanceof Error ? error.message : "動画一覧の取得に失敗しました。";
@@ -157,13 +161,30 @@ function AdminVideosPageContent() {
     loadVideos(page);
   }, [page, loadVideos]);
 
+  const handleSearchResults = useCallback(
+    (results: AdminVideo[], meta: { hasNext: boolean }) => {
+      setVideos(results);
+      setSelections(createInitialSelections(results));
+      setCurrentPage(1);
+      setHasNextPage(meta.hasNext);
+      setSearchActive(true);
+    },
+    [createInitialSelections],
+  );
+
+  const handleSearchReset = useCallback(() => {
+    setSearchActive(false);
+    loadVideos(page);
+  }, [loadVideos, page]);
+
   const selectedCount = useMemo(
     () => Object.values(selections).filter((item) => item.selected).length,
     [selections],
   );
 
   const hasPrev = currentPage > 1;
-  const hasNext = hasNextPage;
+  const effectiveHasPrev = !searchActive && hasPrev;
+  const effectiveHasNext = !searchActive && hasNextPage;
 
   const handleToggleAll = (checked: boolean) => {
     const next: Record<string, VideoSelection> = {};
@@ -247,6 +268,7 @@ function AdminVideosPageContent() {
   };
 
   const goToPage = (targetPage: number) => {
+    if (searchActive) return;
     if (targetPage === currentPage) return;
     const query = targetPage > 1 ? `?page=${targetPage}` : "";
     router.push(`/admin/videos${query}`);
@@ -260,6 +282,7 @@ function AdminVideosPageContent() {
         </p>
       ) : (
         <div className="flex flex-col gap-4">
+          <VideoSearchForm onResults={handleSearchResults} onReset={handleSearchReset} />
           <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex items-center gap-2 text-sm text-slate-600">
               <input
@@ -544,7 +567,7 @@ function AdminVideosPageContent() {
           <div className="flex items-center justify-between pt-2">
             <span className="text-sm text-slate-600">ページ {currentPage}</span>
             <div className="flex gap-2">
-              {hasPrev ? (
+              {effectiveHasPrev ? (
                 <button
                   type="button"
                   onClick={() => goToPage(currentPage - 1)}
@@ -557,7 +580,7 @@ function AdminVideosPageContent() {
                   前のページ
                 </span>
               )}
-              {hasNext ? (
+              {effectiveHasNext ? (
                 <button
                   type="button"
                   onClick={() => goToPage(currentPage + 1)}
@@ -579,13 +602,13 @@ function AdminVideosPageContent() {
 }
 
 // YouTube の視聴URLを埋め込み用URLへ丁寧に変換します。
-function toYouTubeEmbedUrl(url: string): string | null {
+function extractYouTubeVideoId(url: string): string | null {
   try {
     const parsed = new URL(url);
     const hostname = parsed.hostname.replace(/^www\./, "");
     if (hostname === "youtu.be") {
       const videoId = parsed.pathname.slice(1);
-      return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+      return videoId || null;
     }
     if (
       hostname === "youtube.com" ||
@@ -594,14 +617,15 @@ function toYouTubeEmbedUrl(url: string): string | null {
     ) {
       if (parsed.pathname === "/watch") {
         const videoId = parsed.searchParams.get("v");
-        return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+        return videoId || null;
       }
       if (parsed.pathname.startsWith("/embed/")) {
-        return url;
+        const videoId = parsed.pathname.split("/")[2];
+        return videoId || null;
       }
       if (parsed.pathname.startsWith("/shorts/")) {
         const videoId = parsed.pathname.split("/")[2];
-        return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
+        return videoId || null;
       }
     }
   } catch {
@@ -611,8 +635,8 @@ function toYouTubeEmbedUrl(url: string): string | null {
 }
 
 function renderEmbeddedVideo(video: AdminVideo) {
-  const embedUrl = toYouTubeEmbedUrl(video.url);
-  if (!embedUrl) {
+  const videoId = extractYouTubeVideoId(video.url);
+  if (!videoId) {
     return (
       <a
         href={video.url}
@@ -625,12 +649,8 @@ function renderEmbeddedVideo(video: AdminVideo) {
     );
   }
   return (
-    <iframe
-      src={embedUrl}
-      title={`video-${video.id}`}
-      className="h-full w-full"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowFullScreen
+    <YouTubeEmbed
+      videoid={videoId}
     />
   );
 }
