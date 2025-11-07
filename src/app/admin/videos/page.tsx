@@ -74,7 +74,7 @@ function AdminVideosPageContent() {
     const next: Record<string, VideoSelection> = {};
     for (const row of rows) {
       next[row.id] = {
-        selected: false,
+        selected: true,
         videoStatus: "2",
         videoCategory: "0",
       };
@@ -223,6 +223,19 @@ function AdminVideosPageContent() {
           ? data.message
           : `動画の更新が完了しました。（${data?.processed ?? items.length}件）`;
       setMessage(successMessage);
+      setSelections((prev) => {
+        const next: Record<string, VideoSelection> = {};
+        for (const video of videos) {
+          next[video.id] = {
+            ...(prev[video.id] ?? {
+              videoStatus: "2",
+              videoCategory: "0",
+            }),
+            selected: true,
+          };
+        }
+        return next;
+      });
       await loadVideos(currentPage);
     } catch (error) {
       const fallback =
@@ -284,7 +297,7 @@ function AdminVideosPageContent() {
                 ) : (
                   videos.map((video) => {
                     const entry = selections[video.id] ?? {
-                      selected: false,
+                      selected: true,
                       videoStatus: "2",
                       videoCategory: "0",
                     };
@@ -421,7 +434,7 @@ function AdminVideosPageContent() {
                     ) : (
                       videos.map((video) => {
                         const entry = selections[video.id] ?? {
-                          selected: false,
+                          selected: true,
                           videoStatus: "2",
                           videoCategory: "0",
                         };

@@ -64,7 +64,7 @@ function AdminPlaylistsPageContent() {
     const next: Record<string, PlaylistSelection> = {};
     for (const row of rows) {
       const initialStatus = row.status === 1 ? "1" : row.status === 2 ? "2" : "2";
-      next[row.id] = { selected: false, status: initialStatus };
+      next[row.id] = { selected: true, status: initialStatus };
     }
     return next;
   }, []);
@@ -157,7 +157,7 @@ function AdminPlaylistsPageContent() {
     for (const playlist of playlists) {
       const entry =
         selections[playlist.id] ??
-        { selected: false, status: playlist.status === 1 ? "1" : playlist.status === 2 ? "2" : "2" };
+        { selected: true, status: playlist.status === 1 ? "1" : playlist.status === 2 ? "2" : "2" };
       next[playlist.id] = { ...entry, selected: checked };
     }
     setSelections(next);
@@ -206,6 +206,18 @@ function AdminPlaylistsPageContent() {
           ? data.message
           : `プレイリストの更新が完了しました。（${data?.processed ?? items.length}件）`;
       setMessage(successMessage);
+      setSelections((prev) => {
+        const next: Record<string, PlaylistSelection> = {};
+        for (const playlist of playlists) {
+          next[playlist.id] = {
+            ...(prev[playlist.id] ?? {
+              status: playlist.status === 1 ? "1" : playlist.status === 2 ? "2" : "2",
+            }),
+            selected: true,
+          };
+        }
+        return next;
+      });
       await loadPlaylists(currentPage);
     } catch (error) {
       const fallback =

@@ -57,6 +57,7 @@ const NEGATIVE_VIDEO_KEYWORDS = [
   '生配信',
   'インスタライブ',
   'ミュージックビデオ',
+  '踊ってみた',
 ];
 
 export function registerPostVideosSync(app: Hono<AdminEnv>) {
@@ -133,35 +134,28 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
       ) => {
         for (const result of pendingResults) {
           const { artist, channels, videos: videoItems, playlists: playlistItems } = result;
-          let channelFailed = false;
-
+          const channelTitleMap = new Map<string, string>();
           for (const entry of channels) {
-            try {
-              await ensureChannel(client, ensuredChannels, entry.channelId, entry.channelTitle);
-            } catch (error) {
-              logSqlError(error);
-              summary.errors.push(
-                `${artist}: ${
-                  (error as Error)?.message ?? "チャンネル情報の保存に失敗しました。"
-                }`,
-              );
-              channelFailed = true;
-              if (options.abortOnError) {
-                throw error;
-              }
-              break;
-            }
-          }
-
-          if (channelFailed) {
-            continue;
+            if (!entry.channelId) continue;
+            channelTitleMap.set(entry.channelId, entry.channelTitle ?? "");
           }
 
           for (const item of videoItems) {
             if (shouldSkipVideo(item.title)) continue;
-            if (!item.videoId) continue;
+            if (!item.videoId || !item.channelId) continue;
 
             try {
+              const resolvedChannelTitle =
+                channelTitleMap.get(item.channelId ?? "") ||
+                item.channelTitle ||
+                item.channelId ||
+                "Unknown Channel";
+              await ensureChannel(
+                client,
+                ensuredChannels,
+                item.channelId,
+                resolvedChannelTitle,
+              );
               await insertVideo(client, {
                 id: item.videoId,
                 title: item.title,
@@ -187,6 +181,7 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
 
           for (const item of playlistItems) {
             if (!item.playlistId) continue;
+            if (!item.channelId || !ensuredChannels.has(item.channelId)) continue;
 
             try {
               await insertPlaylist(client, {
