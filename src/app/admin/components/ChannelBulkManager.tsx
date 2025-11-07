@@ -68,7 +68,7 @@ export function ChannelBulkManager({
     const initial: Record<string, ChannelSelection> = {};
     for (const row of channels) {
       initial[row.id] = {
-        selected: false,
+        selected: true,
         status: "2",
         category: "1",
         artistName: row.name,
@@ -87,7 +87,7 @@ export function ChannelBulkManager({
         nextSelections[row.id] = existing
           ? existing
           : {
-              selected: false,
+              selected: true,
               status: "2",
               category: "1",
               artistName: row.name,
@@ -164,6 +164,24 @@ export function ChannelBulkManager({
           ? data.message
           : `チャンネルの更新が完了しました。（${data?.processed ?? items.length}件）`;
       setMessage(successMessage);
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      setSelections((prev) => {
+        const next: Record<string, ChannelSelection> = {};
+        for (const row of channels) {
+          next[row.id] = {
+            ...(prev[row.id] ?? {
+              status: "2",
+              category: "1",
+              artistName: row.name,
+              keywordId: "1",
+            }),
+            selected: true,
+          };
+        }
+        return next;
+      });
       // 更新完了後に最新のチャンネル一覧へ差し替えるため、Next.js のルーターへ再描画を依頼いたします。
       router.refresh();
     } catch (error) {
@@ -221,7 +239,7 @@ export function ChannelBulkManager({
                 className="rounded border border-slate-200 bg-white p-4 shadow-sm"
               >
                 <div className="flex items-center justify-between">
-                  <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
             <input
               type="checkbox"
               className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
@@ -236,13 +254,13 @@ export function ChannelBulkManager({
                 }))
               }
             />
-            <span className="flex flex-col">
-              <span>{channel.name}</span>
-              {channel.latestVideoTitle ? (
-                <span className="text-xs text-slate-500">{channel.latestVideoTitle}</span>
-              ) : null}
-            </span>
-          </label>
+              <span className="flex flex-col">
+                <span>{channel.name}</span>
+                {channel.latestVideoTitle ? (
+                  <span className="text-xs text-slate-500">{channel.latestVideoTitle}</span>
+                ) : null}
+              </span>
+            </label>
           <a
             href={channel.url}
             target="_blank"
@@ -369,12 +387,12 @@ export function ChannelBulkManager({
               <th scope="col" className="w-8 px-4 py-3">
                 <span className="sr-only">選択</span>
               </th>
-              <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
-                チャンネル名
-              </th>
-              <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
-                ステータス更新
-              </th>
+            <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
+              チャンネル名
+            </th>
+            <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
+              ステータス更新
+            </th>
               <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                 カテゴリ更新
               </th>
@@ -424,12 +442,12 @@ export function ChannelBulkManager({
                         aria-label={`${channel.name} を選択`}
                       />
                     </td>
-                    <td className="w-1/6 px-4 py-3">
-                      <div className="font-medium text-slate-900">{channel.name}</div>
-                      {channel.latestVideoTitle ? (
-                        <div className="mt-1 text-xs text-slate-500">{channel.latestVideoTitle}</div>
-                      ) : null}
-                    </td>
+            <td className="w-1/6 px-4 py-3">
+              <div className="font-medium text-slate-900">{channel.name}</div>
+              {channel.latestVideoTitle ? (
+                <div className="mt-1 text-xs text-slate-500">{channel.latestVideoTitle}</div>
+              ) : null}
+            </td>
                     <td className="w-1/6 px-4 py-3">
                       <label className="sr-only" htmlFor={`status-${channel.id}`}>
                         ステータス更新
