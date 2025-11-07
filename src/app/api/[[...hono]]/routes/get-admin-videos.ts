@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { desc, eq, and } from "drizzle-orm";
+import { desc, eq, and, like } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -13,8 +13,16 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     const parsedPage = rawPage ? Number(rawPage) : 1;
     const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1;
 
+    const rawKeyword = c.req.query("q") ?? "";
+    const keyword = rawKeyword.trim();
+
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
+
+    const baseCondition = and(eq(videos.status, 0), eq(channels.status, 1));
+    const whereExpression = keyword
+      ? and(baseCondition, like(videos.title, `%${keyword}%`))
+      : baseCondition;
 
     const rows = await db
       .select({
@@ -24,12 +32,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       })
       .from(videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
-      .where(
-        and(
-          eq(videos.status, 0),
-          eq(channels.status, 1),
-        ),
-      )
+      .where(whereExpression)
       .orderBy(desc(videos.createdAt))
       .limit(MAX_LIMIT)
       .offset((page - 1) * MAX_LIMIT);
