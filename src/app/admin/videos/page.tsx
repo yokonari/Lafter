@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { YouTubeEmbed } from "@next/third-parties/google";
 import { SearchForm } from "../components/SearchForm";
+import { ListFooter } from "../components/ListFooter";
 
 export type AdminVideo = {
   id: string;
@@ -316,23 +317,6 @@ function AdminVideosPageContent() {
             onResults={handleSearchResults}
             onReset={handleSearchReset}
           />
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
-                onChange={(event) => handleToggleAll(event.target.checked)}
-                aria-label="全て選択"
-                disabled={loading || videos.length === 0}
-              />
-              全て選択
-            </label>
-            <span className="text-sm text-slate-500">
-              選択中: {selectedCount} / {videos.length}
-            </span>
-          </div>
-
           {message ? (
             <p className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               {message}
@@ -362,33 +346,23 @@ function AdminVideosPageContent() {
                         key={video.id}
                         className="rounded border border-slate-200 bg-white p-4 shadow-sm"
                       >
-                        <div className="flex items-center justify-between">
-                          <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
-                            <input
-                              type="checkbox"
-                              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                              checked={entry.selected}
-                              onChange={(event) =>
-                                setSelections((prev) => ({
-                                  ...prev,
-                                  [video.id]: {
-                                    ...entry,
-                                    selected: event.target.checked,
-                                  },
-                                }))
-                              }
-                            />
-                            {video.title}
-                          </label>
-                          <a
-                            href={video.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-slate-900 underline underline-offset-4 hover:text-slate-700"
-                          >
-                            開く
-                          </a>
-                        </div>
+                        <label className="inline-flex items-center gap-2 text-sm font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                            checked={entry.selected}
+                            onChange={(event) =>
+                              setSelections((prev) => ({
+                                ...prev,
+                                [video.id]: {
+                                  ...entry,
+                                  selected: event.target.checked,
+                                },
+                              }))
+                            }
+                          />
+                          {video.title}
+                        </label>
                         <div className="mt-3 space-y-3 text-sm">
                           <div className="flex items-center justify-between gap-2">
                             <label htmlFor={`video-status-${video.id}`} className="text-slate-600">
@@ -415,34 +389,36 @@ function AdminVideosPageContent() {
                               ))}
                             </select>
                           </div>
-                          <div className="flex items-center justify-between gap-2">
-                            <label
-                              htmlFor={`video-category-${video.id}`}
-                              className="text-slate-600"
-                            >
-                              動画カテゴリ
-                            </label>
-                            <select
-                              id={`video-category-${video.id}`}
-                              className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                              value={entry.videoCategory}
-                              onChange={(event) =>
-                                setSelections((prev) => ({
-                                  ...prev,
-                                  [video.id]: {
-                                    ...entry,
-                                    videoCategory: event.target.value,
-                                  },
-                                }))
-                              }
-                            >
-                              {VIDEO_CATEGORY_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
+                          {entry.videoStatus === "2" ? null : (
+                            <div className="flex items-center justify-between gap-2">
+                              <label
+                                htmlFor={`video-category-${video.id}`}
+                                className="text-slate-600"
+                              >
+                                動画カテゴリ
+                              </label>
+                              <select
+                                id={`video-category-${video.id}`}
+                                className="w-2/3 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                value={entry.videoCategory}
+                                onChange={(event) =>
+                                  setSelections((prev) => ({
+                                    ...prev,
+                                    [video.id]: {
+                                      ...entry,
+                                      videoCategory: event.target.value,
+                                    },
+                                  }))
+                                }
+                              >
+                                {VIDEO_CATEGORY_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          )}
                           <div
                             className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
                            style={{ aspectRatio: "16 / 9" }}
@@ -543,29 +519,35 @@ function AdminVideosPageContent() {
                               </select>
                             </td>
                             <td className="w-1/5 px-4 py-3">
-                              <label className="sr-only" htmlFor={`video-category-${video.id}`}>
-                                動画カテゴリ
-                              </label>
-                              <select
-                                id={`video-category-${video.id}`}
-                                className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                                value={entry.videoCategory}
-                                onChange={(event) =>
-                                  setSelections((prev) => ({
-                                    ...prev,
-                                    [video.id]: {
-                                      ...entry,
-                                      videoCategory: event.target.value,
-                                    },
-                                  }))
-                                }
-                              >
-                                {VIDEO_CATEGORY_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
+                              {entry.videoStatus === "2" ? (
+                                <span className="text-sm text-slate-500">NG のため設定不要</span>
+                              ) : (
+                                <>
+                                  <label className="sr-only" htmlFor={`video-category-${video.id}`}>
+                                    動画カテゴリ
+                                  </label>
+                                  <select
+                                    id={`video-category-${video.id}`}
+                                    className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                    value={entry.videoCategory}
+                                    onChange={(event) =>
+                                      setSelections((prev) => ({
+                                        ...prev,
+                                        [video.id]: {
+                                          ...entry,
+                                          videoCategory: event.target.value,
+                                        },
+                                      }))
+                                    }
+                                  >
+                                    {VIDEO_CATEGORY_OPTIONS.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </>
+                              )}
                             </td>
                             <td className="w-1/5 px-4 py-3 text-slate-600">
                               <div
@@ -585,49 +567,43 @@ function AdminVideosPageContent() {
             </>
           )}
 
-          <div className="flex justify-end">
-            {/* 一覧を確認した直後に送信できるよう、テーブル直下へ更新ボタンを丁寧に配置いたします。 */}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading || submitting || videos.length === 0}
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
-            >
-              {submitting ? "送信中…" : "更新"}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between pt-2">
-            <span className="text-sm text-slate-600">ページ {currentPage}</span>
-            <div className="flex gap-2">
-              {effectiveHasPrev ? (
+          <ListFooter
+            paging={{
+              currentPage,
+              hasPrev: effectiveHasPrev,
+              hasNext: effectiveHasNext,
+              onPrev: effectiveHasPrev ? () => goToPage(currentPage - 1) : undefined,
+              onNext: effectiveHasNext ? () => goToPage(currentPage + 1) : undefined,
+            }}
+            headerContent={
+              <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                      checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
+                      onChange={(event) => handleToggleAll(event.target.checked)}
+                      aria-label="全て選択"
+                      disabled={loading || videos.length === 0}
+                    />
+                    全て選択
+                  </label>
+                  <span className="text-sm text-slate-500">
+                    選択中: {selectedCount} / {videos.length}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => goToPage(currentPage - 1)}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
+                  onClick={handleSubmit}
+                  disabled={loading || submitting || videos.length === 0}
+                  className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
                 >
-                  前のページ
+                  {submitting ? "送信中…" : "更新"}
                 </button>
-              ) : (
-                <span className="cursor-not-allowed rounded border border-slate-200 px-3 py-2 text-sm text-slate-300">
-                  前のページ
-                </span>
-              )}
-              {effectiveHasNext ? (
-                <button
-                  type="button"
-                  onClick={() => goToPage(currentPage + 1)}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
-                >
-                  次のページ
-                </button>
-              ) : (
-                <span className="cursor-not-allowed rounded border border-slate-200 px-3 py-2 text-sm text-slate-300">
-                  次のページ
-                </span>
-              )}
-            </div>
-          </div>
+              </div>
+            }
+          />
         </div>
       )}
     </AdminTabsLayout>

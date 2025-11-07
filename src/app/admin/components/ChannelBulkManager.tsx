@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ListFooter } from "./ListFooter";
 
 export type ChannelRow = {
   id: string;
@@ -195,23 +195,6 @@ export function ChannelBulkManager({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-              checked={selectedCount > 0 && selectedCount === channels.length}
-              onChange={(event) => handleToggleAll(event.target.checked)}
-              aria-label="全て選択"
-            />
-            全て選択
-          </label>
-          <span className="text-sm text-slate-500">
-            選択中: {selectedCount} / {channels.length}
-          </span>
-        </div>
-      </div>
 
       {message ? (
         <p className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
@@ -261,14 +244,15 @@ export function ChannelBulkManager({
                 ) : null}
               </span>
             </label>
-          <a
-            href={channel.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-slate-900 underline underline-offset-4 hover:text-slate-700"
-                  >
-                    開く
-                  </a>
+                <a
+                  href={channel.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="material-symbols-rounded rounded-full bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200"
+                  aria-label={`${channel.name} を開く`}
+                >
+                  open_in_new
+                </a>
                 </div>
                 <div className="mt-3 space-y-3 text-sm">
                   <div className="flex items-center justify-between gap-2">
@@ -563,9 +547,10 @@ export function ChannelBulkManager({
                         href={channel.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-slate-900 underline underline-offset-4 hover:text-slate-700"
+                        className="material-symbols-rounded rounded-full bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200"
+                        aria-label={`${channel.name} を開く`}
                       >
-                        開く
+                        open_in_new
                       </a>
                     </td>
                   </tr>
@@ -576,49 +561,42 @@ export function ChannelBulkManager({
         </table>
       </div>
 
-      <div className="flex justify-end">
-        {/* 一覧を確認した直後に送信できるよう、テーブル直下へ更新ボタンを丁寧に配置します。 */}
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={submitting}
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
-        >
-          {submitting ? "送信中…" : "更新"}
-        </button>
-      </div>
-
-      <div className="flex items-center justify-between pt-2">
-        <span className="text-sm text-slate-600">ページ {currentPage}</span>
-        <div className="flex gap-2">
-          {hasPrev ? (
-            <Link
-              href={prevHref}
-              prefetch={false}
-              className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
+      <ListFooter
+        paging={{
+          currentPage,
+          hasPrev,
+          hasNext,
+          prevHref,
+          nextHref,
+        }}
+        headerContent={
+          <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                  checked={selectedCount > 0 && selectedCount === channels.length}
+                  onChange={(event) => handleToggleAll(event.target.checked)}
+                  aria-label="全て選択"
+                />
+                全て選択
+              </label>
+              <span className="text-sm text-slate-500">
+                選択中: {selectedCount} / {channels.length}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
             >
-              前のページ
-            </Link>
-          ) : (
-            <span className="cursor-not-allowed rounded border border-slate-200 px-3 py-2 text-sm text-slate-300">
-              前のページ
-            </span>
-          )}
-          {hasNext ? (
-            <Link
-              href={nextHref}
-              prefetch={false}
-              className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
-            >
-              次のページ
-            </Link>
-          ) : (
-            <span className="cursor-not-allowed rounded border border-slate-200 px-3 py-2 text-sm text-slate-300">
-              次のページ
-            </span>
-          )}
-        </div>
-      </div>
+              {submitting ? "送信中…" : "更新"}
+            </button>
+          </div>
+        }
+      />
     </div>
   );
 }

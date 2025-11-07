@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
+import { ListFooter } from "../components/ListFooter";
 
 type AdminPlaylist = {
   id: string;
@@ -236,23 +237,6 @@ function AdminPlaylistsPageContent() {
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
-                onChange={(event) => handleToggleAll(event.target.checked)}
-                aria-label="全て選択"
-                disabled={loading || playlists.length === 0}
-              />
-              全て選択
-            </label>
-            <span className="text-sm text-slate-500">
-              選択中: {selectedCount} / {playlists.length}
-            </span>
-          </div>
-
           {message ? (
             <p className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
               {message}
@@ -419,50 +403,43 @@ function AdminPlaylistsPageContent() {
               </div>
             </>
           )}
-
-          <div className="flex justify-end">
-            {/* テーブルを見終えた直後に更新できるよう、ボタンを一覧の直下へ丁寧に配置いたします。 */}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={loading || submitting || playlists.length === 0}
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-slate-950 disabled:opacity-60"
-            >
-              {submitting ? "送信中…" : "更新"}
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between pt-2">
-            <span className="text-sm text-slate-600">ページ {currentPage}</span>
-            <div className="flex gap-2">
-              {hasPrev ? (
+          <ListFooter
+            paging={{
+              currentPage,
+              hasPrev,
+              hasNext,
+              onPrev: hasPrev ? () => goToPage(currentPage - 1) : undefined,
+              onNext: hasNext ? () => goToPage(currentPage + 1) : undefined,
+            }}
+            headerContent={
+              <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                      checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
+                      onChange={(event) => handleToggleAll(event.target.checked)}
+                      aria-label="全て選択"
+                      disabled={loading || playlists.length === 0}
+                    />
+                    全て選択
+                  </label>
+                  <span className="text-sm text-slate-500">
+                    選択中: {selectedCount} / {playlists.length}
+                  </span>
+                </div>
                 <button
                   type="button"
-                  onClick={() => goToPage(currentPage - 1)}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
+                  onClick={handleSubmit}
+                  disabled={loading || submitting || playlists.length === 0}
+                  className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
                 >
-                  前のページ
+                  {submitting ? "送信中…" : "更新"}
                 </button>
-              ) : (
-                <span className="cursor-not-allowed rounded border border-slate-200 px-3 py-2 text-sm text-slate-300">
-                  前のページ
-                </span>
-              )}
-              {hasNext ? (
-                <button
-                  type="button"
-                  onClick={() => goToPage(currentPage + 1)}
-                  className="rounded border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors hover:bg-slate-100"
-                >
-                  次のページ
-                </button>
-              ) : (
-                <span className="cursor-not-allowed rounded border border-slate-200 px-3 py-2 text-sm text-slate-300">
-                  次のページ
-                </span>
-              )}
-            </div>
-          </div>
+              </div>
+            }
+          />
         </div>
       )}
     </AdminTabsLayout>
