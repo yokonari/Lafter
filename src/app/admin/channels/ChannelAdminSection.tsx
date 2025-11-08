@@ -114,6 +114,8 @@ export function ChannelAdminSection({
         url: string;
         name: string;
         status?: number | null;
+        category?: number | null;
+        artist_name?: string | null;
         keyword?: string | null;
         latest_video_title?: string | null;
         latest_video_id?: string | null;
@@ -127,6 +129,8 @@ export function ChannelAdminSection({
           name: item.name,
           url: item.url,
           status: item.status ?? 0,
+          category: item.category ?? null,
+          artistName: item.artist_name ?? null,
           keyword: item.keyword ?? null,
           latestVideoTitle: item.latest_video_title ?? null,
           latestVideoId: item.latest_video_id ?? null,
