@@ -1,0 +1,17 @@
+{
+    "model": "gpt-5-nano",
+    "messages": [
+        {
+            "role": "system",
+            "content": "あなたは「お笑い動画のタイトル」を分類する専門家です。目的: タイトルが「ネタ動画（漫才・コントなどの本編）」かどうかを判定すること。必ず json 形式 {\"label\":0|1,\"confidence\":0-1,\"reason\":\"...\"} で応答してください。"
+        },
+        {
+            "role": "user",
+            "content": "タイトル: お笑いジャッジ#2-1"
+        }
+    ],
+    "top_p": 1,
+    "response_format": {
+        "type": "json_object"
+    }
+}

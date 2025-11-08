@@ -3,6 +3,7 @@ import type { KVNamespace } from "@cloudflare/workers-types";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
+import { POSITIVE_KEYWORDS, NEGATIVE_KEYWORDS } from "@/lib/video-keywords";
 import { createDatabase, type AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
@@ -34,32 +35,6 @@ type SearchAPIResponse = { items?: SearchResponseItem[] };
 
 const SEARCH_BASE_URL = "https://www.googleapis.com/youtube/v3/search";
 const DEFAULT_MAX_RESULTS = 50;
-const POSITIVE_KEYWORDS = ["ネタ", "漫才", "コント"];
-const NEGATIVE_KEYWORDS = [
-  "ラジオ",
-  "トーク",
-  "ゲーム配信",
-  "実況",
-  "インタビュー",
-  "広告",
-  "睡眠用",
-  "作業用",
-  "高音質",
-  "BGM",
-  "聞き流し",
-  "まとめ",
-  "タイムスタンプ",
-  "切り抜き",
-  "#切り抜き",
-  "Shorts",
-  "shorts",
-  "MV",
-  '#shorts',
-  '生配信',
-  'インスタライブ',
-  'ミュージックビデオ',
-  '踊ってみた',
-];
 
 export function registerPostVideosSync(app: Hono<AdminEnv>) {
   app.post("/videos/sync", async (c) => {
