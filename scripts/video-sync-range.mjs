@@ -9,7 +9,7 @@
  *
  * オプション:
  *   --endpoint <url>    : 必須。対象となる /api/videos/sync のURL。
- *   --csv <path>        : CSV ファイルを指定し、status=0 の行を自動抽出します。
+ *   --csv <path>        : CSV ファイルを指定し、status=0 の行を自動抽出しつつ、成功時に status=1 へ更新します。
  *   --index <number>    : 単一インデックスを指定（複数回記述/カンマ区切り可）。
  *   --range <start-end> : 範囲を指定。例: --range 10-20
  *   --start <n> --end <m>: 範囲を個別指定。end 未指定の場合 start のみを実行。
@@ -20,7 +20,7 @@
 
 import process from "node:process";
 import { setTimeout as delay } from "node:timers/promises";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 
 function parseArgs(argv) {
   const args = {};
@@ -64,7 +64,7 @@ function parseRange(rangeText) {
 function collectCliIndices(opts) {
   const indices = new Set();
 
-  if (opts.index) {
+  if (opts.index && opts.index !== "true") {
     const values = opts.index.split(",");
     for (const value of values) {
       if (!value.trim()) continue;
@@ -72,16 +72,16 @@ function collectCliIndices(opts) {
     }
   }
 
-  if (opts.range) {
+  if (opts.range && opts.range !== "true") {
     const { start, end } = parseRange(opts.range);
     for (let i = start; i <= end; i += 1) {
       indices.add(i);
     }
   }
 
-  if (opts.start) {
+  if (opts.start && opts.start !== "true") {
     const start = parseNumber(opts.start, "--start");
-    if (opts.end) {
+    if (opts.end && opts.end !== "true") {
       const end = parseNumber(opts.end, "--end");
       if (end < start) {
         throw new Error("--end は --start 以上を指定してください。");
@@ -104,43 +104,128 @@ function splitCsvLine(line) {
   );
 }
 
+function escapeCsvValue(value) {
+  if (/["\n\r,]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
 function normalizeHeader(value) {
   return value.trim().toLowerCase();
 }
 
-async function collectCsvIndices(path) {
+async function loadCsvState(path) {
   const text = await readFile(path, "utf8");
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length <= 1) return [];
+  const newline = text.includes("\r\n") ? "\r\n" : "\n";
+  const trimmed = text.endsWith("\n") || text.endsWith("\r")
+    ? text.replace(/[\r\n]+$/, "")
+    : text;
+  const lines = trimmed.split(/\r?\n/);
+  if (lines.length <= 1) {
+    return null;
+  }
 
   const header = splitCsvLine(lines[0] ?? "");
   const indexCol = header.findIndex((name) => normalizeHeader(name) === "index");
   const statusCol = header.findIndex((name) => normalizeHeader(name) === "status");
+  const artistCol = header.findIndex((name) => normalizeHeader(name) === "artist");
 
-  const indices = [];
-  for (let row = 1; row < lines.length; row += 1) {
-    const line = lines[row];
-    if (!line) continue;
-    const cols = splitCsvLine(line);
-    if (statusCol >= 0) {
-      const statusValue = (cols[statusCol] ?? "").trim();
-      if (statusValue !== "0") continue;
-    }
-    const indexValue =
-      indexCol >= 0 ? (cols[indexCol] ?? "").trim() : String(row - 1);
-    const parsedIndex = Number(indexValue);
-    if (!Number.isInteger(parsedIndex) || parsedIndex < 0) continue;
-    indices.push(parsedIndex);
+  if (statusCol < 0) {
+    console.warn("Warning: CSV に status 列が見つからないため、自動更新をスキップします。");
   }
 
-  return indices;
+  const rows = lines.slice(1).map((line, rowIdx) => {
+    const cols = splitCsvLine(line);
+    const indexValue =
+      indexCol >= 0 ? (cols[indexCol] ?? "").trim() : String(rowIdx);
+    const parsedIndex = Number(indexValue);
+    const artistValue =
+      artistCol >= 0
+        ? (cols[artistCol] ?? "").trim()
+        : (cols[1] ?? "").trim();
+    return {
+      cols,
+      index: Number.isInteger(parsedIndex) && parsedIndex >= 0 ? parsedIndex : null,
+      artist: artistValue,
+    };
+  });
+
+  const collectTargets = () => {
+    const result = [];
+    for (const row of rows) {
+      if (row.index === null || !row.artist) continue;
+      if (statusCol >= 0) {
+        const statusValue = (row.cols[statusCol] ?? "").trim();
+        if (statusValue !== "0") continue;
+      }
+      result.push({ index: row.index, artist: row.artist });
+    }
+    return result;
+  };
+
+  const findRowByIndex = (targetIndex) =>
+    rows.find((row) => row.index === targetIndex) ?? null;
+
+  const serialize = () => {
+    const headerLine = header.map(escapeCsvValue).join(",");
+    const rowLines = rows.map((row) =>
+      row.cols.map((value) => escapeCsvValue(value ?? "")).join(","),
+    );
+    return `${[headerLine, ...rowLines].join(newline)}${newline}`;
+  };
+
+  const markProcessed = async (targetIndex) => {
+    if (statusCol < 0) return;
+    const row = rows.find((r) => r.index === targetIndex);
+    if (!row) return;
+    if ((row.cols[statusCol] ?? "").trim() === "1") return;
+    row.cols[statusCol] = "1";
+    await writeFile(path, serialize(), "utf8");
+  };
+
+  return {
+    targets: collectTargets,
+    findRowByIndex,
+    markProcessed,
+    hasStatusColumn: statusCol >= 0,
+    getStatusByIndex: (targetIndex) => {
+      if (statusCol < 0) return null;
+      const row = findRowByIndex(targetIndex);
+      return row ? (row.cols[statusCol] ?? "").trim() : null;
+    },
+  };
 }
 
-async function syncIndex(endpoint, index) {
-  const url = new URL(endpoint);
-  url.searchParams.set("index", String(index));
+function collectCliArtists(opts) {
+  const artists = [];
+  const values = [];
+  if (opts.artist && opts.artist !== "true") {
+    values.push(...opts.artist.split(","));
+  }
+  if (opts.artists && opts.artists !== "true") {
+    values.push(...opts.artists.split(","));
+  }
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (trimmed) artists.push(trimmed);
+  }
+  return artists;
+}
 
-  const response = await fetch(url, { method: "POST" });
+async function syncArtist(endpoint, target) {
+  const url = new URL(endpoint);
+  if (typeof target.index === "number") {
+    url.searchParams.set("index", String(target.index));
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ artist: target.artist }),
+  });
   const contentType = response.headers.get("content-type") ?? "";
   let body;
   if (contentType.includes("application/json")) {
@@ -160,19 +245,10 @@ async function main() {
     return;
   }
 
-  let indices = [];
-  try {
-    indices = collectCliIndices(args);
-  } catch (error) {
-    console.error(`Error: ${(error instanceof Error ? error.message : String(error))}`);
-    process.exitCode = 1;
-    return;
-  }
-
-  if (indices.length === 0 && args.csv && args.csv !== "true") {
+  let csvState = null;
+  if (args.csv && args.csv !== "true") {
     try {
-      const csvIndices = await collectCsvIndices(args.csv);
-      indices = csvIndices;
+      csvState = await loadCsvState(args.csv);
     } catch (error) {
       console.error(
         `Error: CSV の読み込みに失敗しました (${args.csv}): ${
@@ -184,9 +260,61 @@ async function main() {
     }
   }
 
-  if (indices.length === 0) {
+  let tasks = [];
+  const cliIndices = (() => {
+    try {
+      return collectCliIndices(args);
+    } catch (error) {
+      console.error(`Error: ${(error instanceof Error ? error.message : String(error))}`);
+      process.exitCode = 1;
+      return null;
+    }
+  })();
+  if (cliIndices === null) return;
+
+  const cliArtists = collectCliArtists(args);
+  for (const artist of cliArtists) {
+    tasks.push({ index: null, artist, markCsv: false });
+  }
+
+  if (cliIndices.length > 0) {
+    if (!csvState) {
+      console.error("Error: index を指定する場合、対応する artist を得るために --csv も指定してください。");
+      process.exitCode = 1;
+      return;
+    }
+    for (const index of cliIndices) {
+      const row = csvState.findRowByIndex(index);
+      if (!row) {
+        console.warn(`Warning: CSV 上で index=${index} の行が見つかりません。スキップします。`);
+        continue;
+      }
+      if (!row.artist) {
+        console.warn(`Warning: index=${index} の artist が空です。スキップします。`);
+        continue;
+      }
+      if (csvState.hasStatusColumn) {
+        const statusValue = csvState.getStatusByIndex(index);
+        if (statusValue !== "0") {
+          console.warn(`Warning: index=${index} の status が ${statusValue} のためスキップします。`);
+          continue;
+        }
+      }
+      tasks.push({ index, artist: row.artist, markCsv: true });
+    }
+  } else if (csvState) {
+    tasks.push(
+      ...csvState.targets().map((target) => ({
+        index: target.index,
+        artist: target.artist,
+        markCsv: true,
+      })),
+    );
+  }
+
+  if (tasks.length === 0) {
     console.error(
-      "Error: 処理対象がありません。--index / --range / --start (--end) または --csv を指定してください。",
+      "Error: 処理対象がありません。--artist / --artists / --csv を利用して artist を指定してください。",
     );
     process.exitCode = 1;
     return;
@@ -197,13 +325,22 @@ async function main() {
   if (args.csv && args.csv !== "true") {
     console.log(`CSV     : ${args.csv}`);
   }
-  console.log(`Targets : ${indices.join(", ")}`);
+  const taskSummary = tasks
+    .map((task) =>
+      typeof task.index === "number" ? `#${task.index}:${task.artist}` : task.artist,
+    )
+    .join(", ");
+  console.log(`Targets : ${taskSummary}`);
   console.log(`Delay   : ${delayMs}ms`);
 
-  for (const index of indices) {
+  for (const task of tasks) {
     try {
-      console.log(`\n[${new Date().toISOString()}] index=${index} を処理します…`);
-      const { response, body } = await syncIndex(endpoint, index);
+      console.log(
+        `\n[${new Date().toISOString()}] artist="${task.artist}"${
+          typeof task.index === "number" ? ` (index=${task.index})` : ""
+        } を処理します…`,
+      );
+      const { response, body } = await syncArtist(endpoint, task);
       if (!response.ok) {
         console.error(
           `  ❌ HTTP ${response.status} ${
@@ -216,6 +353,17 @@ async function main() {
             typeof body === "object" ? JSON.stringify(body) : body
           }`,
         );
+        if (task.markCsv && csvState && typeof task.index === "number") {
+          try {
+            await csvState.markProcessed(task.index);
+          } catch (error) {
+            console.error(
+              `  ⚠️ CSV 更新に失敗しました: ${
+                error instanceof Error ? error.message : String(error)
+              }`,
+            );
+          }
+        }
       }
     } catch (error) {
       console.error(`  ⚠️ エラー: ${(error instanceof Error ? error.message : String(error))}`);

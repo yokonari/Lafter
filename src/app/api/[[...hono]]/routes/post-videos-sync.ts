@@ -88,14 +88,65 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
       targetIndex = parsed;
     }
 
+    const manualArtistInputs: string[] = [];
+    const artistQueryParam = c.req.query("artist");
+    if (artistQueryParam) {
+      manualArtistInputs.push(
+        ...artistQueryParam
+          .split(",")
+          .map((value) => value.trim())
+          .filter(Boolean),
+      );
+    }
+
+    let requestJsonBody: unknown = null;
+    const contentType = c.req.header("content-type") ?? "";
+    if (contentType.includes("application/json")) {
+      try {
+        requestJsonBody = await c.req.json();
+      } catch {
+        requestJsonBody = null;
+      }
+    }
+    if (requestJsonBody && typeof requestJsonBody === "object") {
+      const bodyObject = requestJsonBody as {
+        artist?: unknown;
+        artists?: unknown;
+      };
+      if (typeof bodyObject.artist === "string") {
+        manualArtistInputs.push(bodyObject.artist);
+      } else if (Array.isArray(bodyObject.artist)) {
+        for (const entry of bodyObject.artist) {
+          if (typeof entry === "string") {
+            manualArtistInputs.push(entry);
+          }
+        }
+      }
+      if (Array.isArray(bodyObject.artists)) {
+        for (const entry of bodyObject.artists) {
+          if (typeof entry === "string") {
+            manualArtistInputs.push(entry);
+          }
+        }
+      } else if (typeof bodyObject.artists === "string") {
+        manualArtistInputs.push(bodyObject.artists);
+      }
+    }
+    const manualArtists = normalizeArtistInputs(manualArtistInputs);
+
     try {
-      const csv = await fetchArtistsCsv(env);
-      const artists = await loadArtists(csv, { targetIndex });
-      if (typeof targetIndex === "number" && artists.length === 0) {
-        return c.json(
-          { message: `index ${targetIndex} に該当する処理対象が見つかりませんでした。` },
-          404,
-        );
+      let artists: string[] = [];
+      if (manualArtists.length > 0) {
+        artists = manualArtists;
+      } else {
+        const csv = await fetchArtistsCsv(env);
+        artists = await loadArtists(csv, { targetIndex });
+        if (typeof targetIndex === "number" && artists.length === 0) {
+          return c.json(
+            { message: `index ${targetIndex} に該当する処理対象が見つかりませんでした。` },
+            404,
+          );
+        }
       }
 
       const summary = {
@@ -384,6 +435,19 @@ function expandArtistNames(raw: string): string[] {
     .split(/[\/／・、&＆]|(?<=\S)と(?=\S)/g)
     .map((s) => s.normalize("NFKC").replace(/\s+/g, " ").trim())
     .filter(Boolean);
+}
+
+function normalizeArtistInputs(inputs: string[]): string[] {
+  const unique = new Set<string>();
+  for (const raw of inputs) {
+    if (!raw) continue;
+    for (const name of expandArtistNames(raw)) {
+      if (name && name !== "–") {
+        unique.add(name);
+      }
+    }
+  }
+  return Array.from(unique);
 }
 
 async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]> {
