@@ -433,7 +433,12 @@ function AdminVideosPageContent() {
         }
         return next;
       });
-      await loadVideos(currentPage);
+      if (searchContext) {
+        // ショートカット等で検索中の場合は同じ条件で丁寧に再読み込みし、設定を維持します。
+        await loadSearchPage(currentPage);
+      } else {
+        await loadVideos(currentPage);
+      }
     } catch (error) {
       const fallback =
         error instanceof Error ? error.message : "動画更新中に予期せぬエラーが発生しました。";
