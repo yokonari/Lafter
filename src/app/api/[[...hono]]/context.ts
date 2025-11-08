@@ -7,6 +7,7 @@ declare global {
     DB: D1Database;
     YOUTUBE_API_KEY?: string;
     ADMIN_EMAIL?: string;
+    OPENAI_API_KEY?: string;
     LAFTER?: KVNamespace;
     "lafter-artist"?: KVNamespace;
   }

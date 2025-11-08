@@ -6,7 +6,7 @@
 .pnp.js
 .yarn/install-state.gz
 .wrangler/
-public/data/
+data/
 
 # testing
 /coverage
@@ -21,6 +21,10 @@ public/data/
 # misc
 .DS_Store
 *.pem
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
 
 # debug
 npm-debug.log*
