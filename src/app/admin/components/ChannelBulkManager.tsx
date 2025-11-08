@@ -22,6 +22,7 @@ type ChannelBulkManagerProps = {
   hasNext: boolean;
   prevHref: string;
   nextHref: string;
+  registeredView?: boolean;
 };
 
 type ChannelSelection = {
@@ -61,44 +62,20 @@ export function ChannelBulkManager({
   hasNext,
   prevHref,
   nextHref,
+  registeredView = false,
 }: ChannelBulkManagerProps) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [selections, setSelections] = useState<Record<string, ChannelSelection>>(() => {
-    const initial: Record<string, ChannelSelection> = {};
-    for (const row of channels) {
-      initial[row.id] = {
-        selected: true,
-        status: "2",
-        category: "1",
-        artistName: row.name,
-        keywordId: "1",
-      };
-    }
-    return initial;
-  });
+  const [selections, setSelections] = useState<Record<string, ChannelSelection>>(() =>
+    buildInitialSelections(channels, registeredView),
+  );
 
   useEffect(() => {
-    // サーバー側で再取得されたチャンネル一覧が流れてきた際に、選択状態を丁寧に初期化し直します。
-    setSelections((prev) => {
-      const nextSelections: Record<string, ChannelSelection> = {};
-      for (const row of channels) {
-        const existing = prev[row.id];
-        nextSelections[row.id] = existing
-          ? existing
-          : {
-              selected: true,
-              status: "2",
-              category: "1",
-              artistName: row.name,
-              keywordId: "1",
-            };
-      }
-      return nextSelections;
-    });
-  }, [channels]);
+    // サーバー側で再取得されたチャンネル一覧が流れてきた際に、登録済みフィルターの状態へ丁寧に合わせます。
+    setSelections(buildInitialSelections(channels, registeredView));
+  }, [channels, registeredView]);
 
   const selectedCount = useMemo(
     () => Object.values(selections).filter((item) => item.selected).length,
@@ -169,21 +146,8 @@ export function ChannelBulkManager({
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
-      setSelections((prev) => {
-        const next: Record<string, ChannelSelection> = {};
-        for (const row of channels) {
-          next[row.id] = {
-            ...(prev[row.id] ?? {
-              status: "2",
-              category: "1",
-              artistName: row.name,
-              keywordId: "1",
-            }),
-            selected: true,
-          };
-        }
-        return next;
-      });
+      // 更新完了後も登録済みフィルターがあれば未選択に戻すため、初期状態を再構築します。
+      setSelections(buildInitialSelections(channels, registeredView));
       // 更新完了後に最新のチャンネル一覧へ差し替えるため、Next.js のルーターへ再描画を依頼いたします。
       router.refresh();
     } catch (error) {
@@ -211,13 +175,7 @@ export function ChannelBulkManager({
           </p>
         ) : (
           channels.map((channel) => {
-            const entry = selections[channel.id] ?? {
-              selected: false,
-              status: channel.status !== undefined && channel.status !== null ? String(channel.status) : "2",
-              category: "1",
-              artistName: channel.name,
-              keywordId: "1",
-            };
+            const entry = selections[channel.id] ?? createSelectionEntry(channel, registeredView);
             return (
               <article
                 key={channel.id}
@@ -408,13 +366,7 @@ export function ChannelBulkManager({
               </tr>
             ) : (
               channels.map((channel) => {
-                const entry = selections[channel.id] ?? {
-                  selected: false,
-                  status: channel.status !== undefined && channel.status !== null ? String(channel.status) : "2",
-                  category: "1",
-                  artistName: channel.name,
-                  keywordId: "1",
-                };
+                const entry = selections[channel.id] ?? createSelectionEntry(channel, registeredView);
                 return (
                   <tr key={channel.id} className="hover:bg-slate-50">
                     <td className="w-8 px-4 py-3">
@@ -633,4 +585,22 @@ function renderLatestVideoEmbed(channel: ChannelRow) {
       最新動画情報がありません
     </div>
   );
+}
+
+function buildInitialSelections(channels: ChannelRow[], registeredView: boolean) {
+  const initial: Record<string, ChannelSelection> = {};
+  for (const row of channels) {
+    initial[row.id] = createSelectionEntry(row, registeredView);
+  }
+  return initial;
+}
+
+function createSelectionEntry(channel: ChannelRow, registeredView: boolean): ChannelSelection {
+  return {
+    selected: registeredView ? false : true,
+    status: registeredView ? String(channel.status ?? 1) : "2",
+    category: "1",
+    artistName: channel.name,
+    keywordId: "1",
+  };
 }

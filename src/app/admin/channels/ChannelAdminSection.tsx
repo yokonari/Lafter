@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
 import {
   ChannelBulkManager,
@@ -14,6 +15,7 @@ type ChannelAdminSectionProps = {
   hasNext: boolean;
   prevHref: string;
   nextHref: string;
+  channelStatus: number;
 };
 
 type PaginationState = {
@@ -31,7 +33,9 @@ export function ChannelAdminSection({
   hasNext,
   prevHref,
   nextHref,
+  channelStatus,
 }: ChannelAdminSectionProps) {
+  const router = useRouter();
   const [channels, setChannels] = useState<ChannelRow[]>(initialChannels);
   const [pagination, setPagination] = useState<PaginationState>({
     currentPage,
@@ -86,6 +90,7 @@ export function ChannelAdminSection({
     const searchParams = new URLSearchParams();
     searchParams.set("q", keyword);
     searchParams.set("page", "1");
+    searchParams.set("channel_status", String(channelStatus));
 
     const response = await fetch(`/api/admin/channels?${searchParams.toString()}`, {
       method: "GET",
@@ -129,10 +134,25 @@ export function ChannelAdminSection({
       : [];
 
     return { items: mapped, hasNext: Boolean(data?.hasNext) };
-  }, []);
+  }, [channelStatus]);
+
+  const isRegisteredFilter = channelStatus === 1;
+  // 登録済みフィルターの遷移先を丁寧に整え、一覧からすぐ切り替えられるようにします。
+  const registeredFilterHref = (() => {
+    const params = new URLSearchParams();
+    if (!isRegisteredFilter) {
+      params.set("channel_status", "1");
+    }
+    const query = params.toString();
+    return `/admin/channels${query ? `?${query}` : ""}`;
+  })();
+  const handleRegisteredButtonClick = () => {
+    // 登録済みフィルターの切り替え先を丁寧に算出し、ボタン操作で遷移させます。
+    router.push(registeredFilterHref);
+  };
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-4">
       <SearchForm<ChannelRow>
         title="チャンネル検索"
         placeholder="チャンネル名で検索"
@@ -143,6 +163,20 @@ export function ChannelAdminSection({
         onResults={handleSearchResults}
         onReset={handleReset}
       />
+      {/* 検索直下にフィルターボタンを配置し、操作の文脈をわかりやすく保ちます。 */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={handleRegisteredButtonClick}
+          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+            isRegisteredFilter
+              ? "border-slate-900 bg-slate-900 text-white"
+              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          登録済み
+        </button>
+      </div>
       <ChannelBulkManager
         channels={channels}
         currentPage={pagination.currentPage}
@@ -150,6 +184,7 @@ export function ChannelAdminSection({
         hasNext={!searchMode && pagination.hasNext}
         prevHref={pagination.prevHref}
         nextHref={pagination.nextHref}
+        registeredView={isRegisteredFilter}
       />
     </div>
   );
