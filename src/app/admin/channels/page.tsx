@@ -20,7 +20,7 @@ type AdminChannelsResponse = {
 };
 
 // API から管理画面用のチャンネル一覧を丁寧に取り出します。
-async function fetchAdminChannels(page: number): Promise<AdminChannelsResponse> {
+async function fetchAdminChannels(page: number, channelStatus: number): Promise<AdminChannelsResponse> {
   const headerList = await headers();
   const protocol =
     (await headerList).get("x-forwarded-proto") ??
@@ -36,6 +36,7 @@ async function fetchAdminChannels(page: number): Promise<AdminChannelsResponse> 
   if (page > 1) {
     url.searchParams.set("page", String(page));
   }
+  url.searchParams.set("channel_status", String(channelStatus));
 
   // 認証済みの Cookie などを丁寧に引き継ぎ、API 側の認可を通過します。
   const cookieHeader = headerList.get("cookie");
@@ -117,7 +118,7 @@ async function fetchAdminChannels(page: number): Promise<AdminChannelsResponse> 
   };
 }
 
-type PageSearchParams = { page?: string };
+type PageSearchParams = { page?: string; channel_status?: string };
 
 // Next.js 側で Promise として渡される searchParams に丁寧に合わせます。
 type PageProps = {
@@ -129,13 +130,21 @@ export default async function AdminChannelsPage({ searchParams }: PageProps) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const rawPage = resolvedSearchParams.page ? Number(resolvedSearchParams.page) : 1;
   const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.floor(rawPage) : 1;
+  const rawChannelStatus = resolvedSearchParams.channel_status
+    ? Number(resolvedSearchParams.channel_status)
+    : defaultChannelStatus;
+  // channel_status クエリを丁寧に解釈し、登録済みフィルターの切り替えに備えます。
+  const channelStatusFilter =
+    Number.isFinite(rawChannelStatus) && rawChannelStatus >= 0
+      ? Math.floor(rawChannelStatus)
+      : defaultChannelStatus;
 
   let data: AdminChannelsResponse | null = null;
   let errorMessage: string | null = null;
 
   try {
     // 指定ページのチャンネル一覧を丁寧に取得し、管理者へご案内します。
-    data = await fetchAdminChannels(page);
+    data = await fetchAdminChannels(page, channelStatusFilter);
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : "チャンネル一覧の取得に失敗しました。";
   }
@@ -147,9 +156,21 @@ export default async function AdminChannelsPage({ searchParams }: PageProps) {
 
   const prevPage = currentPage - 1;
   const nextPage = currentPage + 1;
+  // ページングリンクにもフィルター条件を丁寧に付与します。
+  const buildHref = (pageNumber: number) => {
+    const params = new URLSearchParams();
+    if (pageNumber > 1) {
+      params.set("page", String(pageNumber));
+    }
+    if (channelStatusFilter !== defaultChannelStatus) {
+      params.set("channel_status", String(channelStatusFilter));
+    }
+    const query = params.toString();
+    return `/admin/channels${query ? `?${query}` : ""}`;
+  };
 
-  const prevHref = hasPrev ? `/admin/channels${prevPage > 1 ? `?page=${prevPage}` : ""}` : "#";
-  const nextHref = hasNext ? `/admin/channels?page=${nextPage}` : "#";
+  const prevHref = hasPrev ? buildHref(prevPage) : "#";
+  const nextHref = hasNext ? buildHref(nextPage) : "#";
 
   return (
     <AdminTabsLayout activeTab="channels">
@@ -165,8 +186,10 @@ export default async function AdminChannelsPage({ searchParams }: PageProps) {
           hasNext={hasNext}
           prevHref={prevHref}
           nextHref={nextHref}
+          channelStatus={channelStatusFilter}
         />
       )}
     </AdminTabsLayout>
   );
 }
+const defaultChannelStatus = 0;

@@ -16,12 +16,24 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
     const rawKeyword = c.req.query("q") ?? "";
     const keyword = rawKeyword.trim();
 
+    const rawStatus = c.req.query("channel_status");
+    const parsedStatus = rawStatus !== undefined ? Number(rawStatus) : 0;
+    if (!Number.isInteger(parsedStatus) || parsedStatus < 0 || parsedStatus > 2) {
+      return c.json(
+        { message: "channel_status は 0〜2 の整数で指定してください。" },
+        400,
+      );
+    }
+    const channelStatus = parsedStatus;
+
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
 
+    const statusCondition = eq(channels.status, channelStatus);
+
     const whereExpression = keyword
-      ? and(eq(channels.status, 0), like(channels.name, `%${keyword}%`))
-      : eq(channels.status, 0);
+      ? and(statusCondition, like(channels.name, `%${keyword}%`))
+      : statusCondition;
 
     const baseQuery = db
       .select({
@@ -67,11 +79,11 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       id: row.id,
       url: `https://www.youtube.com/channel/${row.id}`,
       name: row.name,
-      status: row.status ?? 0,
-      keyword: row.keyword ?? "",
-      latest_video_title: latestVideoByChannel.get(row.id)?.title ?? null,
-      latest_video_id: latestVideoByChannel.get(row.id)?.videoId ?? null,
-    }));
+          status: row.status ?? 0,
+          keyword: row.keyword ?? "",
+          latest_video_title: latestVideoByChannel.get(row.id)?.title ?? null,
+          latest_video_id: latestVideoByChannel.get(row.id)?.videoId ?? null,
+        }));
 
     // 管理画面向けチャンネル一覧を丁寧にご提供いたします。
     return c.json(
