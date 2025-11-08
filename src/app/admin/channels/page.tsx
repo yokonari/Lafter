@@ -7,6 +7,8 @@ type AdminChannel = {
   url: string;
   name: string;
   status: number;
+  category?: number | null;
+  artistName?: string | null;
   keyword?: string;
   latestVideoTitle?: string | null;
   latestVideoId?: string | null;
@@ -91,6 +93,8 @@ async function fetchAdminChannels(page: number, channelStatus: number): Promise<
       url: string;
       name: string;
       status: number;
+      category?: number | null;
+      artist_name?: string | null;
       keyword?: string | null;
       latest_video_title?: string | null;
       latest_video_id?: string | null;
@@ -105,6 +109,8 @@ async function fetchAdminChannels(page: number, channelStatus: number): Promise<
     url: channel.url,
     name: channel.name,
     status: channel.status,
+    category: channel.category ?? null,
+    artistName: channel.artist_name ?? null,
     keyword: channel.keyword ?? undefined,
     latestVideoTitle: channel.latest_video_title ?? null,
     latestVideoId: channel.latest_video_id ?? null,

@@ -40,6 +40,8 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
         id: channels.id,
         name: channels.name,
         status: channels.status,
+        category: channels.category,
+        artistName: channels.artistName,
         keyword: channels.keyword,
       })
       .from(channels)
@@ -79,21 +81,23 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       id: row.id,
       url: `https://www.youtube.com/channel/${row.id}`,
       name: row.name,
-          status: row.status ?? 0,
-          keyword: row.keyword ?? "",
-          latest_video_title: latestVideoByChannel.get(row.id)?.title ?? null,
-          latest_video_id: latestVideoByChannel.get(row.id)?.videoId ?? null,
-        }));
+      status: row.status ?? 0,
+      category: row.category ?? null,
+      artist_name: row.artistName ?? null,
+      keyword: row.keyword ?? "",
+      latest_video_title: latestVideoByChannel.get(row.id)?.title ?? null,
+      latest_video_id: latestVideoByChannel.get(row.id)?.videoId ?? null,
+    }));
 
     // 管理画面向けチャンネル一覧を丁寧にご提供いたします。
     return c.json(
-        {
-          channels: payload,
-          page,
-          limit: LIMIT,
-          hasNext,
-        },
-        200,
-      );
+      {
+        channels: payload,
+        page,
+        limit: LIMIT,
+        hasNext,
+      },
+      200,
+    );
   });
 }

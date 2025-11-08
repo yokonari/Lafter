@@ -10,6 +10,8 @@ export type ChannelRow = {
   name: string;
   url: string;
   status?: number | null;
+  category?: number | null;
+  artistName?: string | null;
   keyword?: string | null;
   latestVideoTitle?: string | null;
   latestVideoId?: string | null;
@@ -54,6 +56,13 @@ const KEYWORD_OPTIONS = [
   { value: "2", label: "🎬 コント" },
   { value: "3", label: "🎯 ネタ" },
 ];
+
+// DB に保存されているキーワード文字列をセレクトボックスの値へ丁寧に正規化します。
+const KEYWORD_LABEL_TO_ID: Record<string, string> = {
+  漫才: "1",
+  コント: "2",
+  ネタ: "3",
+};
 
 export function ChannelBulkManager({
   channels,
@@ -349,8 +358,8 @@ export function ChannelBulkManager({
               <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                 キーワード更新
               </th>
-              <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
-                YouTube
+              <th scope="col" className="w-20 px-4 py-3 font-medium text-slate-700">
+                開く
               </th>
               <th scope="col" className="w-64 px-4 py-3 font-medium text-slate-700">
                 最新動画
@@ -595,12 +604,35 @@ function buildInitialSelections(channels: ChannelRow[], registeredView: boolean)
   return initial;
 }
 
+function resolveKeywordId(keyword?: string | null): string {
+  if (!keyword) {
+    return "";
+  }
+  return KEYWORD_LABEL_TO_ID[keyword] ?? "";
+}
+
 function createSelectionEntry(channel: ChannelRow, registeredView: boolean): ChannelSelection {
+  if (registeredView) {
+    // 登録済み一覧では既存データを丁寧に初期値へ反映し、無用な再入力を避けます。
+    const status = channel.status === null || channel.status === undefined ? "" : String(channel.status);
+    const category =
+      channel.category === null || channel.category === undefined ? "" : String(channel.category);
+    const artistName = channel.artistName ?? channel.name;
+    const keywordId = resolveKeywordId(channel.keyword);
+    return {
+      selected: false,
+      status,
+      category,
+      artistName,
+      keywordId,
+    };
+  }
+
   return {
-    selected: registeredView ? false : true,
-    status: registeredView ? String(channel.status ?? 1) : "2",
+    selected: true,
+    status: "2",
     category: "1",
-    artistName: channel.name,
+    artistName: channel.artistName ?? channel.name,
     keywordId: "1",
   };
 }
