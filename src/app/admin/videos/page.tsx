@@ -383,11 +383,11 @@ function AdminVideosPageContent() {
     const invalid = selectedEntries.find(([, entry]) => {
       const videoStatus = Number(entry.videoStatus);
       const videoCategory = Number(entry.videoCategory);
-      return videoStatus === 1 && ![1, 2].includes(videoCategory);
+      return videoStatus === 1 && ![1,2,3,4].includes(videoCategory);
     });
 
     if (invalid) {
-      setMessage("動画ステータスを ✅ OK にする場合は、カテゴリを漫才またはコントに指定してください。");
+      setMessage("動画ステータスを ✅ OK にする場合は、カテゴリを指定してください。");
       return;
     }
 
