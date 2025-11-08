@@ -78,9 +78,25 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
 
     const db = createDatabase(env);
 
+    const targetIndexParam = c.req.query("index");
+    let targetIndex: number | undefined;
+    if (targetIndexParam !== undefined) {
+      const parsed = Number(targetIndexParam);
+      if (!Number.isInteger(parsed) || parsed < 0) {
+        return c.json({ message: "index は 0 以上の整数で指定してください。" }, 400);
+      }
+      targetIndex = parsed;
+    }
+
     try {
       const csv = await fetchArtistsCsv(env);
-      const artists = await loadArtists(csv);
+      const artists = await loadArtists(csv, { targetIndex });
+      if (typeof targetIndex === "number" && artists.length === 0) {
+        return c.json(
+          { message: `index ${targetIndex} に該当する処理対象が見つかりませんでした。` },
+          404,
+        );
+      }
 
       const summary = {
         artistsProcessed: artists.length,
@@ -293,32 +309,63 @@ async function fetchArtistsCsv(env: CloudflareBindings): Promise<string> {
   return csv;
 }
 
-async function loadArtists(csv: string): Promise<string[]> {
+async function loadArtists(
+  csv: string,
+  options?: { targetIndex?: number },
+): Promise<string[]> {
   const lines = csv.trim().split(/\r?\n/);
+  if (lines.length <= 1) return [];
+
   const header = lines[0] ?? "";
   const headerColumns = header ? splitCsvLine(header) : [];
-  // ヘッダー情報から status 列の位置を丁寧に特定し、未定義の場合は従来通り全件を対象といたします。
-  const statusColumnIndex = headerColumns.findIndex(
-    (name) => name.trim().toLowerCase() === "status",
-  );
-  const rows = lines.slice(1);
 
+  const toIndex = (name: string) => name.trim().toLowerCase();
+  const statusColumnIndex = headerColumns.findIndex(
+    (name) => toIndex(name) === "status",
+  );
+  const csvIndexColumnIndex = headerColumns.findIndex(
+    (name) => toIndex(name) === "index",
+  );
+  const artistColumnIndex = headerColumns.findIndex(
+    (name) => toIndex(name) === "artist",
+  );
+
+  const rows = lines.slice(1);
   const unique = new Set<string>();
-  for (const line of rows) {
+
+  for (const [rowOffset, line] of rows.entries()) {
     if (!line) continue;
     const cols = splitCsvLine(line);
+
+    if (options?.targetIndex !== undefined) {
+      const indexValue =
+        csvIndexColumnIndex >= 0
+          ? (cols[csvIndexColumnIndex] ?? "").trim()
+          : String(rowOffset);
+      const numericIndex = Number(indexValue);
+      if (!Number.isInteger(numericIndex) || numericIndex !== options.targetIndex) {
+        continue;
+      }
+    }
+
     if (statusColumnIndex >= 0) {
       const statusValue = (cols[statusColumnIndex] ?? "").trim();
       // status 列が追加されましたので、0 の行のみ丁寧に処理対象へ含めさせていただきます。
-      if (statusValue !== "0") continue;
+      if (statusValue !== "0") {
+        continue;
+      }
     }
-    const artistRaw = (cols[1] ?? "").trim();
+
+    const artistColumn =
+      artistColumnIndex >= 0 ? artistColumnIndex : 1;
+    const artistRaw = (cols[artistColumn] ?? "").trim();
     if (!artistRaw) continue;
 
     for (const name of expandArtistNames(artistRaw)) {
       if (name && name !== "–") unique.add(name);
     }
   }
+
   return Array.from(unique);
 }
 

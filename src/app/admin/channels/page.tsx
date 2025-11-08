@@ -9,6 +9,7 @@ type AdminChannel = {
   status: number;
   keyword?: string;
   latestVideoTitle?: string | null;
+  latestVideoId?: string | null;
 };
 
 type AdminChannelsResponse = {
@@ -91,6 +92,7 @@ async function fetchAdminChannels(page: number): Promise<AdminChannelsResponse> 
       status: number;
       keyword?: string | null;
       latest_video_title?: string | null;
+      latest_video_id?: string | null;
     }>;
     page: number;
     limit: number;
@@ -104,6 +106,7 @@ async function fetchAdminChannels(page: number): Promise<AdminChannelsResponse> 
     status: channel.status,
     keyword: channel.keyword ?? undefined,
     latestVideoTitle: channel.latest_video_title ?? null,
+    latestVideoId: channel.latest_video_id ?? null,
   }));
 
   return {

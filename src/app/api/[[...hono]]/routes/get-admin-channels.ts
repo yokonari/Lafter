@@ -40,13 +40,14 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
 
     const hasNext = rows.length === LIMIT;
 
-    const latestVideoByChannel = new Map<string, string>();
+    const latestVideoByChannel = new Map<string, { title: string; videoId: string | null }>();
     if (rows.length > 0) {
       const channelIds = rows.map((row) => row.id);
       const videoRows = await db
         .select({
           channelId: videos.channelId,
           title: videos.title,
+          videoId: videos.id,
         })
         .from(videos)
         .where(inArray(videos.channelId, channelIds))
@@ -54,7 +55,10 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       for (const video of videoRows) {
         if (!video.channelId) continue;
         if (!latestVideoByChannel.has(video.channelId)) {
-          latestVideoByChannel.set(video.channelId, video.title ?? "");
+          latestVideoByChannel.set(video.channelId, {
+            title: video.title ?? "",
+            videoId: video.videoId ?? null,
+          });
         }
       }
     }
@@ -65,7 +69,8 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       name: row.name,
       status: row.status ?? 0,
       keyword: row.keyword ?? "",
-      latest_video_title: latestVideoByChannel.get(row.id) ?? null,
+      latest_video_title: latestVideoByChannel.get(row.id)?.title ?? null,
+      latest_video_id: latestVideoByChannel.get(row.id)?.videoId ?? null,
     }));
 
     // 管理画面向けチャンネル一覧を丁寧にご提供いたします。
