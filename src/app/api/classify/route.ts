@@ -15,7 +15,9 @@ type ClassifyRequestBody = {
 
 const MAX_TITLES = 100; // 過負荷を避けるため、1リクエストあたり/1回のDBバッチ取得件数を丁寧に制限します。
 
-type LLMResultWithMeta = LLMClassification & {
+type LLMResultPayload = {
+  title: string;
+  label: number;
   videoId: string;
   nextStatus: number;
 };
@@ -62,7 +64,7 @@ export async function POST(request: Request) {
       });
     }
 
-    const llmResults: LLMResultWithMeta[] = [];
+    const llmResults: LLMResultPayload[] = [];
     for (const video of pendingVideos) {
       try {
         const classification = await classifyTitleWithLLM(client, video.title);
@@ -75,8 +77,10 @@ export async function POST(request: Request) {
             lastCheckedAt: checkedAt,
           })
           .where(eq(videos.id, video.id));
+        // confidence/reason は API 応答では不要なため、label のみを動画IDと共に返します。
         llmResults.push({
-          ...classification,
+          title: classification.title,
+          label: classification.label,
           videoId: video.id,
           nextStatus,
         });
@@ -84,12 +88,6 @@ export async function POST(request: Request) {
         llmResults.push({
           title: video.title,
           label: 0,
-          confidence: 0,
-          reason:
-            error instanceof Error
-              ? error.message
-              : "LLM判定に失敗しました。",
-          rawResponse: "",
           videoId: video.id,
           nextStatus: 0,
         });
