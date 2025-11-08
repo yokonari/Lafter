@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { YouTubeEmbed } from "@next/third-parties/google";
@@ -77,7 +77,10 @@ function AdminVideosPageContent() {
   const [selections, setSelections] = useState<Record<string, VideoSelection>>({});
   const [submitting, setSubmitting] = useState(false);
   const [hasNextPage, setHasNextPage] = useState(false);
-  const [searchActive, setSearchActive] = useState(false);
+  const [searchContext, setSearchContext] = useState<"form" | "shortcut" | null>(null);
+  const [currentSearchKeyword, setCurrentSearchKeyword] = useState<string | null>(null);
+  const [searchSelectionDefaults, setSearchSelectionDefaults] = useState<SelectionDefaults | null>(null);
+  const searchKeywordRef = useRef<string | null>(null);
 
   const createInitialSelections = useCallback(
     (rows: AdminVideo[], defaults?: SelectionDefaults) => {
@@ -97,12 +100,25 @@ function AdminVideosPageContent() {
   );
 
   const applySearchResults = useCallback(
-    (results: AdminVideo[], meta: { hasNext: boolean }, defaults?: SelectionDefaults) => {
+    (
+      results: AdminVideo[],
+      meta: { hasNext: boolean },
+      options?: { defaults?: SelectionDefaults; mode?: "form" | "shortcut" | null },
+    ) => {
       setVideos(results);
-      setSelections(createInitialSelections(results, defaults));
+      setSelections(createInitialSelections(results, options?.defaults));
       setCurrentPage(1);
       setHasNextPage(Boolean(meta.hasNext));
-      setSearchActive(true);
+      setSearchContext(options?.mode ?? null);
+      if (options?.mode === "form" || options?.mode === "shortcut") {
+        const keyword = searchKeywordRef.current ?? null;
+        setCurrentSearchKeyword(keyword);
+        setSearchSelectionDefaults(options?.defaults ?? null);
+      } else {
+        setCurrentSearchKeyword(null);
+        setSearchSelectionDefaults(null);
+        searchKeywordRef.current = null;
+      }
     },
     [createInitialSelections],
   );
@@ -176,7 +192,10 @@ function AdminVideosPageContent() {
         setCurrentPage(data.page);
         setSelections(createDefaultSelections(data.videos));
         setHasNextPage(Boolean(data.hasNext));
-        setSearchActive(false);
+        setSearchContext(null);
+        setCurrentSearchKeyword(null);
+        setSearchSelectionDefaults(null);
+        searchKeywordRef.current = null;
       } catch (error) {
         const fallback =
           error instanceof Error ? error.message : "動画一覧の取得に失敗しました。";
@@ -184,6 +203,10 @@ function AdminVideosPageContent() {
         setVideos([]);
         setSelections({});
         setHasNextPage(false);
+        setSearchContext(null);
+        setCurrentSearchKeyword(null);
+        setSearchSelectionDefaults(null);
+        searchKeywordRef.current = null;
       } finally {
         setLoading(false);
       }
@@ -197,13 +220,19 @@ function AdminVideosPageContent() {
 
   const handleSearchResults = useCallback(
     (results: AdminVideo[], meta: { hasNext: boolean }) => {
-      applySearchResults(results, meta, { videoStatus: "1", videoCategory: "1" });
+      applySearchResults(results, meta, {
+        defaults: { videoStatus: "1", videoCategory: "1" },
+        mode: "form",
+      });
     },
     [applySearchResults],
   );
 
   const handleSearchReset = useCallback(() => {
-    setSearchActive(false);
+    searchKeywordRef.current = null;
+    setCurrentSearchKeyword(null);
+    setSearchSelectionDefaults(null);
+    setSearchContext(null);
     loadVideos(page);
   }, [loadVideos, page]);
 
@@ -242,6 +271,10 @@ function AdminVideosPageContent() {
 
   const executeVideoSearch = useCallback(
     async (keyword: string) => {
+      searchKeywordRef.current = keyword;
+      setCurrentSearchKeyword(keyword);
+      setSearchContext("form");
+      setSearchSelectionDefaults({ videoStatus: "1", videoCategory: "1" });
       const data = await fetchVideosByKeyword(keyword, 1);
       return { items: data.videos, hasNext: Boolean(data.hasNext) };
     },
@@ -254,8 +287,8 @@ function AdminVideosPageContent() {
   );
 
   const hasPrev = currentPage > 1;
-  const effectiveHasPrev = !searchActive && hasPrev;
-  const effectiveHasNext = !searchActive && hasNextPage;
+  const effectiveHasPrev = searchContext ? currentPage > 1 : hasPrev;
+  const effectiveHasNext = hasNextPage;
 
   const handleToggleAll = (checked: boolean) => {
     const next: Record<string, VideoSelection> = {};
@@ -270,22 +303,18 @@ function AdminVideosPageContent() {
       setMessage(null);
       setLoading(true);
       try {
-        const aggregated: AdminVideo[] = [];
-        let pageNumber = 1;
-        const MAX_PAGES = 20;
-        while (pageNumber <= MAX_PAGES) {
-          const data = await fetchVideosByKeyword(keyword, pageNumber);
-          aggregated.push(...data.videos);
-          if (!data.hasNext) {
-            break;
-          }
-          pageNumber += 1;
-        }
-        applySearchResults(aggregated, { hasNext: false }, defaults);
-        if (aggregated.length === 0) {
+        searchKeywordRef.current = keyword;
+        setCurrentSearchKeyword(keyword);
+        setSearchSelectionDefaults(defaults);
+        setSearchContext("shortcut");
+        const data = await fetchVideosByKeyword(keyword, 1);
+        applySearchResults(
+          data.videos,
+          { hasNext: Boolean(data.hasNext) },
+          { defaults, mode: "shortcut" },
+        );
+        if (data.videos.length === 0) {
           setMessage("該当する動画が見つかりませんでした。");
-        } else if (pageNumber > MAX_PAGES) {
-          setMessage("検索結果が多すぎるため、先頭200件までを表示しました。");
         }
       } catch (error) {
         const fallback =
@@ -305,6 +334,41 @@ function AdminVideosPageContent() {
   const handleConteShortcut = useCallback(() => {
     return handleShortcutSearch("コント", { videoStatus: "1", videoCategory: "2" });
   }, [handleShortcutSearch]);
+
+  const handleNetaShortcut = useCallback(() => {
+    return handleShortcutSearch("ネタ", { videoStatus: "1", videoCategory: "1" });
+  }, [handleShortcutSearch]);
+
+  const loadSearchPage = useCallback(
+    async (targetPage: number) => {
+      if (!currentSearchKeyword || !searchContext) return;
+      searchKeywordRef.current = currentSearchKeyword;
+      setLoading(true);
+      setMessage(null);
+      try {
+        const data = await fetchVideosByKeyword(currentSearchKeyword, targetPage);
+        setVideos(data.videos);
+        setCurrentPage(typeof data.page === "number" ? data.page : targetPage);
+        setSelections(
+          createInitialSelections(
+            data.videos,
+            searchSelectionDefaults ?? { videoStatus: "1", videoCategory: "1" },
+          ),
+        );
+        setHasNextPage(Boolean(data.hasNext));
+        if (data.videos.length === 0) {
+          setMessage("該当する動画が見つかりませんでした。");
+        }
+      } catch (error) {
+        const fallback =
+          error instanceof Error ? error.message : "検索結果の取得に失敗しました。";
+        setMessage(fallback);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [currentSearchKeyword, searchContext, fetchVideosByKeyword, createInitialSelections, searchSelectionDefaults],
+  );
 
   const handleSubmit = async () => {
     setMessage(null);
@@ -380,7 +444,10 @@ function AdminVideosPageContent() {
   };
 
   const goToPage = (targetPage: number) => {
-    if (searchActive) return;
+    if (searchContext) {
+      void loadSearchPage(targetPage);
+      return;
+    }
     if (targetPage === currentPage) return;
     const query = targetPage > 1 ? `?page=${targetPage}` : "";
     router.push(`/admin/videos${query}`);
@@ -404,7 +471,7 @@ function AdminVideosPageContent() {
             onResults={handleSearchResults}
             onReset={handleSearchReset}
           />
-          {/* よく使う漫才・コント検索をワンタップで呼び出せる補助ボタンをテーブル直前に配置します。 */}
+          {/* よく使う漫才・コント・ネタ検索をワンタップで呼び出せる補助ボタンをテーブル直前に配置します。 */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -421,6 +488,14 @@ function AdminVideosPageContent() {
               disabled={loading}
             >
               コント
+            </button>
+            <button
+              type="button"
+              onClick={handleNetaShortcut}
+              className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-60"
+              disabled={loading}
+            >
+              ネタ
             </button>
           </div>
           {message ? (

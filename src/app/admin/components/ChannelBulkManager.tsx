@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ListFooter } from "./ListFooter";
+import { YouTubeEmbed } from "@next/third-parties/google";
 
 export type ChannelRow = {
   id: string;
@@ -11,6 +12,7 @@ export type ChannelRow = {
   status?: number | null;
   keyword?: string | null;
   latestVideoTitle?: string | null;
+  latestVideoId?: string | null;
 };
 
 type ChannelBulkManagerProps = {
@@ -254,6 +256,9 @@ export function ChannelBulkManager({
                   open_in_new
                 </a>
                 </div>
+                <div className="mt-3 w-full overflow-hidden rounded border border-slate-200 shadow-sm" style={{ aspectRatio: "16 / 9" }}>
+                  {renderLatestVideoEmbed(channel)}
+                </div>
                 <div className="mt-3 space-y-3 text-sm">
                   <div className="flex items-center justify-between gap-2">
                     <label htmlFor={`status-${channel.id}`} className="text-slate-600">
@@ -389,12 +394,15 @@ export function ChannelBulkManager({
               <th scope="col" className="w-1/6 px-4 py-3 font-medium text-slate-700">
                 YouTube
               </th>
+              <th scope="col" className="w-64 px-4 py-3 font-medium text-slate-700">
+                最新動画
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-200 bg-white">
             {channels.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
+                <td colSpan={8} className="px-4 py-6 text-center text-slate-500">
                   表示できるチャンネルがありません。
                 </td>
               </tr>
@@ -553,6 +561,14 @@ export function ChannelBulkManager({
                         open_in_new
                       </a>
                     </td>
+                    <td className="px-4 py-3">
+                      <div
+                        className="w-64 overflow-hidden rounded border border-slate-200 shadow-sm"
+                        style={{ aspectRatio: "16 / 9" }}
+                      >
+                        {renderLatestVideoEmbed(channel)}
+                      </div>
+                    </td>
                   </tr>
                 );
               })
@@ -597,6 +613,24 @@ export function ChannelBulkManager({
           </div>
         }
       />
+    </div>
+  );
+}
+
+function renderLatestVideoEmbed(channel: ChannelRow) {
+  if (channel.latestVideoId) {
+    return <YouTubeEmbed videoid={channel.latestVideoId} />;
+  }
+  if (channel.latestVideoTitle) {
+    return (
+      <div className="flex h-full items-center justify-center px-3 text-center text-xs text-slate-500">
+        {channel.latestVideoTitle}
+      </div>
+    );
+  }
+  return (
+    <div className="flex h-full items-center justify-center px-3 text-xs text-slate-400">
+      最新動画情報がありません
     </div>
   );
 }
