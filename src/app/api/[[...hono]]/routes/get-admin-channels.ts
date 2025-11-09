@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, asc, desc, eq, inArray, like } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, or, isNull } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -48,7 +48,14 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
 
     const conditions = [eq(channels.status, channelStatus)];
     if (categoryFilter !== null) {
-      conditions.push(eq(channels.category, categoryFilter));
+      if (categoryFilter === 0) {
+        // カテゴリ未設定扱いのため、null と 0 を丁寧にまとめて判定します。
+        conditions.push(
+          or(eq(channels.category, 0), isNull(channels.category)),
+        );
+      } else {
+        conditions.push(eq(channels.category, categoryFilter));
+      }
     }
     const statusCondition =
       conditions.length === 1 ? conditions[0] : and(...conditions);
