@@ -50,9 +50,13 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
     if (categoryFilter !== null) {
       if (categoryFilter === 0) {
         // カテゴリ未設定扱いのため、null と 0 を丁寧にまとめて判定します。
-        conditions.push(
-          or(eq(channels.category, 0), isNull(channels.category)),
+        const unassignedCondition = or(
+          eq(channels.category, 0),
+          isNull(channels.category),
         );
+        if (unassignedCondition) {
+          conditions.push(unassignedCondition);
+        }
       } else {
         conditions.push(eq(channels.category, categoryFilter));
       }
