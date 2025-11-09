@@ -1,6 +1,14 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { YouTubeEmbed } from "@next/third-parties/google";
@@ -12,10 +20,15 @@ export type AdminVideo = {
   url: string;
   title: string;
   channel_name: string;
+  category?: number | null;
 };
 
 type AdminVideosResponse = {
-  videos: AdminVideo[];
+  videos: Array<
+    AdminVideo & {
+      category?: number | null;
+    }
+  >;
   page: number;
   limit: number;
   hasNext: boolean;
@@ -24,6 +37,7 @@ type AdminVideosResponse = {
 type SelectionDefaults = {
   videoStatus: string;
   videoCategory: string;
+  selected?: boolean;
 };
 
 type VideoSelection = {
@@ -45,6 +59,13 @@ const VIDEO_CATEGORY_OPTIONS = [
   { value: "3", label: "🎭 ピン" },
   { value: "4", label: "🏢 その他" },
 ];
+
+const CATEGORY_FILTER_OPTIONS = [
+  { value: "all", label: "全カテゴリ" },
+  ...VIDEO_CATEGORY_OPTIONS,
+];
+
+const defaultVideoStatus = 1; // 初期表示では OK 判定済みの動画を優先して確認できるようにします。
 
 export default function AdminVideosPage() {
   return (
@@ -68,6 +89,12 @@ function AdminVideosPageContent() {
   const pageParam = searchParams.get("page");
   const parsedPage = pageParam ? Number(pageParam) : 1;
   const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1;
+  const videoStatusParam = searchParams.get("video_status");
+  const parsedStatusFilter = videoStatusParam ? Number(videoStatusParam) : defaultVideoStatus;
+  const videoStatusFilter =
+    Number.isFinite(parsedStatusFilter) && parsedStatusFilter >= 0 && parsedStatusFilter <= 2
+      ? Math.floor(parsedStatusFilter)
+      : defaultVideoStatus;
 
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -81,17 +108,24 @@ function AdminVideosPageContent() {
   const [currentSearchKeyword, setCurrentSearchKeyword] = useState<string | null>(null);
   const [searchSelectionDefaults, setSearchSelectionDefaults] = useState<SelectionDefaults | null>(null);
   const searchKeywordRef = useRef<string | null>(null);
+  const [activeShortcut, setActiveShortcut] = useState<"manzai" | "conte" | "neta" | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>("0"); // 初期状態では未分類のみを表示し、必要に応じて他カテゴリへ切り替えます。
 
   const createInitialSelections = useCallback(
     (rows: AdminVideo[], defaults?: SelectionDefaults) => {
       const statusDefault = defaults?.videoStatus ?? "2";
       const categoryDefault = defaults?.videoCategory ?? "0";
+      const selectedDefault = defaults?.selected ?? true;
       const next: Record<string, VideoSelection> = {};
       for (const row of rows) {
+        const existingCategory =
+          typeof row.category === "number" && row.category > 0
+            ? String(row.category)
+            : categoryDefault;
         next[row.id] = {
-          selected: true,
+          selected: selectedDefault,
           videoStatus: statusDefault,
-          videoCategory: categoryDefault,
+          videoCategory: existingCategory,
         };
       }
       return next;
@@ -123,27 +157,20 @@ function AdminVideosPageContent() {
     [createInitialSelections],
   );
 
-  const createDefaultSelections = useCallback((rows: AdminVideo[]) => {
-    const next: Record<string, VideoSelection> = {};
-    for (const row of rows) {
-      next[row.id] = {
-        selected: true,
-        videoStatus: "2",
-        videoCategory: "0",
-      };
-    }
-    return next;
-  }, []);
-
   // API から管理画面用の動画一覧を丁寧に取り出します。
   const loadVideos = useCallback(
-    async (targetPage: number) => {
+    async (targetPage: number, statusFilter: number) => {
       setLoading(true);
       setErrorMessage(null);
       setMessage(null);
       try {
-        const query = targetPage > 1 ? `?page=${targetPage}` : "";
-        const response = await fetch(`/api/admin/videos${query}`, {
+        const search = new URLSearchParams();
+        if (targetPage > 1) {
+          search.set("page", String(targetPage));
+        }
+        search.set("video_status", String(statusFilter));
+        const query = search.toString();
+        const response = await fetch(`/api/admin/videos${query ? `?${query}` : ""}`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -190,12 +217,20 @@ function AdminVideosPageContent() {
         const data = payload as AdminVideosResponse;
         setVideos(data.videos);
         setCurrentPage(data.page);
-        setSelections(createDefaultSelections(data.videos));
+        const defaultStatusForSelection = statusFilter === 0 ? "2" : String(statusFilter);
+        setSelections(
+          createInitialSelections(data.videos, {
+            videoStatus: defaultStatusForSelection,
+            videoCategory: "0",
+            selected: true,
+          }),
+        );
         setHasNextPage(Boolean(data.hasNext));
         setSearchContext(null);
         setCurrentSearchKeyword(null);
         setSearchSelectionDefaults(null);
         searchKeywordRef.current = null;
+        setActiveShortcut(null);
       } catch (error) {
         const fallback =
           error instanceof Error ? error.message : "動画一覧の取得に失敗しました。";
@@ -207,25 +242,32 @@ function AdminVideosPageContent() {
         setCurrentSearchKeyword(null);
         setSearchSelectionDefaults(null);
         searchKeywordRef.current = null;
+        setActiveShortcut(null);
       } finally {
         setLoading(false);
       }
     },
-    [createDefaultSelections],
+    [createInitialSelections],
   );
 
   useEffect(() => {
-    loadVideos(page);
-  }, [page, loadVideos]);
+    loadVideos(page, videoStatusFilter);
+  }, [page, videoStatusFilter, loadVideos]);
 
   const handleSearchResults = useCallback(
     (results: AdminVideo[], meta: { hasNext: boolean }) => {
+      const statusDefault = String(videoStatusFilter);
       applySearchResults(results, meta, {
-        defaults: { videoStatus: "1", videoCategory: "1" },
+        defaults: {
+          videoStatus: statusDefault,
+          videoCategory: "1",
+          selected: true,
+        },
         mode: "form",
       });
+      setActiveShortcut(null);
     },
-    [applySearchResults],
+    [applySearchResults, videoStatusFilter],
   );
 
   const handleSearchReset = useCallback(() => {
@@ -233,12 +275,14 @@ function AdminVideosPageContent() {
     setCurrentSearchKeyword(null);
     setSearchSelectionDefaults(null);
     setSearchContext(null);
-    loadVideos(page);
-  }, [loadVideos, page]);
+    setActiveShortcut(null);
+    loadVideos(page, videoStatusFilter);
+  }, [loadVideos, page, videoStatusFilter]);
 
-  const fetchVideosByKeyword = useCallback(async (keyword: string, pageNumber = 1) => {
+  const fetchVideosByKeyword = useCallback(async (keyword: string, pageNumber = 1, statusFilter: number) => {
     const searchParams = new URLSearchParams();
     searchParams.set("page", String(pageNumber));
+    searchParams.set("video_status", String(statusFilter));
     const trimmed = keyword.trim();
     if (trimmed) {
       searchParams.set("q", trimmed);
@@ -274,45 +318,100 @@ function AdminVideosPageContent() {
       searchKeywordRef.current = keyword;
       setCurrentSearchKeyword(keyword);
       setSearchContext("form");
-      setSearchSelectionDefaults({ videoStatus: "1", videoCategory: "1" });
-      const data = await fetchVideosByKeyword(keyword, 1);
+      const statusDefault = String(videoStatusFilter);
+      setSearchSelectionDefaults({
+        videoStatus: statusDefault,
+        videoCategory: "1",
+        selected: true,
+      });
+      const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter);
       return { items: data.videos, hasNext: Boolean(data.hasNext) };
     },
-    [fetchVideosByKeyword],
+    [fetchVideosByKeyword, videoStatusFilter],
   );
 
+  const filteredVideos = useMemo(() => {
+    if (categoryFilter === "all") {
+      return videos;
+    }
+    return videos.filter((video) => String(video.category ?? 0) === categoryFilter);
+  }, [videos, categoryFilter]);
+
   const selectedCount = useMemo(
-    () => Object.values(selections).filter((item) => item.selected).length,
-    [selections],
+    () =>
+      filteredVideos.filter((video) => {
+        const entry = selections[video.id];
+        return entry ? entry.selected : false;
+      }).length,
+    [filteredVideos, selections],
   );
+
+  const areAllVisibleSelected =
+    filteredVideos.length > 0 && selectedCount === filteredVideos.length;
 
   const hasPrev = currentPage > 1;
   const effectiveHasPrev = searchContext ? currentPage > 1 : hasPrev;
   const effectiveHasNext = hasNextPage;
 
-  const handleToggleAll = (checked: boolean) => {
-    const next: Record<string, VideoSelection> = {};
-    for (const [id, entry] of Object.entries(selections)) {
-      next[id] = { ...entry, selected: checked };
-    }
-    setSelections(next);
-  };
+  const handleToggleAll = useCallback(
+    (checked: boolean) => {
+      setSelections((prev) => {
+        const next: Record<string, VideoSelection> = { ...prev };
+        for (const video of filteredVideos) {
+          const fallback =
+            next[video.id] ??
+            {
+              selected: true,
+              videoStatus: "2",
+              videoCategory:
+                typeof video.category === "number" && video.category > 0
+                  ? String(video.category)
+                  : "0",
+            };
+          next[video.id] = {
+            ...fallback,
+            selected: checked,
+          };
+        }
+        return next;
+      });
+    },
+    [filteredVideos],
+  );
 
   const handleShortcutSearch = useCallback(
-    async (keyword: string, defaults: SelectionDefaults) => {
+    async (keyword: string, videoCategoryDefault: string, shortcut: "manzai" | "conte" | "neta") => {
+      // 同じショートカットを再度押した場合は状態をクリアし、通常の一覧へ戻します。
+      if (searchContext === "shortcut" && activeShortcut === shortcut) {
+        setMessage(null);
+        setSearchContext(null);
+        setActiveShortcut(null);
+        setCurrentSearchKeyword(null);
+        setSearchSelectionDefaults(null);
+        searchKeywordRef.current = null;
+        await loadVideos(1, videoStatusFilter);
+        return;
+      }
+
       setMessage(null);
       setLoading(true);
+      const defaults: SelectionDefaults = {
+        videoStatus: String(videoStatusFilter),
+        videoCategory: videoCategoryDefault,
+        selected: true,
+      };
       try {
         searchKeywordRef.current = keyword;
         setCurrentSearchKeyword(keyword);
         setSearchSelectionDefaults(defaults);
         setSearchContext("shortcut");
-        const data = await fetchVideosByKeyword(keyword, 1);
+        const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter);
         applySearchResults(
           data.videos,
           { hasNext: Boolean(data.hasNext) },
           { defaults, mode: "shortcut" },
         );
+        setActiveShortcut(shortcut);
         if (data.videos.length === 0) {
           setMessage("該当する動画が見つかりませんでした。");
         }
@@ -320,24 +419,69 @@ function AdminVideosPageContent() {
         const fallback =
           error instanceof Error ? error.message : "検索に失敗しました。再度お試しください。";
         setMessage(fallback);
+        setActiveShortcut(null);
       } finally {
         setLoading(false);
       }
     },
-    [fetchVideosByKeyword, applySearchResults],
+    [
+      fetchVideosByKeyword,
+      applySearchResults,
+      videoStatusFilter,
+      searchContext,
+      activeShortcut,
+      loadVideos,
+    ],
   );
 
   const handleManzaiShortcut = useCallback(() => {
-    return handleShortcutSearch("漫才", { videoStatus: "1", videoCategory: "1" });
+    return handleShortcutSearch("漫才", "1", "manzai");
   }, [handleShortcutSearch]);
 
   const handleConteShortcut = useCallback(() => {
-    return handleShortcutSearch("コント", { videoStatus: "1", videoCategory: "2" });
+    return handleShortcutSearch("コント", "2", "conte");
   }, [handleShortcutSearch]);
 
   const handleNetaShortcut = useCallback(() => {
-    return handleShortcutSearch("ネタ", { videoStatus: "1", videoCategory: "1" });
+    return handleShortcutSearch("ネタ", "1", "neta");
   }, [handleShortcutSearch]);
+
+  const isPendingFilter = videoStatusFilter === 0;
+  const isOkFilter = videoStatusFilter === 1;
+  const isNgFilter = videoStatusFilter === 2;
+  const defaultFilterHref = "/admin/videos";
+  const buildStatusHref = (status: number) => {
+    const params = new URLSearchParams();
+    if (status !== defaultVideoStatus) {
+      params.set("video_status", String(status));
+    }
+    const query = params.toString();
+    return `/admin/videos${query ? `?${query}` : ""}`;
+  };
+  const pendingFilterHref = buildStatusHref(0);
+  const okFilterHref = buildStatusHref(1);
+  const ngFilterHref = buildStatusHref(2);
+  const handlePendingFilterClick = () => {
+    router.push(isPendingFilter ? defaultFilterHref : pendingFilterHref);
+  };
+  const handleOkFilterClick = () => {
+    // 既にOK判定表示中であれば判定待ちへ戻し、そうでなければOK判定一覧へ丁寧に遷移します。
+    router.push(isOkFilter ? defaultFilterHref : okFilterHref);
+  };
+  const handleNgFilterClick = () => {
+    // 同様にNG判定表示中は判定待ちへ戻し、未選択時はNG判定一覧へ切り替えます。
+    router.push(isNgFilter ? defaultFilterHref : ngFilterHref);
+  };
+
+  const isShortcutActive = (shortcut: "manzai" | "conte" | "neta") =>
+    searchContext === "shortcut" && activeShortcut === shortcut;
+
+  const handleCategoryFilterChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      setCategoryFilter(event.target.value);
+    },
+    [],
+  );
 
   const loadSearchPage = useCallback(
     async (targetPage: number) => {
@@ -346,14 +490,18 @@ function AdminVideosPageContent() {
       setLoading(true);
       setMessage(null);
       try {
-        const data = await fetchVideosByKeyword(currentSearchKeyword, targetPage);
+        const data = await fetchVideosByKeyword(currentSearchKeyword, targetPage, videoStatusFilter);
         setVideos(data.videos);
         setCurrentPage(typeof data.page === "number" ? data.page : targetPage);
+        const defaults: SelectionDefaults = {
+          videoStatus: String(videoStatusFilter),
+          videoCategory: "1",
+          selected: true,
+          ...(searchSelectionDefaults ?? {}),
+        };
+        defaults.selected = true;
         setSelections(
-          createInitialSelections(
-            data.videos,
-            searchSelectionDefaults ?? { videoStatus: "1", videoCategory: "1" },
-          ),
+          createInitialSelections(data.videos, defaults),
         );
         setHasNextPage(Boolean(data.hasNext));
         if (data.videos.length === 0) {
@@ -367,7 +515,14 @@ function AdminVideosPageContent() {
         setLoading(false);
       }
     },
-    [currentSearchKeyword, searchContext, fetchVideosByKeyword, createInitialSelections, searchSelectionDefaults],
+    [
+      currentSearchKeyword,
+      searchContext,
+      fetchVideosByKeyword,
+      createInitialSelections,
+      searchSelectionDefaults,
+      videoStatusFilter,
+    ],
   );
 
   const handleSubmit = async () => {
@@ -423,10 +578,14 @@ function AdminVideosPageContent() {
       setSelections((prev) => {
         const next: Record<string, VideoSelection> = {};
         for (const video of videos) {
+          const fallbackCategory =
+            typeof video.category === "number" && video.category > 0
+              ? String(video.category)
+              : "0";
           next[video.id] = {
             ...(prev[video.id] ?? {
               videoStatus: "2",
-              videoCategory: "0",
+              videoCategory: fallbackCategory,
             }),
             selected: true,
           };
@@ -437,7 +596,7 @@ function AdminVideosPageContent() {
         // ショートカット等で検索中の場合は同じ条件で丁寧に再読み込みし、設定を維持します。
         await loadSearchPage(currentPage);
       } else {
-        await loadVideos(currentPage);
+        await loadVideos(currentPage, videoStatusFilter);
       }
     } catch (error) {
       const fallback =
@@ -454,8 +613,15 @@ function AdminVideosPageContent() {
       return;
     }
     if (targetPage === currentPage) return;
-    const query = targetPage > 1 ? `?page=${targetPage}` : "";
-    router.push(`/admin/videos${query}`);
+    const params = new URLSearchParams();
+    if (targetPage > 1) {
+      params.set("page", String(targetPage));
+    }
+    if (videoStatusFilter !== defaultVideoStatus) {
+      params.set("video_status", String(videoStatusFilter));
+    }
+    const query = params.toString();
+    router.push(`/admin/videos${query ? `?${query}` : ""}`);
   };
 
   return (
@@ -476,12 +642,52 @@ function AdminVideosPageContent() {
             onResults={handleSearchResults}
             onReset={handleSearchReset}
           />
+          {/* LLM判定状況ごとに一覧を切り替えるボタンを用意し、status=1/2 を素早く絞り込めるようにします。 */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePendingFilterClick}
+              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                isPendingFilter
+                  ? "border-slate-900 bg-slate-900 text-white"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              未判定
+            </button>
+            <button
+              type="button"
+              onClick={handleOkFilterClick}
+              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                isOkFilter
+                  ? "border-slate-900 bg-slate-900 text-white"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              OK判定
+            </button>
+            <button
+              type="button"
+              onClick={handleNgFilterClick}
+              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+                isNgFilter
+                  ? "border-red-600 bg-red-600 text-white"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              NG判定
+            </button>
+          </div>
           {/* よく使う漫才・コント・ネタ検索をワンタップで呼び出せる補助ボタンをテーブル直前に配置します。 */}
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleManzaiShortcut}
-              className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-60"
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
+                isShortcutActive("manzai")
+                  ? "border-slate-900 bg-slate-900 text-white"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+              }`}
               disabled={loading}
             >
               漫才
@@ -489,7 +695,11 @@ function AdminVideosPageContent() {
             <button
               type="button"
               onClick={handleConteShortcut}
-              className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-60"
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
+                isShortcutActive("conte")
+                  ? "border-slate-900 bg-slate-900 text-white"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+              }`}
               disabled={loading}
             >
               コント
@@ -497,11 +707,29 @@ function AdminVideosPageContent() {
             <button
               type="button"
               onClick={handleNetaShortcut}
-              className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 disabled:opacity-60"
+              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
+                isShortcutActive("neta")
+                  ? "border-slate-900 bg-slate-900 text-white"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+              }`}
               disabled={loading}
             >
               ネタ
             </button>
+            {/* カテゴリごとの絞り込みも同列に配置し、ショートカットと併せて直感的に操作できるようにします。 */}
+            <select
+              value={categoryFilter}
+              onChange={handleCategoryFilterChange}
+              className="rounded-full border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
+              disabled={loading}
+              aria-label="カテゴリでフィルタ"
+            >
+              {CATEGORY_FILTER_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
           {message ? (
             <p className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
@@ -516,16 +744,19 @@ function AdminVideosPageContent() {
           ) : (
             <>
               <div className="grid gap-3 sm:hidden">
-                {videos.length === 0 ? (
+                {filteredVideos.length === 0 ? (
                   <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
                     表示できる動画がありません。
                   </p>
                 ) : (
-                  videos.map((video) => {
+                  filteredVideos.map((video) => {
                     const entry = selections[video.id] ?? {
                       selected: true,
                       videoStatus: "2",
-                      videoCategory: "0",
+                      videoCategory:
+                        typeof video.category === "number" && video.category > 0
+                          ? String(video.category)
+                          : "0",
                     };
                     return (
                       <article
@@ -643,18 +874,21 @@ function AdminVideosPageContent() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200 bg-white">
-                    {videos.length === 0 ? (
+                    {filteredVideos.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="px-4 py-6 text-center text-slate-500">
                           表示できる動画がありません。
                         </td>
                       </tr>
                     ) : (
-                      videos.map((video) => {
+                      filteredVideos.map((video) => {
                         const entry = selections[video.id] ?? {
                           selected: true,
                           videoStatus: "2",
-                          videoCategory: "0",
+                          videoCategory:
+                            typeof video.category === "number" && video.category > 0
+                              ? String(video.category)
+                              : "0",
                         };
                         return (
                           <tr key={video.id} className="hover:bg-slate-50">
@@ -768,15 +1002,15 @@ function AdminVideosPageContent() {
                     <input
                       type="checkbox"
                       className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                      checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
+                      checked={areAllVisibleSelected}
                       onChange={(event) => handleToggleAll(event.target.checked)}
                       aria-label="全て選択"
-                      disabled={loading || videos.length === 0}
+                      disabled={loading || filteredVideos.length === 0}
                     />
                     全て選択
                   </label>
                   <span className="text-sm text-slate-500">
-                    選択中: {selectedCount} / {videos.length}
+                    選択中: {selectedCount} / {filteredVideos.length}
                   </span>
                 </div>
                 <button

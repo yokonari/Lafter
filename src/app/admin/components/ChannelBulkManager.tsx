@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ListFooter } from "./ListFooter";
 import { YouTubeEmbed } from "@next/third-parties/google";
@@ -200,7 +200,7 @@ export function ChannelBulkManager({
                 setSelections((prev) => ({
                   ...prev,
                   [channel.id]: {
-                    ...entry,
+                    ...(prev[channel.id] ?? entry),
                     selected: event.target.checked,
                   },
                 }))
@@ -387,7 +387,7 @@ export function ChannelBulkManager({
                           setSelections((prev) => ({
                             ...prev,
                             [channel.id]: {
-                              ...entry,
+                              ...(prev[channel.id] ?? entry),
                               selected: event.target.checked,
                             },
                           }))
@@ -620,7 +620,7 @@ function createSelectionEntry(channel: ChannelRow, registeredView: boolean): Cha
     const artistName = channel.artistName ?? channel.name;
     const keywordId = resolveKeywordId(channel.keyword);
     return {
-      selected: false,
+      selected: true,
       status,
       category,
       artistName,

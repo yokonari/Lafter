@@ -10,6 +10,7 @@ type AdminPlaylist = {
   url: string;
   title: string;
   status: number;
+  channel_name?: string;
 };
 
 type AdminPlaylistsResponse = {
@@ -316,6 +317,12 @@ function AdminPlaylistsPageContent() {
                         >
                           {renderEmbeddedPlaylist(playlist)}
                         </div>
+                        <div className="mt-3 text-sm text-slate-600">
+                          チャンネル:{" "}
+                          <span className="font-medium text-slate-900">
+                            {playlist.channel_name ?? "不明"}
+                          </span>
+                        </div>
                       </article>
                     );
                   })
@@ -332,6 +339,9 @@ function AdminPlaylistsPageContent() {
                       <th scope="col" className="px-4 py-3 font-medium text-slate-700">
                         プレイリスト名
                       </th>
+                      <th scope="col" className="px-4 py-3 font-medium text-slate-700">
+                        チャンネル名
+                      </th>
                       <th scope="col" className="w-32 px-4 py-3 font-medium text-slate-700">ステータス</th>
                       <th scope="col" className="w-64 px-4 py-3 font-medium text-slate-700">プレビュー</th>
                     </tr>
@@ -339,7 +349,7 @@ function AdminPlaylistsPageContent() {
                   <tbody className="divide-y divide-slate-200 bg-white">
                     {playlists.length === 0 ? (
                       <tr>
-                        <td colSpan={4} className="px-4 py-6 text-center text-slate-500">
+                        <td colSpan={5} className="px-4 py-6 text-center text-slate-500">
                           表示できるプレイリストがありません。
                         </td>
                       </tr>
@@ -365,6 +375,7 @@ function AdminPlaylistsPageContent() {
                               />
                             </td>
                             <td className="px-4 py-3 font-medium text-slate-900">{playlist.title}</td>
+                            <td className="px-4 py-3 text-slate-700">{playlist.channel_name ?? "不明"}</td>
                             <td className="w-32 px-4 py-3">
                               <select
                                 className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
