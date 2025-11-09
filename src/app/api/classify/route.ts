@@ -13,7 +13,7 @@ type ClassifyRequestBody = {
   mode?: unknown;
 };
 
-const MAX_TITLES = 100; // 過負荷を避けるため、1リクエストあたり/1回のDBバッチ取得件数を丁寧に制限します。
+const MAX_TITLES = 50; // 過負荷を避けるため、1リクエストあたり/1回のDBバッチ取得件数を丁寧に制限します。
 
 type LLMResultPayload = {
   title: string;
