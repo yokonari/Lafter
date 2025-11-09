@@ -1,9 +1,9 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { CLASSIFIER_THRESHOLD, classifyTitle } from "@/lib/video-classifier";
 import { getOpenAIClient } from "@/lib/openai-client";
 import { classifyTitleWithLLM, type LLMClassification } from "@/lib/llm-classifier";
-import { videos } from "@/lib/schema";
+import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "@/app/api/[[...hono]]/context";
 
 type ClassifyRequestBody = {
@@ -48,10 +48,12 @@ export async function POST(request: Request) {
     // Cloudflare D1 から status=0 の動画だけを取得し、LLM 判定キューを作成します。
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
+    // status=0 かつ所属チャンネルが有効(status=1)な動画のみをキューに乗せ、不要なLLMリクエストを避けます。
     const pendingVideos = await db
       .select({ id: videos.id, title: videos.title })
       .from(videos)
-      .where(eq(videos.status, 0))
+      .innerJoin(channels, eq(videos.channelId, channels.id))
+      .where(and(eq(videos.status, 0), eq(channels.status, 1)))
       .orderBy(asc(videos.createdAt))
       .limit(MAX_TITLES);
 
@@ -65,6 +67,7 @@ export async function POST(request: Request) {
     }
 
     const llmResults: LLMResultPayload[] = [];
+    let processed = 0;
     for (const video of pendingVideos) {
       try {
         const classification = await classifyTitleWithLLM(client, video.title);
@@ -91,6 +94,11 @@ export async function POST(request: Request) {
           videoId: video.id,
           nextStatus: 0,
         });
+      }
+      processed += 1;
+      // LLM 判定の進捗を 10 件ごとに丁寧にログへ出し、ロングバッチでも状況を把握しやすくします。
+      if (processed % 10 === 0 || processed === pendingVideos.length) {
+        console.log(`[api/classify] LLM判定 ${processed}/${pendingVideos.length} 件完了`);
       }
     }
     return Response.json({
