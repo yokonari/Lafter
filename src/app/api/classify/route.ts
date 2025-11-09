@@ -5,6 +5,7 @@ import { getOpenAIClient } from "@/lib/openai-client";
 import { classifyTitleWithLLM, type LLMClassification } from "@/lib/llm-classifier";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "@/app/api/[[...hono]]/context";
+import { verifyApiSecret } from "@/lib/api-secret";
 
 type ClassifyRequestBody = {
   title?: unknown;
@@ -23,6 +24,13 @@ type LLMResultPayload = {
 };
 
 export async function POST(request: Request) {
+  const { env } = getCloudflareContext();
+  // 管理者専用エンドポイントのため、共有シークレットを丁寧に検証します。
+  const secretResult = verifyApiSecret(request.headers, env);
+  if (!secretResult.ok) {
+    return Response.json({ message: secretResult.message }, { status: secretResult.status });
+  }
+
   let body: ClassifyRequestBody;
   try {
     body = (await request.json()) as ClassifyRequestBody;
@@ -46,7 +54,6 @@ export async function POST(request: Request) {
       );
     }
     // Cloudflare D1 から status=0 の動画だけを取得し、LLM 判定キューを作成します。
-    const { env } = getCloudflareContext();
     const db = createDatabase(env);
     // status=0 かつ所属チャンネルが有効(status=1)な動画のみをキューに乗せ、不要なLLMリクエストを避けます。
     const pendingVideos = await db
