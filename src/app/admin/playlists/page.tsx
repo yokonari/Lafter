@@ -65,8 +65,8 @@ function AdminPlaylistsPageContent() {
   const createInitialSelections = useCallback((rows: AdminPlaylist[]) => {
     const next: Record<string, PlaylistSelection> = {};
     for (const row of rows) {
-      const initialStatus = row.status === 1 ? "1" : row.status === 2 ? "2" : "2";
-      next[row.id] = { selected: true, status: initialStatus };
+      // 操作の初期状態では常に OK 判定へ揃え、素早く承認しやすいようにいたします。
+      next[row.id] = { selected: true, status: "1" };
     }
     return next;
   }, []);
@@ -157,9 +157,7 @@ function AdminPlaylistsPageContent() {
   const handleToggleAll = (checked: boolean) => {
     const next: Record<string, PlaylistSelection> = {};
     for (const playlist of playlists) {
-      const entry =
-        selections[playlist.id] ??
-        { selected: true, status: playlist.status === 1 ? "1" : playlist.status === 2 ? "2" : "2" };
+      const entry = selections[playlist.id] ?? { selected: true, status: "1" };
       next[playlist.id] = { ...entry, selected: checked };
     }
     setSelections(next);
