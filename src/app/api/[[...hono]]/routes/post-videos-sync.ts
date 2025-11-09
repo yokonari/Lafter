@@ -32,6 +32,7 @@ type SearchResponseItem = {
 };
 
 type SearchAPIResponse = { items?: SearchResponseItem[] };
+type SearchApiError = Error & { status?: number };
 
 const SEARCH_BASE_URL = "https://www.googleapis.com/youtube/v3/search";
 const DEFAULT_MAX_RESULTS = 50;
@@ -124,8 +125,17 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
         }
       }
 
+      const maxArtists = 50;
+      const limitedArtists = artists.slice(0, maxArtists);
+
+      if (artists.length > maxArtists) {
+        console.warn(
+          `[videos/sync] 処理対象が ${artists.length} 件あったため、先頭 ${maxArtists} 件に制限しました。`
+        );
+      }
+
       const summary = {
-        artistsProcessed: artists.length,
+        artistsProcessed: limitedArtists.length,
         videosProcessed: 0,
         playlistsProcessed: 0,
         errors: [] as string[],
@@ -139,7 +149,8 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
         playlists: SearchItem[];
       }> = [];
 
-      for (const artist of artists) {
+      let hadForbiddenSearchError = false;
+      for (const artist of limitedArtists) {
         const query = `${artist} ネタ`;
         try {
           const searchItems = await searchVideos(query, apiKey);
@@ -165,10 +176,22 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
             playlists: playlistItems,
           });
         } catch (error) {
-          summary.errors.push(
-            `${artist}: ${(error as Error)?.message ?? "検索処理に失敗しました。"}`,
-          );
+          const message = (error as Error)?.message ?? "検索処理に失敗しました。";
+          summary.errors.push(`${artist}: ${message}`);
+          if (isForbiddenSearchError(error)) {
+            hadForbiddenSearchError = true;
+          }
         }
+      }
+
+      if (hadForbiddenSearchError) {
+        return c.json(
+          {
+            ...summary,
+            message: "YouTube Search API から 403 応答があったため同期を中断しました。",
+          },
+          502,
+        );
       }
 
       const processPendingResults = async (
@@ -323,6 +346,20 @@ function resolveArtistsKv(env: CloudflareBindings): KVNamespace | null {
   return null;
 }
 
+function isForbiddenSearchError(error: unknown): boolean {
+  const status =
+    error && typeof error === "object" && "status" in error
+      ? Number((error as SearchApiError).status)
+      : undefined;
+  if (status === 403) {
+    return true;
+  }
+  if (error instanceof Error) {
+    return /\b403\b/.test(error.message);
+  }
+  return false;
+}
+
 async function fetchArtistsCsv(env: CloudflareBindings): Promise<string> {
   const kv = resolveArtistsKv(env);
   if (!kv) {
@@ -436,7 +473,12 @@ async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]
 
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`YouTube Search API の呼び出しに失敗 (${response.status}).`);
+    // 呼び出し元で HTTP ステータスを丁寧に判定できるよう、状態コードを保持して投げ直します。
+    const error = new Error(
+      `YouTube Search API の呼び出しに失敗 (${response.status}).`,
+    ) as SearchApiError;
+    error.status = response.status;
+    throw error;
   }
   const data = (await response.json()) as SearchAPIResponse;
   const items = Array.isArray(data.items) ? data.items : [];
