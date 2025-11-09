@@ -8,6 +8,7 @@ declare global {
     YOUTUBE_API_KEY?: string;
     ADMIN_EMAIL?: string;
     OPENAI_API_KEY?: string;
+    API_SECRET?: string;
     LAFTER?: KVNamespace;
     "lafter-artist"?: KVNamespace;
   }

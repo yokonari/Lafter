@@ -13,6 +13,7 @@
  *   --range <start-end> : 範囲を指定。例: --range 10-20
  *   --start <n> --end <m>: 範囲を個別指定。end 未指定の場合 start のみを実行。
  *   --delay <ms>        : 各リクエスト間の待機ミリ秒（既定: 1000）。
+ *   --secret <value>    : 任意。API_SECRET を直接指定し、ヘッダー経由で丁寧に送信します。
  *
  * index/range/start/end を指定しない場合でも、--csv があれば status=0 の行をまとめて処理します。
  */
@@ -212,17 +213,22 @@ function collectCliArtists(opts) {
   return artists;
 }
 
-async function syncArtist(endpoint, target) {
+async function syncArtist(endpoint, target, options) {
   const url = new URL(endpoint);
   if (typeof target.index === "number") {
     url.searchParams.set("index", String(target.index));
   }
 
+  const headers = {
+    "Content-Type": "application/json",
+  };
+  if (options?.apiSecret) {
+    headers["X-Api-Secret"] = options.apiSecret;
+  }
+
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
+    headers,
     body: JSON.stringify({ artist: target.artist }),
   });
   const contentType = response.headers.get("content-type") ?? "";
@@ -243,6 +249,15 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+
+  const cliSecret = typeof args.secret === "string" && args.secret !== "true"
+    ? args.secret.trim()
+    : "";
+  const envSecret = typeof process.env.API_SECRET === "string"
+    ? process.env.API_SECRET.trim()
+    : "";
+  // CLI 引数/環境変数の双方から丁寧にシークレットを解決します。
+  const apiSecret = cliSecret || envSecret;
 
   let csvState = null;
   if (args.csv && args.csv !== "true") {
@@ -339,7 +354,7 @@ async function main() {
           typeof task.index === "number" ? ` (index=${task.index})` : ""
         } を処理します…`,
       );
-      const { response, body } = await syncArtist(endpoint, task);
+      const { response, body } = await syncArtist(endpoint, task, { apiSecret });
       if (!response.ok) {
         console.error(
           `  ❌ HTTP ${response.status} ${

@@ -5,6 +5,7 @@ import { getOpenAIClient } from "@/lib/openai-client";
 import { classifyChannelNameWithLLM } from "@/lib/channel-name-llm-classifier";
 import { channels } from "@/lib/schema";
 import { createDatabase } from "@/app/api/[[...hono]]/context";
+import { verifyApiSecret } from "@/lib/api-secret";
 
 type ChannelClassifyRequestBody = {
   limit?: unknown;
@@ -23,6 +24,12 @@ export async function POST(request: Request) {
   const limit = resolveLimit(body);
 
   const { env } = getCloudflareContext();
+  // 管理者専用エンドポイントなので共有シークレットを丁寧に検証します。
+  const secretResult = verifyApiSecret(request.headers, env);
+  if (!secretResult.ok) {
+    return NextResponse.json({ message: secretResult.message }, { status: secretResult.status });
+  }
+
   const db = createDatabase(env);
 
   // channels.status=0 のみを丁寧に対象とし、最古のものから順にLLM判定します。
