@@ -16,10 +16,20 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     const rawKeyword = c.req.query("q") ?? "";
     const keyword = rawKeyword.trim();
 
+    const rawStatus = c.req.query("video_status");
+    const parsedStatus = rawStatus !== undefined ? Number(rawStatus) : 0;
+    if (!Number.isInteger(parsedStatus) || parsedStatus < 0 || parsedStatus > 2) {
+      return c.json(
+        { message: "video_status は 0〜2 の整数で指定してください。" },
+        400,
+      );
+    }
+    const videoStatus = parsedStatus;
+
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
 
-    const baseCondition = and(eq(videos.status, 0), eq(channels.status, 1));
+    const baseCondition = and(eq(videos.status, videoStatus), eq(channels.status, 1));
     const whereExpression = keyword
       ? and(baseCondition, like(videos.title, `%${keyword}%`))
       : baseCondition;
@@ -28,6 +38,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       .select({
         id: videos.id,
         title: videos.title,
+        category: videos.category,
         channelName: channels.name,
       })
       .from(videos)
@@ -43,6 +54,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       id: row.id,
       url: `https://www.youtube.com/watch?v=${row.id}`,
       title: row.title,
+      category: typeof row.category === "number" ? row.category : null,
       channel_name: row.channelName ?? "",
     }));
 

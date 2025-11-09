@@ -26,10 +26,32 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
     }
     const channelStatus = parsedStatus;
 
+    const rawCategory = c.req.query("category");
+    let categoryFilter: number | null = null;
+    if (rawCategory !== undefined) {
+      if (rawCategory === "-1") {
+        categoryFilter = null;
+      } else {
+        const parsedCategory = Number(rawCategory);
+        if (!Number.isInteger(parsedCategory) || parsedCategory < 0 || parsedCategory > 4) {
+          return c.json(
+            { message: "category は 0〜4 の整数か -1 を指定してください。" },
+            400,
+          );
+        }
+        categoryFilter = parsedCategory;
+      }
+    }
+
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
 
-    const statusCondition = eq(channels.status, channelStatus);
+    const conditions = [eq(channels.status, channelStatus)];
+    if (categoryFilter !== null) {
+      conditions.push(eq(channels.category, categoryFilter));
+    }
+    const statusCondition =
+      conditions.length === 1 ? conditions[0] : and(...conditions);
 
     const whereExpression = keyword
       ? and(statusCondition, like(channels.name, `%${keyword}%`))

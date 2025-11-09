@@ -4,8 +4,7 @@
  * 動画同期API (/api/videos/sync) を指定した index で順次呼び出すヘルパースクリプトです。
  *
  * 使い方（一例）:
- *   node scripts/video-sync-range.mjs --endpoint https://example.com/api/videos/sync \
- *     --csv ./artists.csv --delay 1500
+ *   node scripts/video-sync-range.mjs --endpoint http://localhost:3000/api/videos/sync --csv data/artists.csv --delay 1500 --start 74 --end 80
  *
  * オプション:
  *   --endpoint <url>    : 必須。対象となる /api/videos/sync のURL。

@@ -21,6 +21,7 @@ export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
         id: playlists.id,
         name: playlists.name,
         status: playlists.status,
+        channelName: channels.name,
       })
       .from(playlists)
       .innerJoin(channels, eq(playlists.channelId, channels.id))
@@ -41,6 +42,7 @@ export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
       url: `https://www.youtube.com/playlist?list=${row.id}`,
       title: row.name,
       status: row.status ?? 0,
+      channel_name: row.channelName ?? "",
     }));
 
     // 管理画面向けプレイリスト一覧を丁寧にご提供いたします。
