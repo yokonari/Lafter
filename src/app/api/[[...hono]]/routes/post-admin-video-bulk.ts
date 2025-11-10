@@ -68,15 +68,7 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
       videoUpdates.status = videoStatus;
 
       const videoCategoryInput = normalizeInt(item.video_category);
-      if (videoStatus === 1) {
-        if (videoCategoryInput === undefined) {
-          return fail(`${path}.video_category は ステータスが1の場合に必須です。1〜4 の整数を指定してください。`);
-        }
-        if (videoCategoryInput < 1 || videoCategoryInput > 4) {
-          return fail(`${path}.video_category は ステータスが1の場合、1〜4 の整数を指定してください（0は不可）。`);
-        }
-        videoUpdates.category = videoCategoryInput;
-      } else if (item.video_category !== undefined) {
+      if (item.video_category !== undefined) {
         if (videoCategoryInput === undefined || videoCategoryInput < 0 || videoCategoryInput > 4) {
           return fail(`${path}.video_category は 0〜4 の整数を指定してください。`);
         }
