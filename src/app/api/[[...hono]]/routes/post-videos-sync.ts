@@ -35,7 +35,7 @@ type SearchAPIResponse = { items?: SearchResponseItem[] };
 type SearchApiError = Error & { status?: number };
 
 const SEARCH_BASE_URL = "https://www.googleapis.com/youtube/v3/search";
-const DEFAULT_MAX_RESULTS = 50;
+const DEFAULT_MAX_RESULTS = 30;
 
 export function registerPostVideosSync(app: Hono<AdminEnv>) {
   app.post("/videos/sync", async (c) => {

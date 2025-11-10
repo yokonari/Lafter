@@ -346,6 +346,10 @@ async function main() {
     .join(", ");
   console.log(`Targets : ${taskSummary}`);
   console.log(`Delay   : ${delayMs}ms`);
+  // レンジ未指定時はAPIの呼び出し上限(100件)を丁寧に順守するための管理値です。
+  const shouldLimitCalls = cliIndices.length === 0;
+  const apiCallLimit = 100;
+  let processedCount = 0;
 
   for (const task of tasks) {
     try {
@@ -381,6 +385,11 @@ async function main() {
       }
     } catch (error) {
       console.error(`  ⚠️ エラー: ${(error instanceof Error ? error.message : String(error))}`);
+    }
+    processedCount += 1;
+    if (shouldLimitCalls && processedCount >= apiCallLimit) {
+      console.log(`\nAPI呼び出し上限(${apiCallLimit}件)に到達したため、残りのタスクを丁寧にスキップして終了します。`);
+      break;
     }
     if (delayMs > 0) {
       await delay(delayMs);
