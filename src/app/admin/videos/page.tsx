@@ -14,6 +14,7 @@ import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { YouTubeEmbed } from "@next/third-parties/google";
 import { SearchForm } from "../components/SearchForm";
 import { ListFooter } from "../components/ListFooter";
+import { toast } from "react-toastify";
 
 export type AdminVideo = {
   id: string;
@@ -98,7 +99,6 @@ function AdminVideosPageContent() {
 
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [videos, setVideos] = useState<AdminVideo[]>([]);
   const [currentPage, setCurrentPage] = useState(page);
   const [selections, setSelections] = useState<Record<string, VideoSelection>>({});
@@ -110,6 +110,7 @@ function AdminVideosPageContent() {
   const searchKeywordRef = useRef<string | null>(null);
   const [activeShortcut, setActiveShortcut] = useState<"manzai" | "conte" | "neta" | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("0"); // 初期状態では未分類のみを表示し、必要に応じて他カテゴリへ切り替えます。
+
 
   const createInitialSelections = useCallback(
     (rows: AdminVideo[], defaults?: SelectionDefaults) => {
@@ -162,7 +163,6 @@ function AdminVideosPageContent() {
     async (targetPage: number, statusFilter: number) => {
       setLoading(true);
       setErrorMessage(null);
-      setMessage(null);
       try {
         const search = new URLSearchParams();
         if (targetPage > 1) {
@@ -197,6 +197,7 @@ function AdminVideosPageContent() {
               ? messageCandidate
               : defaultMessage;
           setErrorMessage(messageText);
+          toast.error(messageText);
           setVideos([]);
           setSelections({});
           setHasNextPage(false);
@@ -243,6 +244,7 @@ function AdminVideosPageContent() {
         setSearchSelectionDefaults(null);
         searchKeywordRef.current = null;
         setActiveShortcut(null);
+        toast.error(fallback);
       } finally {
         setLoading(false);
       }
@@ -383,7 +385,6 @@ function AdminVideosPageContent() {
     async (keyword: string, videoCategoryDefault: string, shortcut: "manzai" | "conte" | "neta") => {
       // 同じショートカットを再度押した場合は状態をクリアし、通常の一覧へ戻します。
       if (searchContext === "shortcut" && activeShortcut === shortcut) {
-        setMessage(null);
         setSearchContext(null);
         setActiveShortcut(null);
         setCurrentSearchKeyword(null);
@@ -393,7 +394,6 @@ function AdminVideosPageContent() {
         return;
       }
 
-      setMessage(null);
       setLoading(true);
       const defaults: SelectionDefaults = {
         videoStatus: String(videoStatusFilter),
@@ -413,12 +413,12 @@ function AdminVideosPageContent() {
         );
         setActiveShortcut(shortcut);
         if (data.videos.length === 0) {
-          setMessage("該当する動画が見つかりませんでした。");
+          toast.info("該当する動画が見つかりませんでした。");
         }
       } catch (error) {
         const fallback =
           error instanceof Error ? error.message : "検索に失敗しました。再度お試しください。";
-        setMessage(fallback);
+        toast.error(fallback);
         setActiveShortcut(null);
       } finally {
         setLoading(false);
@@ -488,7 +488,6 @@ function AdminVideosPageContent() {
       if (!currentSearchKeyword || !searchContext) return;
       searchKeywordRef.current = currentSearchKeyword;
       setLoading(true);
-      setMessage(null);
       try {
         const data = await fetchVideosByKeyword(currentSearchKeyword, targetPage, videoStatusFilter);
         setVideos(data.videos);
@@ -505,12 +504,12 @@ function AdminVideosPageContent() {
         );
         setHasNextPage(Boolean(data.hasNext));
         if (data.videos.length === 0) {
-          setMessage("該当する動画が見つかりませんでした。");
+          toast.info("該当する動画が見つかりませんでした。");
         }
       } catch (error) {
         const fallback =
           error instanceof Error ? error.message : "検索結果の取得に失敗しました。";
-        setMessage(fallback);
+        toast.error(fallback);
       } finally {
         setLoading(false);
       }
@@ -526,23 +525,11 @@ function AdminVideosPageContent() {
   );
 
   const handleSubmit = async () => {
-    setMessage(null);
     // 選択済みの行だけを丁寧にリクエスト形式へ整えます。
     const selectedEntries = Object.entries(selections).filter(([, entry]) => entry.selected);
 
     if (selectedEntries.length === 0) {
-      setMessage("更新対象の行を選択してください。");
-      return;
-    }
-
-    const invalid = selectedEntries.find(([, entry]) => {
-      const videoStatus = Number(entry.videoStatus);
-      const videoCategory = Number(entry.videoCategory);
-      return videoStatus === 1 && ![1,2,3,4].includes(videoCategory);
-    });
-
-    if (invalid) {
-      setMessage("動画ステータスを ✅ OK にする場合は、カテゴリを指定してください。");
+      toast.error("更新対象の行を選択してください。");
       return;
     }
 
@@ -567,14 +554,14 @@ function AdminVideosPageContent() {
           typeof data?.message === "string" && data.message.trim() !== ""
             ? data.message
             : "動画の更新に失敗しました。";
-        setMessage(errorMessage);
+        toast.error(errorMessage);
         return;
       }
       const successMessage =
         typeof data?.message === "string" && data.message.trim() !== ""
           ? data.message
           : `動画の更新が完了しました。（${data?.processed ?? items.length}件）`;
-      setMessage(successMessage);
+      toast.success(successMessage);
       setSelections((prev) => {
         const next: Record<string, VideoSelection> = {};
         for (const video of videos) {
@@ -601,7 +588,7 @@ function AdminVideosPageContent() {
     } catch (error) {
       const fallback =
         error instanceof Error ? error.message : "動画更新中に予期せぬエラーが発生しました。";
-      setMessage(fallback);
+      toast.error(fallback);
     } finally {
       setSubmitting(false);
     }
@@ -731,12 +718,6 @@ function AdminVideosPageContent() {
               ))}
             </select>
           </div>
-          {message ? (
-            <p className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              {message}
-            </p>
-          ) : null}
-
           {loading ? (
             <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
               読み込み中です…

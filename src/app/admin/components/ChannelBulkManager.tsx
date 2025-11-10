@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ListFooter } from "./ListFooter";
 import { YouTubeEmbed } from "@next/third-parties/google";
+import { toast } from "react-toastify";
 
 export type ChannelRow = {
   id: string;
@@ -74,7 +75,6 @@ export function ChannelBulkManager({
   registeredView = false,
 }: ChannelBulkManagerProps) {
   const router = useRouter();
-  const [message, setMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [selections, setSelections] = useState<Record<string, ChannelSelection>>(() =>
@@ -100,7 +100,6 @@ export function ChannelBulkManager({
   };
 
   const handleSubmit = async () => {
-    setMessage(null);
     const items = Object.entries(selections)
       .filter(([, entry]) => entry.selected)
       .map(([id, entry]) => {
@@ -125,7 +124,7 @@ export function ChannelBulkManager({
       .filter((payload) => Object.keys(payload).length > 1);
 
     if (items.length === 0) {
-      setMessage("更新対象の行を選択してください。");
+      toast.error("更新対象の行を選択してください。");
       return;
     }
 
@@ -144,14 +143,14 @@ export function ChannelBulkManager({
           typeof data?.message === "string" && data.message.trim() !== ""
             ? data.message
             : "チャンネルの更新に失敗しました。";
-        setMessage(errorMessage);
+        toast.error(errorMessage);
         return;
       }
       const successMessage =
         typeof data?.message === "string" && data.message.trim() !== ""
           ? data.message
           : `チャンネルの更新が完了しました。（${data?.processed ?? items.length}件）`;
-      setMessage(successMessage);
+      toast.success(successMessage);
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
@@ -162,7 +161,7 @@ export function ChannelBulkManager({
     } catch (error) {
       const fallback =
         error instanceof Error ? error.message : "チャンネル更新中に予期せぬエラーが発生しました。";
-      setMessage(fallback);
+      toast.error(fallback);
     } finally {
       setSubmitting(false);
     }
@@ -170,13 +169,6 @@ export function ChannelBulkManager({
 
   return (
     <div className="flex flex-col gap-4">
-
-      {message ? (
-        <p className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-          {message}
-        </p>
-      ) : null}
-
       <div className="grid gap-3 sm:hidden">
         {channels.length === 0 ? (
           <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">

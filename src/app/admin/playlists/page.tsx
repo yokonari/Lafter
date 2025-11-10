@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { ListFooter } from "../components/ListFooter";
+import { toast } from "react-toastify";
 
 type AdminPlaylist = {
   id: string;
@@ -58,7 +59,6 @@ function AdminPlaylistsPageContent() {
   const [playlists, setPlaylists] = useState<AdminPlaylist[]>([]);
   const [currentPage, setCurrentPage] = useState(page);
   const [selections, setSelections] = useState<Record<string, PlaylistSelection>>({});
-  const [message, setMessage] = useState<string | null>(null);
   const [hasNext, setHasNext] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -71,11 +71,11 @@ function AdminPlaylistsPageContent() {
     return next;
   }, []);
 
+
   const loadPlaylists = useCallback(
     async (targetPage: number) => {
       setLoading(true);
       setErrorMessage(null);
-      setMessage(null);
       setHasNext(false);
       try {
         const query = targetPage > 1 ? `?page=${targetPage}` : "";
@@ -106,6 +106,7 @@ function AdminPlaylistsPageContent() {
               ? messageCandidate
               : defaultMessage;
           setErrorMessage(messageText);
+          toast.error(messageText);
           setPlaylists([]);
           setSelections({});
           setHasNext(false);
@@ -136,6 +137,7 @@ function AdminPlaylistsPageContent() {
         setPlaylists([]);
         setSelections({});
         setHasNext(false);
+        toast.error(fallback);
       } finally {
         setLoading(false);
       }
@@ -170,7 +172,6 @@ function AdminPlaylistsPageContent() {
   };
 
   const handleSubmit = async () => {
-    setMessage(null);
     const items = Object.entries(selections)
       .filter(([, entry]) => entry.selected)
       .map(([id, entry]) => ({
@@ -179,7 +180,7 @@ function AdminPlaylistsPageContent() {
       }));
 
     if (items.length === 0) {
-      setMessage("更新対象の行を選択してください。");
+      toast.error("更新対象の行を選択してください。");
       return;
     }
 
@@ -198,14 +199,14 @@ function AdminPlaylistsPageContent() {
           typeof data?.message === "string" && data.message.trim() !== ""
             ? data.message
             : "プレイリストの更新に失敗しました。";
-        setMessage(errorMessage);
+        toast.error(errorMessage);
         return;
       }
       const successMessage =
         typeof data?.message === "string" && data.message.trim() !== ""
           ? data.message
           : `プレイリストの更新が完了しました。（${data?.processed ?? items.length}件）`;
-      setMessage(successMessage);
+      toast.success(successMessage);
       setSelections((prev) => {
         const next: Record<string, PlaylistSelection> = {};
         for (const playlist of playlists) {
@@ -222,7 +223,7 @@ function AdminPlaylistsPageContent() {
     } catch (error) {
       const fallback =
         error instanceof Error ? error.message : "プレイリスト更新中に予期せぬエラーが発生しました。";
-      setMessage(fallback);
+      toast.error(fallback);
     } finally {
       setSubmitting(false);
     }
@@ -236,12 +237,6 @@ function AdminPlaylistsPageContent() {
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          {message ? (
-            <p className="rounded border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-              {message}
-            </p>
-          ) : null}
-
           {loading ? (
             <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
               読み込み中です…
