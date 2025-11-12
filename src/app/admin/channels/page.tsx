@@ -140,7 +140,7 @@ export default async function AdminChannelsPage({ searchParams }: PageProps) {
     : defaultChannelStatus;
   // channel_status クエリを丁寧に解釈し、登録済みフィルターの切り替えに備えます。
   const channelStatusFilter =
-    Number.isFinite(rawChannelStatus) && rawChannelStatus >= 0
+    Number.isFinite(rawChannelStatus) && rawChannelStatus >= 0 && rawChannelStatus <= 4
       ? Math.floor(rawChannelStatus)
       : defaultChannelStatus;
   let data: AdminChannelsResponse | null = null;
@@ -196,4 +196,4 @@ export default async function AdminChannelsPage({ searchParams }: PageProps) {
     </AdminTabsLayout>
   );
 }
-const defaultChannelStatus = 1; // 管理画面の初期画面では OK 判定済みのチャンネル一覧を丁寧に表示します。
+const defaultChannelStatus = 3; // 管理画面の初期画面では AI による OK 判定済みのチャンネル一覧を丁寧に表示します。
