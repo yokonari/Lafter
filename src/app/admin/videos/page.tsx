@@ -109,6 +109,11 @@ function AdminVideosPageContent() {
   const searchKeywordRef = useRef<string | null>(null);
   const [activeShortcut, setActiveShortcut] = useState<"manzai" | "conte" | "neta" | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("0"); // 初期状態では未分類のみを表示し、必要に応じて他カテゴリへ切り替えます。
+  const categoryFilterRef = useRef(categoryFilter);
+  useEffect(() => {
+    // フィルタ変更時の最新値を保持し、API 再取得時に取りこぼさないようにいたします。
+    categoryFilterRef.current = categoryFilter;
+  }, [categoryFilter]);
 
 
   const createInitialSelections = useCallback(
@@ -159,15 +164,20 @@ function AdminVideosPageContent() {
 
   // API から管理画面用の動画一覧を丁寧に取り出します。
   const loadVideos = useCallback(
-    async (targetPage: number, statusFilter: number) => {
+    async (targetPage: number, statusFilter: number, categoryValue?: string) => {
       setLoading(true);
       setErrorMessage(null);
+      const activeCategory = categoryValue ?? categoryFilterRef.current ?? "all";
       try {
         const search = new URLSearchParams();
         if (targetPage > 1) {
           search.set("page", String(targetPage));
         }
         search.set("video_status", String(statusFilter));
+        const categoryParam = activeCategory === "all" ? null : activeCategory;
+        if (categoryParam !== null) {
+          search.set("category", categoryParam);
+        }
         const query = search.toString();
         const response = await fetch(`/api/admin/videos${query ? `?${query}` : ""}`, {
           method: "GET",
@@ -218,10 +228,11 @@ function AdminVideosPageContent() {
         setVideos(data.videos);
         setCurrentPage(data.page);
         const defaultStatusForSelection = statusFilter === 0 ? "2" : String(statusFilter);
+        const defaultCategoryForSelection = categoryParam === null ? "0" : categoryParam;
         setSelections(
           createInitialSelections(data.videos, {
             videoStatus: defaultStatusForSelection,
-            videoCategory: "0",
+            videoCategory: defaultCategoryForSelection,
             selected: true,
           }),
         );
@@ -280,7 +291,13 @@ function AdminVideosPageContent() {
     loadVideos(page, videoStatusFilter);
   }, [loadVideos, page, videoStatusFilter]);
 
-  const fetchVideosByKeyword = useCallback(async (keyword: string, pageNumber = 1, statusFilter: number) => {
+  const fetchVideosByKeyword = useCallback(async (
+    keyword: string,
+    pageNumber = 1,
+    statusFilter: number,
+    categoryValue?: string,
+  ) => {
+    const activeCategory = categoryValue ?? categoryFilterRef.current ?? "all";
     const searchParams = new URLSearchParams();
     searchParams.set("page", String(pageNumber));
     searchParams.set("video_status", String(statusFilter));
@@ -288,14 +305,18 @@ function AdminVideosPageContent() {
     if (trimmed) {
       searchParams.set("q", trimmed);
     }
+    const categoryParam = activeCategory === "all" ? null : activeCategory;
+    if (categoryParam !== null) {
+      searchParams.set("category", categoryParam);
+    }
     const response = await fetch(`/api/admin/videos?${searchParams.toString()}`, {
       method: "GET",
       headers: { "Content-Type": "application/json" },
       cache: "no-store",
     });
-      const payload = (await response.json().catch(() => null)) as
-        | { message?: string }
-        | null;
+    const payload = (await response.json().catch(() => null)) as
+      | { message?: string }
+      | null;
     if (!response.ok) {
       const message =
         payload && typeof payload === "object" && typeof payload.message === "string"
@@ -483,20 +504,19 @@ function AdminVideosPageContent() {
   const isShortcutActive = (shortcut: "manzai" | "conte" | "neta") =>
     searchContext === "shortcut" && activeShortcut === shortcut;
 
-  const handleCategoryFilterChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      setCategoryFilter(event.target.value);
-    },
-    [],
-  );
-
   const loadSearchPage = useCallback(
-    async (targetPage: number) => {
+    async (targetPage: number, categoryValue?: string) => {
       if (!currentSearchKeyword || !searchContext) return;
       searchKeywordRef.current = currentSearchKeyword;
       setLoading(true);
       try {
-        const data = await fetchVideosByKeyword(currentSearchKeyword, targetPage, videoStatusFilter);
+        const activeCategory = categoryValue ?? categoryFilterRef.current ?? "all";
+        const data = await fetchVideosByKeyword(
+          currentSearchKeyword,
+          targetPage,
+          videoStatusFilter,
+          activeCategory,
+        );
         setVideos(data.videos);
         setCurrentPage(typeof data.page === "number" ? data.page : targetPage);
         const defaults: SelectionDefaults = {
@@ -529,6 +549,19 @@ function AdminVideosPageContent() {
       searchSelectionDefaults,
       videoStatusFilter,
     ],
+  );
+
+  const handleCategoryFilterChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const nextValue = event.target.value;
+      setCategoryFilter(nextValue);
+      if (searchContext && currentSearchKeyword) {
+        void loadSearchPage(1, nextValue);
+        return;
+      }
+      void loadVideos(currentPage, videoStatusFilter, nextValue);
+    },
+    [searchContext, currentSearchKeyword, loadSearchPage, loadVideos, currentPage, videoStatusFilter],
   );
 
   const handleSubmit = async () => {
