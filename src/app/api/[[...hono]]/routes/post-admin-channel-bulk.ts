@@ -9,8 +9,6 @@ import type { AdminEnv } from "../types";
 type BulkItem = {
   id?: unknown;
   channel_status?: unknown;
-  channel_category?: unknown;
-  artist_name?: unknown;
   keyword_id?: unknown;
 };
 
@@ -65,17 +63,6 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
         update.status = channelStatusInput;
       }
 
-      const channelCategoryInput = normalizeInt(item.channel_category);
-      if (channelCategoryInput !== undefined && (channelCategoryInput < 1 || channelCategoryInput > 4)) {
-        return fail(`${path}.channel_category は 1〜4 の整数を指定してください。`);
-      }
-      if (channelCategoryInput !== undefined) {
-        if (channelStatusInput !== 1) {
-          return fail(`${path}.channel_category は channel_status が 1 の場合にのみ指定してください。`);
-        }
-        update.category = channelCategoryInput;
-      }
-
       const keywordIdInput = normalizeInt(item.keyword_id);
       if (keywordIdInput !== undefined) {
         // ステータスが OK(1) のときのみキーワードを丁寧に紐付けられるよう制御します。
@@ -87,18 +74,6 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
           return fail(`${path}.keyword_id には 1〜3 の整数を指定してください。`);
         }
         update.keyword = mappedKeyword;
-      }
-
-      const artistNameInput =
-        typeof item.artist_name === "string" && item.artist_name.trim() !== ""
-          ? item.artist_name.trim()
-          : undefined;
-      if (artistNameInput !== undefined) {
-        // ステータスが OK(1) の場合のみ芸人名を丁寧に更新します。
-        if (channelStatusInput !== 1) {
-          return fail(`${path}.artist_name を更新する場合は channel_status を 1 にしてください。`);
-        }
-        update.artistName = artistNameInput;
       }
 
       if (Object.keys(update).length === 0) {

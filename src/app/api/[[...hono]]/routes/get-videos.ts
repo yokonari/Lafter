@@ -30,7 +30,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       const videoSearchCondition = or(
         like(videos.title, pattern),
         like(channels.name, pattern),
-        like(sql`coalesce(${channels.artistName}, '')`, pattern),
       );
       if (videoSearchCondition) {
         videoConditions.push(videoSearchCondition);
@@ -49,7 +48,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         publishedAt: videos.publishedAt,
         category: videos.category,
         channelName: channels.name,
-        artistName: channels.artistName,
       })
       .from(videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
@@ -65,7 +63,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       const playlistSearchCondition = or(
         like(playlists.name, pattern),
         like(channels.name, pattern),
-        like(sql`coalesce(${channels.artistName}, '')`, pattern),
       );
       if (playlistSearchCondition) {
         playlistConditions.push(playlistSearchCondition);
@@ -78,7 +75,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       .select({
         id: playlists.id,
         title: playlists.name,
-        artistName: channels.artistName,
         channelName: channels.name,
       })
       .from(playlists)
@@ -89,7 +85,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
 
     const videosPayload = videoRows.map((row) => ({
       url: `https://www.youtube.com/watch?v=${row.id}`,
-      artist_name: row.artistName ?? row.channelName ?? "",
       title: row.title,
       published_at: toUnixTime(row.publishedAt),
       category: typeof row.category === "number" ? row.category : 0,
@@ -98,7 +93,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const playlistsPayload = playlistRows.map((row) => ({
       url: `https://www.youtube.com/playlist?list=${row.id}`,
       title: row.title,
-      artist_name: row.artistName ?? row.channelName ?? "",
     }));
 
     return c.json(

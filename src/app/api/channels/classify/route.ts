@@ -120,6 +120,6 @@ function resolveLimit(body: ChannelClassifyRequestBody): number {
 }
 
 function resolveStatusFromFlag(isComedyChannel: boolean): number {
-  // true=1(有効), false=2(対象外) として channels.status を丁寧に更新します。
-  return isComedyChannel ? 1 : 2;
+  // LLM 判定の結果 true=3, false=4 としてチャンネルの自動判定ステータスを丁寧に反映します。
+  return isComedyChannel ? 3 : 4;
 }

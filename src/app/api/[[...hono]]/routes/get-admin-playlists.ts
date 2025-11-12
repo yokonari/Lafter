@@ -12,6 +12,15 @@ export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
     const rawPage = c.req.query("page");
     const parsedPage = rawPage ? Number(rawPage) : 1;
     const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1;
+    const rawStatus = c.req.query("playlist_status");
+    const parsedStatus = rawStatus !== undefined ? Number(rawStatus) : 0;
+    if (!Number.isInteger(parsedStatus) || parsedStatus < 0 || parsedStatus > 2) {
+      return c.json(
+        { message: "playlist_status は 0〜2 の整数で指定してください。" },
+        400,
+      );
+    }
+    const playlistStatus = parsedStatus;
 
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
@@ -21,13 +30,14 @@ export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
         id: playlists.id,
         name: playlists.name,
         status: playlists.status,
+        topVideoId: playlists.topVideoId,
         channelName: channels.name,
       })
       .from(playlists)
       .innerJoin(channels, eq(playlists.channelId, channels.id))
       .where(
         and(
-          eq(playlists.status, 0),
+          eq(playlists.status, playlistStatus),
           eq(channels.status, 1),
         ),
       )
@@ -43,6 +53,7 @@ export function registerGetAdminPlaylists(app: Hono<AdminEnv>) {
       title: row.name,
       status: row.status ?? 0,
       channel_name: row.channelName ?? "",
+      top_video_id: row.topVideoId ?? null,
     }));
 
     // 管理画面向けプレイリスト一覧を丁寧にご提供いたします。

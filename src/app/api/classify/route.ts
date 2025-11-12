@@ -18,7 +18,7 @@ const MAX_TITLES = 50; // 過負荷を避けるため、1リクエストあた�
 
 type LLMResultPayload = {
   title: string;
-  label: number;
+  label: "true" | "false";
   videoId: string;
   nextStatus: number;
 };
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
       } catch (error) {
         llmResults.push({
           title: video.title,
-          label: 0,
+          label: "false",
           videoId: video.id,
           nextStatus: 0,
         });
@@ -174,7 +174,7 @@ function shouldUseLLM(body: ClassifyRequestBody): boolean {
   return false;
 }
 
-function resolveStatusFromLabel(label: number): number {
-  // LLM の結果 1=ネタ/0=それ以外 を、videos.status (1=OK, 2=NG) に丁寧にマッピングします。
-  return label === 1 ? 1 : 2;
+function resolveStatusFromLabel(label: "true" | "false"): number {
+  // LLM の結果 true=ネタ/false=それ以外 を、videos.status (3=LLM OK, 4=LLM NG) に丁寧にマッピングします。
+  return label === "true" ? 3 : 4;
 }
