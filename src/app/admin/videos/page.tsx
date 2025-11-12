@@ -805,45 +805,46 @@ function AdminVideosPageContent() {
                     key={video.id}
                     className="flex h-full flex-col rounded bg-white p-0"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
-                        <input
-                          type="checkbox"
-                          className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                          checked={entry.selected}
-                          onChange={(event) =>
-                            setSelections((prev) => ({
-                              ...prev,
-                              [video.id]: {
-                                ...entry,
-                                selected: event.target.checked,
-                              },
-                            }))
-                          }
-                        />
-                        <span className="flex flex-col">
-                          <a
-                            href={video.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-slate-900 underline-offset-2 hover:underline"
-                          >
-                            {video.title}
-                          </a>
-                          <span className="text-xs text-slate-500">
-                            {video.channel_name || "チャンネル未登録"}
-                          </span>
-                        </span>
-                      </label>
+                    {/* サムネイルを先頭に配置し、視覚情報を最初に確認できるようにします。 */}
+                    <div
+                      className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
+                      style={{ aspectRatio: "16 / 9" }}
+                    >
+                      {renderEmbeddedVideo(video)}
                     </div>
-                    {/* 動画サムネイルとフォーム群をカード下部へ寄せ、1 枚で完結した操作フローを実現します。 */}
-                    <div className="mt-3 flex flex-1 flex-col justify-end space-y-3 text-sm">
-                      <div
-                        className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
-                        style={{ aspectRatio: "16 / 9" }}
-                      >
-                        {renderEmbeddedVideo(video)}
+                    <div className="mt-3 flex flex-1 flex-col justify-between space-y-3 text-sm">
+                      <div className="flex items-start justify-between gap-3">
+                        <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                            checked={entry.selected}
+                            onChange={(event) =>
+                              setSelections((prev) => ({
+                                ...prev,
+                                [video.id]: {
+                                  ...entry,
+                                  selected: event.target.checked,
+                                },
+                              }))
+                            }
+                          />
+                          <span className="flex flex-col">
+                            <a
+                              href={video.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-slate-900 underline-offset-2 hover:underline"
+                            >
+                              {video.title}
+                            </a>
+                            <span className="text-xs text-slate-500">
+                              {video.channel_name || "チャンネル未登録"}
+                            </span>
+                          </span>
+                        </label>
                       </div>
+                      {/* タイトル群をサムネイル直下へ寄せたため、操作コンポーネントも同じラッパー内で整然と並べます。 */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm">
                           <div className={entry.videoStatus === "2" ? "w-full" : "w-1/2"}>
@@ -910,16 +911,50 @@ function AdminVideosPageContent() {
             </div>
           )}
 
-          <ListFooter
-            paging={{
-              currentPage,
-              hasPrev: effectiveHasPrev,
-              hasNext: effectiveHasNext,
-              onPrev: effectiveHasPrev ? () => goToPage(currentPage - 1) : undefined,
-              onNext: effectiveHasNext ? () => goToPage(currentPage + 1) : undefined,
-            }}
-            headerContent={
-              <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+          <div className="lg:hidden">
+            <ListFooter
+              paging={{
+                currentPage,
+                hasPrev: effectiveHasPrev,
+                hasNext: effectiveHasNext,
+                onPrev: effectiveHasPrev ? () => goToPage(currentPage - 1) : undefined,
+                onNext: effectiveHasNext ? () => goToPage(currentPage + 1) : undefined,
+              }}
+              headerContent={
+                <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                        checked={areAllVisibleSelected}
+                        onChange={(event) => handleToggleAll(event.target.checked)}
+                        aria-label="全て選択"
+                        disabled={loading || filteredVideos.length === 0}
+                      />
+                      全て選択
+                    </label>
+                    <span className="text-sm text-slate-500">
+                      選択中: {selectedCount} / {filteredVideos.length}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={loading || submitting || videos.length === 0}
+                    className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
+                  >
+                    {submitting ? "送信中…" : "更新"}
+                  </button>
+                </div>
+              }
+            />
+          </div>
+
+          <div className="hidden lg:block lg:fixed lg:bottom-6 lg:left-1/2 lg:z-30 lg:w-full lg:max-w-5xl lg:-translate-x-1/2">
+            {/* 大画面では更新ボタンとページングを同列にまとめ、操作フローを見通し良くしつつ画面下部へ固定表示します。 */}
+            <div className="rounded-2xl bg-white px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-6">
                 <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
                   <label className="inline-flex items-center gap-2">
                     <input
@@ -936,17 +971,63 @@ function AdminVideosPageContent() {
                     選択中: {selectedCount} / {filteredVideos.length}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={loading || submitting || videos.length === 0}
-                  className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
-                >
-                  {submitting ? "送信中…" : "更新"}
-                </button>
+                <div className="flex flex-wrap items-center justify-end gap-4">
+                  {/* ページング操作も併記し、前後移動を即座に実行できます。 */}
+                  <div className="flex items-center gap-3 text-sm text-slate-600">
+                    <span>ページ {currentPage}</span>
+                    <div className="flex gap-3">
+                      {effectiveHasPrev ? (
+                        <button
+                          type="button"
+                          onClick={() => goToPage(currentPage - 1)}
+                          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                          aria-label="前のページ"
+                        >
+                          <span className="material-symbols-rounded" aria-hidden="true">
+                            arrow_back
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                          <span className="material-symbols-rounded" aria-hidden="true">
+                            arrow_back
+                          </span>
+                          <span className="sr-only">前のページ</span>
+                        </span>
+                      )}
+                      {effectiveHasNext ? (
+                        <button
+                          type="button"
+                          onClick={() => goToPage(currentPage + 1)}
+                          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                          aria-label="次のページ"
+                        >
+                          <span className="material-symbols-rounded" aria-hidden="true">
+                            arrow_forward
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                          <span className="material-symbols-rounded" aria-hidden="true">
+                            arrow_forward
+                          </span>
+                          <span className="sr-only">次のページ</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={loading || submitting || videos.length === 0}
+                    className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
+                  >
+                    {submitting ? "送信中…" : "更新"}
+                  </button>
+                </div>
               </div>
-            }
-          />
+            </div>
+          </div>
         </div>
       )}
     </AdminTabsLayout>

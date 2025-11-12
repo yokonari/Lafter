@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ListFooter } from "./ListFooter";
 import { toast } from "react-toastify";
@@ -164,46 +165,46 @@ export function ChannelBulkManager({
                 key={channel.id}
                 className="flex h-full flex-col rounded bg-white p-0"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                      checked={entry.selected}
-                      onChange={(event) =>
-                        setSelections((prev) => ({
-                          ...prev,
-                          [channel.id]: {
-                            ...(prev[channel.id] ?? entry),
-                            selected: event.target.checked,
-                          },
-                        }))
-                      }
-                    />
-                    <span className="flex flex-col">
-                      <a
-                        href={channel.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-slate-900 underline-offset-2 hover:underline"
-                      >
-                        {channel.name}
-                      </a>
-                      {channel.latestVideoTitle ? (
-                        <span className="text-xs text-slate-500">{channel.latestVideoTitle}</span>
-                      ) : null}
-                    </span>
-                  </label>
+                {/* サムネイルを先頭に配置し、チャンネルの雰囲気をひと目で把握できるようにします。 */}
+                <div
+                  className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
+                  style={{ aspectRatio: "16 / 9" }}
+                >
+                  {renderLatestVideoEmbed(channel)}
                 </div>
-                {/* 動画と入力ブロックを下寄せにまとめ、カード下部で操作を完結できるようにします。 */}
-                <div className="mt-3 flex flex-1 flex-col justify-end space-y-3 text-sm">
-                  <div
-                    className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
-                    style={{ aspectRatio: "16 / 9" }}
-                  >
-                    {renderLatestVideoEmbed(channel)}
+                <div className="mt-3 flex flex-1 flex-col justify-between space-y-3 text-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                        checked={entry.selected}
+                        onChange={(event) =>
+                          setSelections((prev) => ({
+                            ...prev,
+                            [channel.id]: {
+                              ...(prev[channel.id] ?? entry),
+                              selected: event.target.checked,
+                            },
+                          }))
+                        }
+                      />
+                      <span className="flex flex-col">
+                        <a
+                          href={channel.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-slate-900 underline-offset-2 hover:underline"
+                        >
+                          {channel.name}
+                        </a>
+                        {channel.latestVideoTitle ? (
+                          <span className="text-xs text-slate-500">{channel.latestVideoTitle}</span>
+                        ) : null}
+                      </span>
+                    </label>
                   </div>
-                  {/* ラベルとフォームを横並びに整え、視線の移動量を最小限に抑えます。 */}
+                  {/* ラベルとフォームをサムネイル直下のコンテナへまとめ、操作フローを視線移動なく進めます。 */}
                   <div className="flex items-center gap-2 text-sm">
                     <div className={entry.status === "1" ? "w-1/2" : "w-full"}>
                       <label
@@ -272,16 +273,49 @@ export function ChannelBulkManager({
         </div>
       )}
 
-      <ListFooter
-        paging={{
-          currentPage,
-          hasPrev,
-          hasNext,
-          prevHref,
-          nextHref,
-        }}
-        headerContent={
-          <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+      <div className="lg:hidden">
+        <ListFooter
+          paging={{
+            currentPage,
+            hasPrev,
+            hasNext,
+            prevHref,
+            nextHref,
+          }}
+          headerContent={
+            <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                <label className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                    checked={selectedCount > 0 && selectedCount === channels.length}
+                    onChange={(event) => handleToggleAll(event.target.checked)}
+                    aria-label="全て選択"
+                  />
+                  全て選択
+                </label>
+                <span className="text-sm text-slate-500">
+                  選択中: {selectedCount} / {channels.length}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
+              >
+                {submitting ? "送信中…" : "更新"}
+              </button>
+            </div>
+          }
+        />
+      </div>
+
+      <div className="hidden lg:block lg:fixed lg:bottom-6 lg:left-1/2 lg:z-30 lg:w-full lg:max-w-5xl lg:-translate-x-1/2">
+        {/* 大画面では更新ボタンとページングを同列にまとめ、一覧操作を画面下部で完結できるように固定表示します。 */}
+        <div className="rounded-2xl bg-white px-5 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-6">
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
               <label className="inline-flex items-center gap-2">
                 <input
@@ -297,17 +331,63 @@ export function ChannelBulkManager({
                 選択中: {selectedCount} / {channels.length}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
-            >
-              {submitting ? "送信中…" : "更新"}
-            </button>
+            <div className="flex flex-wrap items-center justify-end gap-4">
+              {/* ページ情報も同列に表示し、前後遷移を即座に実行できます。 */}
+              <div className="flex items-center gap-3 text-sm text-slate-600">
+                <span>ページ {currentPage}</span>
+                <div className="flex gap-3">
+                  {hasPrev ? (
+                    <Link
+                      href={prevHref}
+                      prefetch={false}
+                      className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                      aria-label="前のページ"
+                    >
+                      <span className="material-symbols-rounded" aria-hidden="true">
+                        arrow_back
+                      </span>
+                    </Link>
+                  ) : (
+                    <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                      <span className="material-symbols-rounded" aria-hidden="true">
+                        arrow_back
+                      </span>
+                      <span className="sr-only">前のページ</span>
+                    </span>
+                  )}
+                  {hasNext ? (
+                    <Link
+                      href={nextHref}
+                      prefetch={false}
+                      className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                      aria-label="次のページ"
+                    >
+                      <span className="material-symbols-rounded" aria-hidden="true">
+                        arrow_forward
+                      </span>
+                    </Link>
+                  ) : (
+                    <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                      <span className="material-symbols-rounded" aria-hidden="true">
+                        arrow_forward
+                      </span>
+                      <span className="sr-only">次のページ</span>
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
+              >
+                {submitting ? "送信中…" : "更新"}
+              </button>
+            </div>
           </div>
-        }
-      />
+        </div>
+      </div>
     </div>
   );
 }
