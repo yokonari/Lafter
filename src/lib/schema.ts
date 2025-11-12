@@ -14,8 +14,6 @@ export const channels = sqliteTable(
   {
     id: text("id").primaryKey(),
     name: text("name").notNull(),
-    artistName: text("artist_name"),
-    category: integer("category"),
     status: integer("status").notNull().default(0),
     searchCount: integer("search_count").notNull().default(0),
     keyword: text("keyword"),
@@ -59,6 +57,7 @@ export const playlists = sqliteTable(
       .references(() => channels.id, { onDelete: "cascade", onUpdate: "cascade" }),
     name: text("name").notNull(),
     status: integer("status").notNull().default(0),
+    topVideoId: text("top_video_id"), // プレイリストの代表動画IDを任意で保持し、null も許容します。
     lastChecked: text("last_checked"),
     createdAt: text("created_at")
       .notNull()

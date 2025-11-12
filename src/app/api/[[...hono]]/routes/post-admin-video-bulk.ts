@@ -62,8 +62,8 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
       const videoUpdates: Partial<VideoInsert> = {};
 
       const videoStatus = normalizeInt(item.video_status);
-      if (videoStatus === undefined || ![0, 1, 2].includes(videoStatus)) {
-        return fail(`${path}.video_status には 0〜2 の整数を指定してください。`);
+      if (videoStatus === undefined || ![0, 1, 2, 3, 4].includes(videoStatus)) {
+        return fail(`${path}.video_status には 0〜4 の整数を指定してください。`);
       }
       videoUpdates.status = videoStatus;
 

@@ -346,9 +346,9 @@ async function main() {
     .join(", ");
   console.log(`Targets : ${taskSummary}`);
   console.log(`Delay   : ${delayMs}ms`);
-  // レンジ未指定時はAPIの呼び出し上限(100件)を丁寧に順守するための管理値です。
+  // レンジ未指定時はAPIの呼び出し上限(15件)を丁寧に順守するための管理値です。
   const shouldLimitCalls = cliIndices.length === 0;
-  const apiCallLimit = 100;
+  const apiCallLimit = 15;
   let processedCount = 0;
 
   for (const task of tasks) {

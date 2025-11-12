@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useCallback, useMemo, type ChangeEvent } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import {
   ChannelBulkManager,
   type ChannelRow,
@@ -16,7 +16,6 @@ type ChannelAdminSectionProps = {
   prevHref: string;
   nextHref: string;
   channelStatus: number;
-  initialCategoryParam: string | null;
 };
 
 type PaginationState = {
@@ -35,7 +34,6 @@ export function ChannelAdminSection({
   prevHref,
   nextHref,
   channelStatus,
-  initialCategoryParam,
 }: ChannelAdminSectionProps) {
   const router = useRouter();
   const [channels, setChannels] = useState<ChannelRow[]>(initialChannels);
@@ -47,7 +45,6 @@ export function ChannelAdminSection({
     nextHref,
   });
   const [searchMode, setSearchMode] = useState(false);
-  const [categoryParam, setCategoryParam] = useState<string>(initialCategoryParam ?? "-1");
 
   // ページ遷移などで初期データが変わった場合に丁寧に同期します。
   useEffect(() => {
@@ -60,8 +57,7 @@ export function ChannelAdminSection({
       nextHref,
     });
     setSearchMode(false);
-    setCategoryParam(initialCategoryParam ?? "-1");
-  }, [initialChannels, currentPage, hasPrev, hasNext, prevHref, nextHref, initialCategoryParam]);
+  }, [initialChannels, currentPage, hasPrev, hasNext, prevHref, nextHref]);
 
   const handleSearchResults = (
     results: ChannelRow[],
@@ -95,9 +91,6 @@ export function ChannelAdminSection({
     searchParams.set("q", keyword);
     searchParams.set("page", "1");
     searchParams.set("channel_status", String(channelStatus));
-    if (categoryParam) {
-      searchParams.set("category", categoryParam);
-    }
 
     const response = await fetch(`/api/admin/channels?${searchParams.toString()}`, {
       method: "GET",
@@ -121,8 +114,6 @@ export function ChannelAdminSection({
         url: string;
         name: string;
         status?: number | null;
-        category?: number | null;
-        artist_name?: string | null;
         keyword?: string | null;
         latest_video_title?: string | null;
         latest_video_id?: string | null;
@@ -136,8 +127,6 @@ export function ChannelAdminSection({
           name: item.name,
           url: item.url,
           status: item.status ?? 0,
-          category: item.category ?? null,
-          artistName: item.artist_name ?? null,
           keyword: item.keyword ?? null,
           latestVideoTitle: item.latest_video_title ?? null,
           latestVideoId: item.latest_video_id ?? null,
@@ -145,24 +134,17 @@ export function ChannelAdminSection({
       : [];
 
     return { items: mapped, hasNext: Boolean(data?.hasNext) };
-  }, [channelStatus, categoryParam]);
+  }, [channelStatus]);
 
   const isPendingFilter = channelStatus === 0;
   const isRegisteredFilter = channelStatus === 1;
   const isNgFilter = channelStatus === 2;
+  const isAiOkFilter = channelStatus === 3;
+  const isAiNgFilter = channelStatus === 4;
   // 登録済み（OK判定）フィルターの遷移先を丁寧に整え、一覧からすぐ切り替えられるようにします。
   const buildStatusHref = (targetStatus: number) => {
     const params = new URLSearchParams();
     params.set("channel_status", String(targetStatus));
-    const nextCategoryParam =
-      targetStatus === channelStatus
-        ? categoryParam
-        : targetStatus === 1
-          ? "0"
-          : "-1";
-    if (nextCategoryParam) {
-      params.set("category", nextCategoryParam);
-    }
     const query = params.toString();
     return `/admin/channels${query ? `?${query}` : ""}`;
   };
@@ -181,19 +163,6 @@ export function ChannelAdminSection({
     // NG判定フィルターへの切り替え操作も丁寧に router を経由させます。
     router.push(ngFilterHref);
   };
-
-  const handleCategoryFilterChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const value = event.target.value;
-      setCategoryParam(value);
-      const params = new URLSearchParams();
-      params.set("channel_status", String(channelStatus));
-      params.set("category", value);
-      const query = params.toString();
-      router.push(`/admin/channels${query ? `?${query}` : ""}`);
-    },
-    [channelStatus, router],
-  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -220,16 +189,39 @@ export function ChannelAdminSection({
         >
           未判定
         </button>
+        {/* LLM による判定結果もすぐ確認できるよう AI ステータス専用ボタンを配置します。 */}
+        <button
+          type="button"
+          onClick={() => router.push(buildStatusHref(3))}
+          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+            isAiOkFilter
+              ? "border-emerald-600 bg-emerald-600 text-white"
+              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          AI-OK
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push(buildStatusHref(4))}
+          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
+            isAiNgFilter
+              ? "border-amber-600 bg-amber-600 text-white"
+              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+          }`}
+        >
+          AI-NG
+        </button>
         <button
           type="button"
           onClick={handleRegisteredButtonClick}
           className={`rounded-full border px-4 py-2 text-sm transition-colors ${
             isRegisteredFilter
-              ? "border-slate-900 bg-slate-900 text-white"
+              ? "border-blue-700 bg-blue-700 text-white"
               : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           }`}
         >
-          OK判定
+          OK
         </button>
         <button
           type="button"
@@ -240,21 +232,8 @@ export function ChannelAdminSection({
               : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
           }`}
         >
-          NG判定
+          NG
         </button>
-        <select
-          value={categoryParam}
-          onChange={handleCategoryFilterChange}
-          className="rounded-full border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
-          aria-label="カテゴリでフィルタ"
-        >
-          <option value="-1">全カテゴリ</option>
-          <option value="0">カテゴリ未設定</option>
-          <option value="1">🧑‍🤝‍🧑 コンビ</option>
-          <option value="2">👪 トリオ</option>
-          <option value="3">🧍‍♂️ ピン</option>
-          <option value="4">🏢 その他（劇場など）</option>
-        </select>
       </div>
       <ChannelBulkManager
         channels={channels}

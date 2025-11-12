@@ -7,8 +7,6 @@ type AdminChannel = {
   url: string;
   name: string;
   status: number;
-  category?: number | null;
-  artistName?: string | null;
   keyword?: string;
   latestVideoTitle?: string | null;
   latestVideoId?: string | null;
@@ -25,7 +23,6 @@ type AdminChannelsResponse = {
 async function fetchAdminChannels(
   page: number,
   channelStatus: number,
-  categoryParam: string | null,
 ): Promise<AdminChannelsResponse> {
   const headerList = await headers();
   const protocol =
@@ -43,9 +40,6 @@ async function fetchAdminChannels(
     url.searchParams.set("page", String(page));
   }
   url.searchParams.set("channel_status", String(channelStatus));
-  if (categoryParam !== null) {
-    url.searchParams.set("category", categoryParam);
-  }
 
   // 認証済みの Cookie などを丁寧に引き継ぎ、API 側の認可を通過します。
   const cookieHeader = headerList.get("cookie");
@@ -100,8 +94,6 @@ async function fetchAdminChannels(
       url: string;
       name: string;
       status: number;
-      category?: number | null;
-      artist_name?: string | null;
       keyword?: string | null;
       latest_video_title?: string | null;
       latest_video_id?: string | null;
@@ -116,8 +108,6 @@ async function fetchAdminChannels(
     url: channel.url,
     name: channel.name,
     status: channel.status,
-    category: channel.category ?? null,
-    artistName: channel.artist_name ?? null,
     keyword: channel.keyword ?? undefined,
     latestVideoTitle: channel.latest_video_title ?? null,
     latestVideoId: channel.latest_video_id ?? null,
@@ -133,7 +123,7 @@ async function fetchAdminChannels(
   };
 }
 
-type PageSearchParams = { page?: string; channel_status?: string; category?: string };
+type PageSearchParams = { page?: string; channel_status?: string };
 
 // Next.js 側で Promise として渡される searchParams に丁寧に合わせます。
 type PageProps = {
@@ -153,26 +143,12 @@ export default async function AdminChannelsPage({ searchParams }: PageProps) {
     Number.isFinite(rawChannelStatus) && rawChannelStatus >= 0
       ? Math.floor(rawChannelStatus)
       : defaultChannelStatus;
-const categoryParam = (() => {
-  const rawCategory = resolvedSearchParams.category;
-  if (rawCategory !== undefined && rawCategory !== null) {
-    if (rawCategory === "-1") {
-      return "-1";
-    }
-    const parsed = Number(rawCategory);
-    if (Number.isInteger(parsed) && parsed >= 0 && parsed <= 4) {
-      return String(parsed);
-    }
-  }
-  return channelStatusFilter === 1 ? "0" : "-1";
-})();
-
   let data: AdminChannelsResponse | null = null;
   let errorMessage: string | null = null;
 
   try {
     // 指定ページのチャンネル一覧を丁寧に取得し、管理者へご案内します。
-    data = await fetchAdminChannels(page, channelStatusFilter, categoryParam);
+    data = await fetchAdminChannels(page, channelStatusFilter);
   } catch (error) {
     errorMessage = error instanceof Error ? error.message : "チャンネル一覧の取得に失敗しました。";
   }
@@ -192,9 +168,6 @@ const categoryParam = (() => {
     }
     if (channelStatusFilter !== defaultChannelStatus) {
       params.set("channel_status", String(channelStatusFilter));
-    }
-    if (categoryParam !== null) {
-      params.set("category", categoryParam);
     }
     const query = params.toString();
     return `/admin/channels${query ? `?${query}` : ""}`;
@@ -218,7 +191,6 @@ const categoryParam = (() => {
           prevHref={prevHref}
           nextHref={nextHref}
           channelStatus={channelStatusFilter}
-          initialCategoryParam={categoryParam}
         />
       )}
     </AdminTabsLayout>

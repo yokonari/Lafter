@@ -19,6 +19,7 @@ type SearchItem = {
   channelTitle: string;
   publishedAt?: string;
   title: string;
+  topVideoId?: string | null;
 };
 
 type SearchResponseItem = {
@@ -28,6 +29,11 @@ type SearchResponseItem = {
     channelTitle?: string;
     publishedAt?: string;
     title?: string;
+    thumbnails?: {
+      default?: {
+        url?: string;
+      };
+    };
   };
 };
 
@@ -265,6 +271,7 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
                 id: item.playlistId,
                 title: item.title,
                 channelId: item.channelId,
+                topVideoId: item.topVideoId ?? null,
               });
               summary.playlistsProcessed += 1;
             } catch (error) {
@@ -318,6 +325,14 @@ function logSqlError(error: unknown): void {
       ? String((error as { sql?: unknown }).sql)
       : undefined;
   console.error(message, sqlText);
+}
+
+function extractVideoIdFromThumbnailUrl(url?: string): string | null {
+  if (!url) {
+    return null;
+  }
+  const match = url.match(/\/vi\/([^/]+)\//);
+  return match ? match[1] : null;
 }
 
 // UNIQUE 制約違反かどうかを丁寧に判定し、重複挿入時の握り潰し判定に活用いたします。
@@ -469,6 +484,8 @@ async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]
   url.searchParams.set("q", query);
   url.searchParams.set("type", "video,playlist");
   url.searchParams.set("safeSearch", "none");
+  url.searchParams.set("regionCode", "JP");
+  url.searchParams.set("relevanceLanguage", "ja");
   url.searchParams.set("key", apiKey);
 
   const response = await fetch(url);
@@ -484,15 +501,19 @@ async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]
   const items = Array.isArray(data.items) ? data.items : [];
 
   return items
-    .map((item) => ({
-      idKind: item.id?.kind ?? "",
-      videoId: item.id?.videoId ?? "",
-      playlistId: item.id?.playlistId ?? "",
-      channelId: item.snippet?.channelId ?? "",
-      channelTitle: item.snippet?.channelTitle ?? "",
-      publishedAt: item.snippet?.publishedAt ?? undefined,
-      title: item.snippet?.title ?? "",
-    }))
+    .map((item) => {
+      const thumbnailUrl = item.snippet?.thumbnails?.default?.url;
+      return {
+        idKind: item.id?.kind ?? "",
+        videoId: item.id?.videoId ?? "",
+        playlistId: item.id?.playlistId ?? "",
+        channelId: item.snippet?.channelId ?? "",
+        channelTitle: item.snippet?.channelTitle ?? "",
+        publishedAt: item.snippet?.publishedAt ?? undefined,
+        title: item.snippet?.title ?? "",
+        topVideoId: extractVideoIdFromThumbnailUrl(thumbnailUrl),
+      };
+    })
     .filter((it) =>
       it.idKind === "youtube#video"
         ? Boolean(it.videoId && it.channelId && it.title)
@@ -585,12 +606,13 @@ async function insertVideo(
 
 async function insertPlaylist(
   db: DatabaseClient,
-  input: { id: string; title: string; channelId: string },
+  input: { id: string; title: string; channelId: string; topVideoId?: string | null },
 ) {
   await db.insert(playlists).values({
     id: input.id,
     channelId: input.channelId,
     name: input.title,
+    topVideoId: input.topVideoId ?? null,
     lastChecked: new Date().toISOString(),
   });
 }
