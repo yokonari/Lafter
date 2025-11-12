@@ -443,7 +443,7 @@ function AdminPlaylistsPageContent() {
 }
 
 function renderPlaylistThumbnail(playlist: AdminPlaylist) {
-  if (playlist.status === 1 && playlist.top_video_id) {
+  if (playlist.top_video_id) {
     const thumbnailUrl = `https://i.ytimg.com/vi/${playlist.top_video_id}/mqdefault.jpg`;
     return (
       <a
