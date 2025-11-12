@@ -339,6 +339,7 @@ async function main() {
   if (args.csv && args.csv !== "true") {
     console.log(`CSV     : ${args.csv}`);
   }
+  const apiCallLimit = 15;
   const tasksToDisplay = tasks.slice(0, apiCallLimit);
   const taskSummary = tasksToDisplay
     .map((task) => task.artist)
@@ -349,7 +350,6 @@ async function main() {
   console.log(`Delay   : ${delayMs}ms`);
   // レンジ未指定時はAPIの呼び出し上限(15件)を丁寧に順守するための管理値です。
   const shouldLimitCalls = cliIndices.length === 0;
-  const apiCallLimit = 15;
   let processedCount = 0;
 
   for (const task of tasks) {
