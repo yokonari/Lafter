@@ -359,9 +359,17 @@ async function main() {
         } を処理します…`,
       );
       const { response, body } = await syncArtist(endpoint, task, { apiSecret });
-      if (!response.ok) {
+      const isJsonObject = body && typeof body === "object";
+      const reportedErrors =
+        isJsonObject && Array.isArray(body.errors) ? body.errors.filter(Boolean) : [];
+      const hasReportedErrors = reportedErrors.length > 0;
+
+      if (!response.ok || hasReportedErrors) {
+        const errorSummary = hasReportedErrors
+          ? `API 応答に ${reportedErrors.length} 件のエラーが含まれています。`
+          : `HTTP ${response.status}`;
         console.error(
-          `  ❌ HTTP ${response.status} ${
+          `  ❌ ${errorSummary} ${
             typeof body === "object" ? JSON.stringify(body) : body
           }`,
         );
