@@ -17,7 +17,7 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
     const keyword = rawKeyword.trim();
 
     const rawStatus = c.req.query("channel_status");
-    const parsedStatus = rawStatus !== undefined ? Number(rawStatus) : 0;
+    const parsedStatus = rawStatus !== undefined ? Number(rawStatus) : 3;
     if (!Number.isInteger(parsedStatus) || parsedStatus < 0 || parsedStatus > 4) {
       return c.json(
         { message: "channel_status は 0〜4 の整数で指定してください。" },

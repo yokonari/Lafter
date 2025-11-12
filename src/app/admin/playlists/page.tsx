@@ -322,7 +322,7 @@ function AdminPlaylistsPageContent() {
             </p>
           ) : (
             // プレイリストもカード型の 5 列グリッドへ揃え、チャンネル一覧と同じ操作感を提供します。
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {playlists.map((playlist) => {
                 const entry =
                   selections[playlist.id] ??
@@ -333,7 +333,7 @@ function AdminPlaylistsPageContent() {
                 return (
                   <article
                     key={playlist.id}
-                    className="flex h-full flex-col rounded border border-slate-200 bg-white p-4 shadow-sm"
+                    className="flex h-full flex-col rounded bg-white p-0"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
@@ -349,19 +349,17 @@ function AdminPlaylistsPageContent() {
                           }
                         />
                         <span className="flex flex-col">
-                          <span>{playlist.title}</span>
+                          <a
+                            href={playlist.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-slate-900 underline-offset-2 hover:underline"
+                          >
+                            {playlist.title}
+                          </a>
                           <span className="text-xs text-slate-500">{playlist.channel_name ?? "不明"}</span>
                         </span>
                       </label>
-                      <a
-                        href={playlist.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="material-symbols-rounded rounded-full bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200"
-                        aria-label={`${playlist.title} を開く`}
-                      >
-                        open_in_new
-                      </a>
                     </div>
                     <div className="mt-3 flex flex-1 flex-col justify-end space-y-3 text-sm">
                       <div

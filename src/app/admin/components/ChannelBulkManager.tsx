@@ -156,13 +156,13 @@ export function ChannelBulkManager({
         </p>
       ) : (
         // 大画面では 5 列のグリッドに丁寧に並べ替え、一覧確認と更新操作を同時に行いやすくします。
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {channels.map((channel) => {
             const entry = selections[channel.id] ?? createSelectionEntry(channel, registeredView);
             return (
               <article
                 key={channel.id}
-                className="flex h-full flex-col rounded border border-slate-200 bg-white p-4 shadow-sm"
+                className="flex h-full flex-col rounded bg-white p-0"
               >
                 <div className="flex items-start justify-between gap-3">
                   <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
@@ -181,21 +181,19 @@ export function ChannelBulkManager({
                       }
                     />
                     <span className="flex flex-col">
-                      <span>{channel.name}</span>
+                      <a
+                        href={channel.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-slate-900 underline-offset-2 hover:underline"
+                      >
+                        {channel.name}
+                      </a>
                       {channel.latestVideoTitle ? (
                         <span className="text-xs text-slate-500">{channel.latestVideoTitle}</span>
                       ) : null}
                     </span>
                   </label>
-                  <a
-                    href={channel.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="material-symbols-rounded rounded-full bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200"
-                    aria-label={`${channel.name} を開く`}
-                  >
-                    open_in_new
-                  </a>
                 </div>
                 {/* 動画と入力ブロックを下寄せにまとめ、カード下部で操作を完結できるようにします。 */}
                 <div className="mt-3 flex flex-1 flex-col justify-end space-y-3 text-sm">
@@ -207,37 +205,37 @@ export function ChannelBulkManager({
                   </div>
                   {/* ラベルとフォームを横並びに整え、視線の移動量を最小限に抑えます。 */}
                   <div className="flex items-center gap-2 text-sm">
-                    <label
-                      htmlFor={`status-${channel.id}`}
-                      className="sr-only"
-                    >
-                      ステータス
-                    </label>
-                    <select
-                      id={`status-${channel.id}`}
-                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      value={entry.status}
-                      onChange={(event) =>
-                        setSelections((prev) => ({
-                          ...prev,
-                          [channel.id]: {
-                            ...entry,
-                            status: event.target.value,
-                            keywordId: event.target.value === "1" ? entry.keywordId : "",
-                          },
-                        }))
-                      }
-                    >
-                      {STATUS_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  {entry.status === "1" ? (
-                    <>
-                      <div className="flex items-center gap-2 text-sm">
+                    <div className={entry.status === "1" ? "w-1/2" : "w-full"}>
+                      <label
+                        htmlFor={`status-${channel.id}`}
+                        className="sr-only"
+                      >
+                        ステータス
+                      </label>
+                      <select
+                        id={`status-${channel.id}`}
+                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                        value={entry.status}
+                        onChange={(event) =>
+                          setSelections((prev) => ({
+                            ...prev,
+                            [channel.id]: {
+                              ...entry,
+                              status: event.target.value,
+                              keywordId: event.target.value === "1" ? entry.keywordId : "",
+                            },
+                          }))
+                        }
+                      >
+                        {STATUS_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {entry.status === "1" ? (
+                      <div className="w-1/2">
                         <label
                           htmlFor={`keyword-${channel.id}`}
                           className="sr-only"
@@ -265,8 +263,8 @@ export function ChannelBulkManager({
                           ))}
                         </select>
                       </div>
-                    </>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </div>
               </article>
             );

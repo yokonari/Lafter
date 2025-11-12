@@ -65,7 +65,7 @@ const CATEGORY_FILTER_OPTIONS = [
   ...VIDEO_CATEGORY_OPTIONS,
 ];
 
-const defaultVideoStatus = 1; // 初期表示では OK 判定済みの動画を優先して確認できるようにします。
+const defaultVideoStatus = 3; // 初期表示では AI OK 判定済みの動画を優先して確認できるようにします。
 
 export default function AdminVideosPage() {
   return (
@@ -757,7 +757,7 @@ function AdminVideosPageContent() {
             </p>
           ) : (
             // テーブルではなくカード型の 5 列グリッドへ並び替え、視線移動を最小限にして操作をしやすくします。
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {filteredVideos.map((video) => {
                 const entry = selections[video.id] ?? {
                   selected: true,
@@ -770,7 +770,7 @@ function AdminVideosPageContent() {
                 return (
                   <article
                     key={video.id}
-                    className="flex h-full flex-col rounded border border-slate-200 bg-white p-4 shadow-sm"
+                    className="flex h-full flex-col rounded bg-white p-0"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
@@ -789,21 +789,19 @@ function AdminVideosPageContent() {
                           }
                         />
                         <span className="flex flex-col">
-                          <span>{video.title}</span>
+                          <a
+                            href={video.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-slate-900 underline-offset-2 hover:underline"
+                          >
+                            {video.title}
+                          </a>
                           <span className="text-xs text-slate-500">
                             {video.channel_name || "チャンネル未登録"}
                           </span>
                         </span>
                       </label>
-                      <a
-                        href={video.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="material-symbols-rounded rounded-full bg-slate-100 p-2 text-slate-700 transition-colors hover:bg-slate-200"
-                        aria-label={`${video.title} を開く`}
-                      >
-                        open_in_new
-                      </a>
                     </div>
                     {/* 動画サムネイルとフォーム群をカード下部へ寄せ、1 枚で完結した操作フローを実現します。 */}
                     <div className="mt-3 flex flex-1 flex-col justify-end space-y-3 text-sm">
@@ -813,60 +811,65 @@ function AdminVideosPageContent() {
                       >
                         {renderEmbeddedVideo(video)}
                       </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <label htmlFor={`video-status-${video.id}`} className="sr-only">
-                          動画ステータス
-                        </label>
-                        <select
-                          id={`video-status-${video.id}`}
-                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                          value={entry.videoStatus}
-                          onChange={(event) =>
-                            setSelections((prev) => ({
-                              ...prev,
-                              [video.id]: {
-                                ...entry,
-                                videoStatus: event.target.value,
-                              },
-                            }))
-                          }
-                        >
-                          {VIDEO_STATUS_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      {entry.videoStatus === "2" ? (
-                        <p className="text-xs text-slate-500">NG のためカテゴリ設定は不要です。</p>
-                      ) : (
+                      <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm">
-                          <label htmlFor={`video-category-${video.id}`} className="sr-only">
-                            動画カテゴリ
-                          </label>
-                          <select
-                            id={`video-category-${video.id}`}
-                            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                            value={entry.videoCategory}
-                            onChange={(event) =>
-                              setSelections((prev) => ({
-                                ...prev,
-                                [video.id]: {
-                                  ...entry,
-                                  videoCategory: event.target.value,
-                                },
-                              }))
-                            }
-                          >
-                            {VIDEO_CATEGORY_OPTIONS.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </select>
+                          <div className={entry.videoStatus === "2" ? "w-full" : "w-1/2"}>
+                            <label htmlFor={`video-status-${video.id}`} className="sr-only">
+                              動画ステータス
+                            </label>
+                            <select
+                              id={`video-status-${video.id}`}
+                              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                              value={entry.videoStatus}
+                              onChange={(event) =>
+                                setSelections((prev) => ({
+                                  ...prev,
+                                  [video.id]: {
+                                    ...entry,
+                                    videoStatus: event.target.value,
+                                  },
+                                }))
+                              }
+                            >
+                              {VIDEO_STATUS_OPTIONS.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          {entry.videoStatus !== "2" ? (
+                            <div className="w-1/2">
+                              <label htmlFor={`video-category-${video.id}`} className="sr-only">
+                                動画カテゴリ
+                              </label>
+                              <select
+                                id={`video-category-${video.id}`}
+                                className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                value={entry.videoCategory}
+                                onChange={(event) =>
+                                  setSelections((prev) => ({
+                                    ...prev,
+                                    [video.id]: {
+                                      ...entry,
+                                      videoCategory: event.target.value,
+                                    },
+                                  }))
+                                }
+                              >
+                                {VIDEO_CATEGORY_OPTIONS.map((option) => (
+                                  <option key={option.value} value={option.value}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ) : null}
                         </div>
-                      )}
+                        {entry.videoStatus === "2" ? (
+                          <p className="text-xs text-slate-500">NG のためカテゴリ設定は不要です。</p>
+                        ) : null}
+                      </div>
                     </div>
                   </article>
                 );
