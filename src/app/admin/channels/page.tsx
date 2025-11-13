@@ -44,12 +44,14 @@ async function fetchAdminChannels(
   // 認証済みの Cookie などを丁寧に引き継ぎ、API 側の認可を通過します。
   const cookieHeader = headerList.get("cookie");
   const authorizationHeader = headerList.get("authorization");
+  const userAgentHeader = headerList.get("user-agent");
 
   const response = await fetch(url.toString(), {
     cache: "no-store",
     headers: {
       ...(cookieHeader ? { cookie: cookieHeader } : {}),
       ...(authorizationHeader ? { authorization: authorizationHeader } : {}),
+      ...(userAgentHeader ? { "user-agent": userAgentHeader } : {}),
     },
   });
 

@@ -335,80 +335,116 @@ function AdminPlaylistsPageContent() {
                     key={playlist.id}
                     className="flex h-full flex-col rounded bg-white p-0"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
-                        <input
-                          type="checkbox"
-                          className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                          checked={entry.selected}
-                          onChange={(event) =>
-                            setSelections((prev) => ({
-                              ...prev,
-                              [playlist.id]: { ...entry, selected: event.target.checked },
-                            }))
-                          }
-                        />
-                        <span className="flex flex-col">
-                          <a
-                            href={playlist.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-slate-900 underline-offset-2 hover:underline"
-                          >
-                            {playlist.title}
-                          </a>
-                          <span className="text-xs text-slate-500">{playlist.channel_name ?? "不明"}</span>
-                        </span>
-                      </label>
-                    </div>
-                    <div className="mt-3 flex flex-1 flex-col justify-end space-y-3 text-sm">
-                      <div
-                        className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
-                        style={{ aspectRatio: "16 / 9" }}
-                      >
-                        {renderPlaylistThumbnail(playlist)}
-                      </div>
-                      <div className="flex items-center gap-2 text-sm">
-                        <label htmlFor={`playlist-status-${playlist.id}`} className="sr-only">
-                          ステータス
-                        </label>
-                        <select
-                          id={`playlist-status-${playlist.id}`}
-                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                          value={entry.status}
-                          onChange={(event) =>
-                            setSelections((prev) => ({
-                              ...prev,
-                              [playlist.id]: {
-                                ...entry,
-                                status: event.target.value,
-                              },
-                            }))
-                          }
+                {/* サムネイルをカード上部へ移し、視覚情報を先に確認できるよう調整します。 */}
+                <div
+                  className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
+                  style={{ aspectRatio: "16 / 9" }}
+                >
+                  {renderPlaylistThumbnail(playlist)}
+                </div>
+                <div className="mt-3 flex flex-1 flex-col justify-between space-y-3 text-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                        checked={entry.selected}
+                        onChange={(event) =>
+                          setSelections((prev) => ({
+                            ...prev,
+                            [playlist.id]: { ...entry, selected: event.target.checked },
+                          }))
+                        }
+                      />
+                      <span className="flex flex-col">
+                        <a
+                          href={playlist.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-slate-900 underline-offset-2 hover:underline"
                         >
-                          {PLAYLIST_STATUS_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </article>
-                );
+                          {playlist.title}
+                        </a>
+                        <span className="text-xs text-slate-500">{playlist.channel_name ?? "不明"}</span>
+                      </span>
+                    </label>
+                  </div>
+                  {/* タイトル直下にフォームを置き、チャンネル画面と同じ操作フローに寄せます。 */}
+                  <div className="flex items-center gap-2 text-sm">
+                    <label htmlFor={`playlist-status-${playlist.id}`} className="sr-only">
+                      ステータス
+                    </label>
+                    <select
+                      id={`playlist-status-${playlist.id}`}
+                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      value={entry.status}
+                      onChange={(event) =>
+                        setSelections((prev) => ({
+                          ...prev,
+                          [playlist.id]: {
+                            ...entry,
+                            status: event.target.value,
+                          },
+                        }))
+                      }
+                    >
+                      {PLAYLIST_STATUS_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </article>
+            );
               })}
             </div>
           )}
-          <ListFooter
-            paging={{
-              currentPage,
-              hasPrev,
-              hasNext,
-              onPrev: hasPrev ? () => goToPage(currentPage - 1) : undefined,
-              onNext: hasNext ? () => goToPage(currentPage + 1) : undefined,
-            }}
-            headerContent={
-              <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+          <div className="lg:hidden">
+            <ListFooter
+              paging={{
+                currentPage,
+                hasPrev,
+                hasNext,
+                onPrev: hasPrev ? () => goToPage(currentPage - 1) : undefined,
+                onNext: hasNext ? () => goToPage(currentPage + 1) : undefined,
+              }}
+              headerContent={
+                <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                        checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
+                        onChange={(event) => handleToggleAll(event.target.checked)}
+                        aria-label="全て選択"
+                        disabled={loading || playlists.length === 0}
+                      />
+                      全て選択
+                    </label>
+                    <span className="text-sm text-slate-500">
+                      選択中: {selectedCount} / {playlists.length}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={loading || submitting || playlists.length === 0}
+                    className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text白い transition-colors hover:brightness-110 disabled:opacity-60"
+                  >
+                    {submitting ? "送信中…" : "更新"}
+                  </button>
+                </div>
+              }
+            />
+          </div>
+
+          <div className="hidden lg:block">
+            {/* 大画面ではチャンネル・動画一覧と同様に、更新ボタンとページングを横並びで見せます。 */}
+            <div className="rounded-2xl bg-white px-5 py-4">
+              <div className="flex flex-wrap items-center justify-between gap-6">
                 <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
                   <label className="inline-flex items-center gap-2">
                     <input
@@ -425,17 +461,63 @@ function AdminPlaylistsPageContent() {
                     選択中: {selectedCount} / {playlists.length}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={loading || submitting || playlists.length === 0}
-                  className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
-                >
-                  {submitting ? "送信中…" : "更新"}
-                </button>
+                <div className="flex flex-wrap items-center justify-end gap-4">
+                  {/* ページ情報と前後ボタンを併記し、操作のリズムを他画面と揃えます。 */}
+                  <div className="flex items-center gap-3 text-sm text-slate-600">
+                    <span>ページ {currentPage}</span>
+                    <div className="flex gap-3">
+                      {hasPrev ? (
+                        <button
+                          type="button"
+                          onClick={() => goToPage(currentPage - 1)}
+                          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                          aria-label="前のページ"
+                        >
+                          <span className="material-symbols-rounded" aria-hidden="true">
+                            arrow_back
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                          <span className="material-symbols-rounded" aria-hidden="true">
+                            arrow_back
+                          </span>
+                          <span className="sr-only">前のページ</span>
+                        </span>
+                      )}
+                      {hasNext ? (
+                        <button
+                          type="button"
+                          onClick={() => goToPage(currentPage + 1)}
+                          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                          aria-label="次のページ"
+                        >
+                          <span className="material-symbols-rounded" aria-hidden="true">
+                            arrow_forward
+                          </span>
+                        </button>
+                      ) : (
+                        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                          <span className="material-symbols-rounded" aria-hidden="true">
+                            arrow_forward
+                          </span>
+                          <span className="sr-only">次のページ</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    disabled={loading || submitting || playlists.length === 0}
+                    className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
+                  >
+                    {submitting ? "送信中…" : "更新"}
+                  </button>
+                </div>
               </div>
-            }
-          />
+            </div>
+          </div>
         </div>
       )}
     </AdminTabsLayout>
