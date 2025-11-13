@@ -7,6 +7,7 @@ import {
   type ChannelRow,
 } from "../components/ChannelBulkManager";
 import { SearchForm } from "../components/SearchForm";
+import styles from "../adminTheme.module.scss";
 
 type ChannelAdminSectionProps = {
   initialChannels: ChannelRow[];
@@ -165,7 +166,7 @@ export function ChannelAdminSection({
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={styles.section}>
       <SearchForm<ChannelRow>
         title="チャンネル検索"
         placeholder="チャンネル名で検索"
@@ -177,15 +178,12 @@ export function ChannelAdminSection({
         onReset={handleReset}
       />
       {/* 検索直下にフィルターボタンを配置し、操作の文脈をわかりやすく保ちます。 */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* チャンネルの状態ごとにフィルター操作をまとめ、ダークトーンのボタンで統一します。 */}
+      <div className={styles.filterRow}>
         <button
           type="button"
           onClick={handlePendingButtonClick}
-          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-            isPendingFilter
-              ? "border-slate-900 bg-slate-900 text-white"
-              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
+          className={`${styles.filterButton} ${isPendingFilter ? styles.buttonActiveAmber : ""}`}
         >
           未判定
         </button>
@@ -193,44 +191,28 @@ export function ChannelAdminSection({
         <button
           type="button"
           onClick={() => router.push(buildStatusHref(3))}
-          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-            isAiOkFilter
-              ? "border-emerald-600 bg-emerald-600 text-white"
-              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
+          className={`${styles.filterButton} ${isAiOkFilter ? styles.buttonActiveGreen : ""}`}
         >
           AI-OK
         </button>
         <button
           type="button"
           onClick={() => router.push(buildStatusHref(4))}
-          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-            isAiNgFilter
-              ? "border-amber-600 bg-amber-600 text-white"
-              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
+          className={`${styles.filterButton} ${isAiNgFilter ? styles.buttonActiveAmber : ""}`}
         >
           AI-NG
         </button>
         <button
           type="button"
           onClick={handleRegisteredButtonClick}
-          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-            isRegisteredFilter
-              ? "border-blue-700 bg-blue-700 text-white"
-              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
+          className={`${styles.filterButton} ${isRegisteredFilter ? styles.buttonActiveBlue : ""}`}
         >
           OK
         </button>
         <button
           type="button"
           onClick={handleNgButtonClick}
-          className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-            isNgFilter
-              ? "border-red-600 bg-red-600 text-white"
-              : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-          }`}
+          className={`${styles.filterButton} ${isNgFilter ? styles.buttonActiveRed : ""}`}
         >
           NG
         </button>

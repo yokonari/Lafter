@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { ListFooter } from "../components/ListFooter";
 import { toast } from "react-toastify";
+import styles from "../adminTheme.module.scss";
 
 type AdminPlaylist = {
   id: string;
@@ -39,7 +40,7 @@ export default function AdminPlaylistsPage() {
     <Suspense
       fallback={
         <AdminTabsLayout activeTab="playlists">
-          <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+          <p className={styles.feedbackCard}>
             画面を読み込んでいます…
           </p>
         </AdminTabsLayout>
@@ -272,7 +273,7 @@ function AdminPlaylistsPageContent() {
   return (
     <AdminTabsLayout activeTab="playlists">
       {errorMessage ? (
-        <p className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className={styles.errorMessage}>
           {errorMessage}
         </p>
       ) : (
@@ -281,43 +282,31 @@ function AdminPlaylistsPageContent() {
             <button
               type="button"
               onClick={handlePendingFilterClick}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                isPendingFilter
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
+              className={`${styles.filterButton} ${isPendingFilter ? styles.buttonActiveAmber : ""}`}
             >
               未判定
             </button>
             <button
               type="button"
               onClick={handleOkFilterClick}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                isOkFilter
-                  ? "border-blue-700 bg-blue-700 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
+              className={`${styles.filterButton} ${isOkFilter ? styles.buttonActiveBlue : ""}`}
             >
               OK
             </button>
             <button
               type="button"
               onClick={handleNgFilterClick}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                isNgFilter
-                  ? "border-red-600 bg-red-600 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
+              className={`${styles.filterButton} ${isNgFilter ? styles.buttonActiveRed : ""}`}
             >
               NG
             </button>
           </div>
           {loading ? (
-            <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+            <p className={styles.feedbackCard}>
               読み込み中です…
             </p>
           ) : playlists.length === 0 ? (
-            <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+            <p className={styles.feedbackCard}>
               表示できるプレイリストがありません。
             </p>
           ) : (
@@ -331,26 +320,23 @@ function AdminPlaylistsPageContent() {
                     status: playlist.status === 1 ? "1" : playlist.status === 2 ? "2" : "2",
                   };
                 return (
-                  <article
-                    key={playlist.id}
-                    className="flex h-full flex-col rounded bg-white p-0"
-                  >
-                {/* サムネイルをカード上部へ移し、視覚情報を先に確認できるよう調整します。 */}
-                <div
-                  className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
-                  style={{ aspectRatio: "16 / 9" }}
-                >
-                  {renderPlaylistThumbnail(playlist)}
-                </div>
-                <div className="mt-3 flex flex-1 flex-col justify-between space-y-3 text-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
-                      <input
-                        type="checkbox"
-                        className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
-                        checked={entry.selected}
-                        onChange={(event) =>
-                          setSelections((prev) => ({
+                  <article key={playlist.id} className={styles.playlistCard}>
+                    {/* サムネイルをカード上部へ移し、視覚情報を先に確認できるよう調整します。 */}
+                    <div
+                      className={styles.thumbnailWrapper}
+                      style={{ aspectRatio: "16 / 9" }}
+                    >
+                      {renderPlaylistThumbnail(playlist)}
+                    </div>
+                    <div className={styles.cardBody}>
+                      <div className="flex items-start justify-between gap-3">
+                        <label className={`inline-flex flex-1 items-start gap-2 text-sm font-medium ${styles.cardLabel}`}>
+                          <input
+                            type="checkbox"
+                            className={`${styles.checkboxControl} mt-1`}
+                            checked={entry.selected}
+                            onChange={(event) =>
+                              setSelections((prev) => ({
                             ...prev,
                             [playlist.id]: { ...entry, selected: event.target.checked },
                           }))
@@ -361,11 +347,11 @@ function AdminPlaylistsPageContent() {
                           href={playlist.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-slate-900 underline-offset-2 hover:underline"
+                          className={styles.cardLink}
                         >
                           {playlist.title}
                         </a>
-                        <span className="text-xs text-slate-500">{playlist.channel_name ?? "不明"}</span>
+                        <span className={styles.cardMeta}>{playlist.channel_name ?? "不明"}</span>
                       </span>
                     </label>
                   </div>
@@ -376,7 +362,7 @@ function AdminPlaylistsPageContent() {
                     </label>
                     <select
                       id={`playlist-status-${playlist.id}`}
-                      className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      className={`${styles.selectControl} ${styles.cardSelect}`}
                       value={entry.status}
                       onChange={(event) =>
                         setSelections((prev) => ({
@@ -411,12 +397,12 @@ function AdminPlaylistsPageContent() {
                 onNext: hasNext ? () => goToPage(currentPage + 1) : undefined,
               }}
               headerContent={
-                <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                <div className={`flex flex-1 flex-wrap items-center justify-between gap-3 ${styles.headerText}`}>
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
                     <label className="inline-flex items-center gap-2">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                        className={styles.checkboxControl}
                         checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
                         onChange={(event) => handleToggleAll(event.target.checked)}
                         aria-label="全て選択"
@@ -424,7 +410,7 @@ function AdminPlaylistsPageContent() {
                       />
                       全て選択
                     </label>
-                    <span className="text-sm text-slate-500">
+                    <span className={styles.metaText}>
                       選択中: {selectedCount} / {playlists.length}
                     </span>
                   </div>
@@ -432,7 +418,7 @@ function AdminPlaylistsPageContent() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={loading || submitting || playlists.length === 0}
-                    className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text白い transition-colors hover:brightness-110 disabled:opacity-60"
+                    className={styles.primaryButton}
                   >
                     {submitting ? "送信中…" : "更新"}
                   </button>
@@ -443,13 +429,13 @@ function AdminPlaylistsPageContent() {
 
           <div className="hidden lg:block">
             {/* 大画面ではチャンネル・動画一覧と同様に、更新ボタンとページングを横並びで見せます。 */}
-            <div className="rounded-2xl bg-white px-5 py-4">
+            <div className={styles.desktopFooterCard}>
               <div className="flex flex-wrap items-center justify-between gap-6">
-                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                <div className={`flex flex-wrap items-center gap-3 text-sm ${styles.headerText}`}>
                   <label className="inline-flex items-center gap-2">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                      className={styles.checkboxControl}
                       checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
                       onChange={(event) => handleToggleAll(event.target.checked)}
                       aria-label="全て選択"
@@ -457,20 +443,18 @@ function AdminPlaylistsPageContent() {
                     />
                     全て選択
                   </label>
-                  <span className="text-sm text-slate-500">
-                    選択中: {selectedCount} / {playlists.length}
-                  </span>
+                  <span className={styles.metaText}>選択中: {selectedCount} / {playlists.length}</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-4">
                   {/* ページ情報と前後ボタンを併記し、操作のリズムを他画面と揃えます。 */}
-                  <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <div className={styles.pagerSection}>
                     <span>ページ {currentPage}</span>
-                    <div className="flex gap-3">
+                    <div className={styles.pagerControls}>
                       {hasPrev ? (
                         <button
                           type="button"
                           onClick={() => goToPage(currentPage - 1)}
-                          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                          className={styles.pagerControl}
                           aria-label="前のページ"
                         >
                           <span className="material-symbols-rounded" aria-hidden="true">
@@ -478,7 +462,7 @@ function AdminPlaylistsPageContent() {
                           </span>
                         </button>
                       ) : (
-                        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                        <span className={styles.pagerControlDisabled}>
                           <span className="material-symbols-rounded" aria-hidden="true">
                             arrow_back
                           </span>
@@ -489,7 +473,7 @@ function AdminPlaylistsPageContent() {
                         <button
                           type="button"
                           onClick={() => goToPage(currentPage + 1)}
-                          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                          className={styles.pagerControl}
                           aria-label="次のページ"
                         >
                           <span className="material-symbols-rounded" aria-hidden="true">
@@ -497,7 +481,7 @@ function AdminPlaylistsPageContent() {
                           </span>
                         </button>
                       ) : (
-                        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                        <span className={styles.pagerControlDisabled}>
                           <span className="material-symbols-rounded" aria-hidden="true">
                             arrow_forward
                           </span>
@@ -510,7 +494,7 @@ function AdminPlaylistsPageContent() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={loading || submitting || playlists.length === 0}
-                    className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
+                    className={styles.primaryButton}
                   >
                     {submitting ? "送信中…" : "更新"}
                   </button>
@@ -532,7 +516,7 @@ function renderPlaylistThumbnail(playlist: AdminPlaylist) {
         href={`https://www.youtube.com/watch?v=${playlist.top_video_id}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="block h-full w-full"
+        className={styles.thumbnailLink}
         aria-label={`${playlist.title} の代表動画を開く`}
       >
         <img
@@ -549,7 +533,7 @@ function renderPlaylistThumbnail(playlist: AdminPlaylist) {
       href={playlist.url}
       target="_blank"
       rel="noopener noreferrer"
-      className="flex h-full items-center justify-center text-slate-900 underline underline-offset-4 hover:text-slate-700"
+      className={styles.thumbnailFallback}
     >
       開く
     </a>

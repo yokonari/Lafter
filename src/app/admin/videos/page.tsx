@@ -14,6 +14,7 @@ import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { SearchForm } from "../components/SearchForm";
 import { ListFooter } from "../components/ListFooter";
 import { toast } from "react-toastify";
+import styles from "../adminTheme.module.scss";
 
 export type AdminVideo = {
   id: string;
@@ -47,7 +48,6 @@ type VideoSelection = {
 };
 
 const VIDEO_STATUS_OPTIONS = [
-  { value: "0", label: "⏳ 待ち" },
   { value: "1", label: "✅ OK" },
   { value: "2", label: "⛔ NG" },
 ];
@@ -65,6 +65,32 @@ const CATEGORY_FILTER_OPTIONS = [
   ...VIDEO_CATEGORY_OPTIONS,
 ];
 
+type ShortcutConfig = {
+  label: string;
+  keywords?: string[];
+  category: string;
+  filterTitles?: RegExp;
+};
+
+const SHORTCUT_CONFIG: Record<string, ShortcutConfig> = {
+  manzai: { label: "漫才", keywords: ["漫才"], category: "1" },
+  conte: { label: "コント", keywords: ["コント"], category: "2" },
+  neta: { label: "ネタ", keywords: ["ネタ"], category: "1" },
+  variety: {
+    label: "ものまね / モノマネ / 歌 / あるある",
+    keywords: ["ものまね", "モノマネ", "歌", "あるある"],
+    category: "1",
+  },
+  titled: {
+    label: "タイトルあり",
+    keywords: [],
+    category: "1",
+    filterTitles: /[「」『』【】]/,
+  },
+};
+
+type ShortcutKey = keyof typeof SHORTCUT_CONFIG;
+
 const defaultVideoStatus = 3; // 初期表示では AI OK 判定済みの動画を優先して確認できるようにします。
 
 export default function AdminVideosPage() {
@@ -72,7 +98,7 @@ export default function AdminVideosPage() {
     <Suspense
       fallback={
         <AdminTabsLayout activeTab="videos">
-          <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+          <p className={styles.feedbackCard}>
             画面を読み込んでいます…
           </p>
         </AdminTabsLayout>
@@ -107,7 +133,7 @@ function AdminVideosPageContent() {
   const [currentSearchKeyword, setCurrentSearchKeyword] = useState<string | null>(null);
   const [searchSelectionDefaults, setSearchSelectionDefaults] = useState<SelectionDefaults | null>(null);
   const searchKeywordRef = useRef<string | null>(null);
-  const [activeShortcut, setActiveShortcut] = useState<"manzai" | "conte" | "neta" | null>(null);
+  const [activeShortcut, setActiveShortcut] = useState<ShortcutKey | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("0"); // 初期状態では未分類のみを表示し、必要に応じて他カテゴリへ切り替えます。
   const categoryFilterRef = useRef(categoryFilter);
   useEffect(() => {
@@ -115,10 +141,22 @@ function AdminVideosPageContent() {
     categoryFilterRef.current = categoryFilter;
   }, [categoryFilter]);
 
+  const resolveStatusValue = (value?: number | string | null) => {
+    const numeric =
+      typeof value === "string"
+        ? Number(value)
+        : typeof value === "number"
+          ? value
+          : undefined;
+    if (numeric === 1 || numeric === 2) {
+      return String(numeric);
+    }
+    return "1";
+  };
 
   const createInitialSelections = useCallback(
     (rows: AdminVideo[], defaults?: SelectionDefaults) => {
-      const statusDefault = defaults?.videoStatus ?? "2";
+      const statusDefault = resolveStatusValue(defaults?.videoStatus ?? videoStatusFilter);
       const categoryDefault = defaults?.videoCategory ?? "0";
       const selectedDefault = defaults?.selected ?? true;
       const next: Record<string, VideoSelection> = {};
@@ -135,7 +173,7 @@ function AdminVideosPageContent() {
       }
       return next;
     },
-    [],
+    [videoStatusFilter],
   );
 
   const applySearchResults = useCallback(
@@ -227,7 +265,7 @@ function AdminVideosPageContent() {
         const data = payload as AdminVideosResponse;
         setVideos(data.videos);
         setCurrentPage(data.page);
-        const defaultStatusForSelection = statusFilter === 0 ? "2" : String(statusFilter);
+        const defaultStatusForSelection = resolveStatusValue(statusFilter);
         const defaultCategoryForSelection = categoryParam === null ? "0" : categoryParam;
         setSelections(
           createInitialSelections(data.videos, {
@@ -268,7 +306,7 @@ function AdminVideosPageContent() {
 
   const handleSearchResults = useCallback(
     (results: AdminVideo[], meta: { hasNext: boolean }) => {
-      const statusDefault = String(videoStatusFilter);
+      const statusDefault = resolveStatusValue(videoStatusFilter);
       applySearchResults(results, meta, {
         defaults: {
           videoStatus: statusDefault,
@@ -340,7 +378,7 @@ function AdminVideosPageContent() {
       searchKeywordRef.current = keyword;
       setCurrentSearchKeyword(keyword);
       setSearchContext("form");
-      const statusDefault = String(videoStatusFilter);
+      const statusDefault = resolveStatusValue(videoStatusFilter);
       setSearchSelectionDefaults({
         videoStatus: statusDefault,
         videoCategory: "1",
@@ -384,7 +422,7 @@ function AdminVideosPageContent() {
             next[video.id] ??
             {
               selected: true,
-              videoStatus: "2",
+              videoStatus: resolveStatusValue(videoStatusFilter),
               videoCategory:
                 typeof video.category === "number" && video.category > 0
                   ? String(video.category)
@@ -402,7 +440,8 @@ function AdminVideosPageContent() {
   );
 
   const handleShortcutSearch = useCallback(
-    async (keyword: string, videoCategoryDefault: string, shortcut: "manzai" | "conte" | "neta") => {
+    async (shortcut: ShortcutKey) => {
+      const { keywords = [], category: videoCategoryDefault, filterTitles } = SHORTCUT_CONFIG[shortcut];
       // 同じショートカットを再度押した場合は状態をクリアし、通常の一覧へ戻します。
       if (searchContext === "shortcut" && activeShortcut === shortcut) {
         setSearchContext(null);
@@ -416,23 +455,38 @@ function AdminVideosPageContent() {
 
       setLoading(true);
       const defaults: SelectionDefaults = {
-        videoStatus: String(videoStatusFilter),
+        videoStatus: resolveStatusValue(videoStatusFilter),
         videoCategory: videoCategoryDefault,
         selected: true,
       };
       try {
-        searchKeywordRef.current = keyword;
-        setCurrentSearchKeyword(keyword);
+        const keywordLabel =
+          keywords.length > 0 ? keywords.join(" / ") : filterTitles ? "タイトルあり" : "";
+        searchKeywordRef.current = keywordLabel;
+        setCurrentSearchKeyword(keywordLabel);
         setSearchSelectionDefaults(defaults);
         setSearchContext("shortcut");
-        const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter);
+        const merged = new Map<string, AdminVideo>();
+        let combinedHasNext = false;
+        const shortcutsToRun = keywords.length > 0 ? keywords : [""];
+        for (const keyword of shortcutsToRun) {
+          const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter);
+          for (const video of data.videos) {
+            merged.set(video.id, video);
+          }
+          combinedHasNext = combinedHasNext || Boolean(data.hasNext);
+        }
+        let combinedVideos = Array.from(merged.values());
+        if (filterTitles) {
+          combinedVideos = combinedVideos.filter((video) => filterTitles.test(video.title));
+        }
         applySearchResults(
-          data.videos,
-          { hasNext: Boolean(data.hasNext) },
+          combinedVideos,
+          { hasNext: combinedHasNext },
           { defaults, mode: "shortcut" },
         );
         setActiveShortcut(shortcut);
-        if (data.videos.length === 0) {
+        if (combinedVideos.length === 0) {
           toast.info("該当する動画が見つかりませんでした。");
         }
       } catch (error) {
@@ -454,17 +508,24 @@ function AdminVideosPageContent() {
     ],
   );
 
-  const handleManzaiShortcut = useCallback(() => {
-    return handleShortcutSearch("漫才", "1", "manzai");
-  }, [handleShortcutSearch]);
-
-  const handleConteShortcut = useCallback(() => {
-    return handleShortcutSearch("コント", "2", "conte");
-  }, [handleShortcutSearch]);
-
-  const handleNetaShortcut = useCallback(() => {
-    return handleShortcutSearch("ネタ", "1", "neta");
-  }, [handleShortcutSearch]);
+  const handleShortcutSelectChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const value = event.target.value as "" | ShortcutKey;
+      if (value === "") {
+        if (searchContext === "shortcut") {
+          setSearchContext(null);
+          setActiveShortcut(null);
+          setCurrentSearchKeyword(null);
+          setSearchSelectionDefaults(null);
+          searchKeywordRef.current = null;
+          void loadVideos(1, videoStatusFilter);
+        }
+        return;
+      }
+      void handleShortcutSearch(value);
+    },
+    [handleShortcutSearch, loadVideos, searchContext, videoStatusFilter],
+  );
 
   const isPendingFilter = videoStatusFilter === 0;
   const isOkFilter = videoStatusFilter === 1;
@@ -501,8 +562,8 @@ function AdminVideosPageContent() {
     router.push(isAiNgFilter ? defaultFilterHref : aiNgFilterHref);
   };
 
-  const isShortcutActive = (shortcut: "manzai" | "conte" | "neta") =>
-    searchContext === "shortcut" && activeShortcut === shortcut;
+  const shortcutSelectValue: "" | ShortcutKey =
+    searchContext === "shortcut" && activeShortcut ? activeShortcut : "";
 
   const loadSearchPage = useCallback(
     async (targetPage: number, categoryValue?: string) => {
@@ -520,7 +581,7 @@ function AdminVideosPageContent() {
         setVideos(data.videos);
         setCurrentPage(typeof data.page === "number" ? data.page : targetPage);
         const defaults: SelectionDefaults = {
-          videoStatus: String(videoStatusFilter),
+          videoStatus: resolveStatusValue(videoStatusFilter),
           videoCategory: "1",
           selected: true,
           ...(searchSelectionDefaults ?? {}),
@@ -611,7 +672,7 @@ function AdminVideosPageContent() {
               : "0";
           next[video.id] = {
             ...(prev[video.id] ?? {
-              videoStatus: "2",
+              videoStatus: resolveStatusValue(videoStatusFilter),
               videoCategory: fallbackCategory,
             }),
             selected: true,
@@ -654,7 +715,7 @@ function AdminVideosPageContent() {
   return (
     <AdminTabsLayout activeTab="videos">
       {errorMessage ? (
-        <p className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className={styles.errorMessage}>
           {errorMessage}
         </p>
       ) : (
@@ -674,102 +735,64 @@ function AdminVideosPageContent() {
             <button
               type="button"
               onClick={handlePendingFilterClick}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                isPendingFilter
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
+              className={`${styles.filterButton} ${isPendingFilter ? styles.buttonActiveAmber : ""}`}
             >
               未判定
             </button>
             <button
               type="button"
               onClick={() => router.push(isAiOkFilter ? defaultFilterHref : aiOkFilterHref)}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                isAiOkFilter
-                  ? "border-emerald-600 bg-emerald-600 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
+              className={`${styles.filterButton} ${isAiOkFilter ? styles.buttonActiveGreen : ""}`}
             >
               AI-OK
             </button>
             <button
               type="button"
               onClick={() => router.push(isAiNgFilter ? defaultFilterHref : aiNgFilterHref)}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                isAiNgFilter
-                  ? "border-amber-600 bg-amber-600 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
+              className={`${styles.filterButton} ${isAiNgFilter ? styles.buttonActiveAmber : ""}`}
             >
               AI-NG
             </button>
             <button
               type="button"
               onClick={handleOkFilterClick}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                isOkFilter
-                  ? "border-blue-700 bg-blue-700 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
+              className={`${styles.filterButton} ${isOkFilter ? styles.buttonActiveBlue : ""}`}
             >
               OK
             </button>
             <button
               type="button"
               onClick={handleNgFilterClick}
-              className={`rounded-full border px-4 py-2 text-sm transition-colors ${
-                isNgFilter
-                  ? "border-red-600 bg-red-600 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
+              className={`${styles.filterButton} ${isNgFilter ? styles.buttonActiveRed : ""}`}
             >
               NG
             </button>
           </div>
-          {/* よく使う漫才・コント・ネタ検索をワンタップで呼び出せる補助ボタンをテーブル直前に配置します。 */}
+          {/* よく使う漫才・コント・ネタ検索をドロップダウンで提供し、選択と解除を簡潔にします。 */}
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={handleManzaiShortcut}
-              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
-                isShortcutActive("manzai")
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-              }`}
+            <label className="sr-only" htmlFor="shortcut-select">
+              ショートカット検索
+            </label>
+            <select
+              id="shortcut-select"
+              value={shortcutSelectValue}
+              onChange={handleShortcutSelectChange}
               disabled={loading}
+              className={`${styles.selectControl} ${styles.filterSelect}`}
+              aria-label="ショートカット検索を選択"
             >
-              漫才
-            </button>
-            <button
-              type="button"
-              onClick={handleConteShortcut}
-              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
-                isShortcutActive("conte")
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-              }`}
-              disabled={loading}
-            >
-              コント
-            </button>
-            <button
-              type="button"
-              onClick={handleNetaShortcut}
-              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors disabled:opacity-60 ${
-                isShortcutActive("neta")
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
-              }`}
-              disabled={loading}
-            >
-              ネタ
-            </button>
+              <option value="">ショートカットを選択</option>
+              {Object.entries(SHORTCUT_CONFIG).map(([key, config]) => (
+                <option key={key} value={key}>
+                  {config.label}
+                </option>
+              ))}
+            </select>
             {/* カテゴリごとの絞り込みも同列に配置し、ショートカットと併せて直感的に操作できるようにします。 */}
             <select
               value={categoryFilter}
               onChange={handleCategoryFilterChange}
-              className="rounded-full border border-slate-300 px-3 py-2 text-sm text-slate-700 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
+              className={`${styles.selectControl} ${styles.filterSelect}`}
               disabled={loading}
               aria-label="カテゴリでフィルタ"
             >
@@ -781,43 +804,36 @@ function AdminVideosPageContent() {
             </select>
           </div>
           {loading ? (
-            <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
-              読み込み中です…
-            </p>
+            <p className={styles.feedbackCard}>読み込み中です…</p>
           ) : filteredVideos.length === 0 ? (
-            <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
-              表示できる動画がありません。
-            </p>
+            <p className={styles.feedbackCard}>表示できる動画がありません。</p>
           ) : (
             // テーブルではなくカード型の 5 列グリッドへ並び替え、視線移動を最小限にして操作をしやすくします。
             <div className="grid grid-cols-2 gap-x-4 gap-y-6 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {filteredVideos.map((video) => {
                 const entry = selections[video.id] ?? {
                   selected: true,
-                  videoStatus: "2",
+                  videoStatus: resolveStatusValue(videoStatusFilter),
                   videoCategory:
                     typeof video.category === "number" && video.category > 0
                       ? String(video.category)
                       : "0",
                 };
                 return (
-                  <article
-                    key={video.id}
-                    className="flex h-full flex-col rounded bg-white p-0"
-                  >
+                  <article key={video.id} className={styles.videoCard}>
                     {/* サムネイルを先頭に配置し、視覚情報を最初に確認できるようにします。 */}
                     <div
-                      className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
+                      className={styles.thumbnailWrapper}
                       style={{ aspectRatio: "16 / 9" }}
                     >
                       {renderEmbeddedVideo(video)}
                     </div>
-                    <div className="mt-3 flex flex-1 flex-col justify-between space-y-3 text-sm">
+                    <div className={styles.cardBody}>
                       <div className="flex items-start justify-between gap-3">
-                        <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
+                        <label className={`inline-flex flex-1 items-start gap-2 text-sm font-medium ${styles.cardLabel}`}>
                           <input
                             type="checkbox"
-                            className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                            className={`${styles.checkboxControl} mt-1`}
                             checked={entry.selected}
                             onChange={(event) =>
                               setSelections((prev) => ({
@@ -834,11 +850,11 @@ function AdminVideosPageContent() {
                               href={video.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="text-slate-900 underline-offset-2 hover:underline"
+                              className={styles.cardLink}
                             >
                               {video.title}
                             </a>
-                            <span className="text-xs text-slate-500">
+                            <span className={styles.cardChannel}>
                               {video.channel_name || "チャンネル未登録"}
                             </span>
                           </span>
@@ -853,7 +869,7 @@ function AdminVideosPageContent() {
                             </label>
                             <select
                               id={`video-status-${video.id}`}
-                              className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                              className={`${styles.selectControl} ${styles.cardSelect}`}
                               value={entry.videoStatus}
                               onChange={(event) =>
                                 setSelections((prev) => ({
@@ -879,7 +895,7 @@ function AdminVideosPageContent() {
                               </label>
                               <select
                                 id={`video-category-${video.id}`}
-                                className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                                className={`${styles.selectControl} ${styles.cardSelect}`}
                                 value={entry.videoCategory}
                                 onChange={(event) =>
                                   setSelections((prev) => ({
@@ -901,7 +917,7 @@ function AdminVideosPageContent() {
                           ) : null}
                         </div>
                         {entry.videoStatus === "2" ? (
-                          <p className="text-xs text-slate-500">NG のためカテゴリ設定は不要です。</p>
+                          <p className={styles.cardHint}>NG のためカテゴリ設定は不要です。</p>
                         ) : null}
                       </div>
                     </div>
@@ -921,12 +937,12 @@ function AdminVideosPageContent() {
                 onNext: effectiveHasNext ? () => goToPage(currentPage + 1) : undefined,
               }}
               headerContent={
-                <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                <div className={`flex flex-1 flex-wrap items-center justify-between gap-3 ${styles.headerText}`}>
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
                     <label className="inline-flex items-center gap-2">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                        className={styles.checkboxControl}
                         checked={areAllVisibleSelected}
                         onChange={(event) => handleToggleAll(event.target.checked)}
                         aria-label="全て選択"
@@ -934,7 +950,7 @@ function AdminVideosPageContent() {
                       />
                       全て選択
                     </label>
-                    <span className="text-sm text-slate-500">
+                    <span className={styles.metaText}>
                       選択中: {selectedCount} / {filteredVideos.length}
                     </span>
                   </div>
@@ -942,7 +958,7 @@ function AdminVideosPageContent() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={loading || submitting || videos.length === 0}
-                    className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
+                    className={styles.primaryButton}
                   >
                     {submitting ? "送信中…" : "更新"}
                   </button>
@@ -953,13 +969,13 @@ function AdminVideosPageContent() {
 
           <div className="hidden lg:block">
             {/* 大画面では更新ボタンとページングを同列にまとめ、操作フローを見通し良く保ちます。 */}
-            <div className="rounded-2xl bg-white px-5 py-4">
+            <div className={styles.desktopFooterCard}>
               <div className="flex flex-wrap items-center justify-between gap-6">
-                <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+                <div className={`flex flex-wrap items-center gap-3 text-sm ${styles.headerText}`}>
                   <label className="inline-flex items-center gap-2">
                     <input
                       type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                      className={styles.checkboxControl}
                       checked={areAllVisibleSelected}
                       onChange={(event) => handleToggleAll(event.target.checked)}
                       aria-label="全て選択"
@@ -967,20 +983,18 @@ function AdminVideosPageContent() {
                     />
                     全て選択
                   </label>
-                  <span className="text-sm text-slate-500">
-                    選択中: {selectedCount} / {filteredVideos.length}
-                  </span>
+                  <span className={styles.metaText}>選択中: {selectedCount} / {filteredVideos.length}</span>
                 </div>
                 <div className="flex flex-wrap items-center justify-end gap-4">
                   {/* ページング操作も併記し、前後移動を即座に実行できます。 */}
-                  <div className="flex items-center gap-3 text-sm text-slate-600">
+                  <div className={styles.pagerSection}>
                     <span>ページ {currentPage}</span>
-                    <div className="flex gap-3">
+                    <div className={styles.pagerControls}>
                       {effectiveHasPrev ? (
                         <button
                           type="button"
                           onClick={() => goToPage(currentPage - 1)}
-                          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                          className={styles.pagerControl}
                           aria-label="前のページ"
                         >
                           <span className="material-symbols-rounded" aria-hidden="true">
@@ -988,7 +1002,7 @@ function AdminVideosPageContent() {
                           </span>
                         </button>
                       ) : (
-                        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                        <span className={styles.pagerControlDisabled}>
                           <span className="material-symbols-rounded" aria-hidden="true">
                             arrow_back
                           </span>
@@ -999,7 +1013,7 @@ function AdminVideosPageContent() {
                         <button
                           type="button"
                           onClick={() => goToPage(currentPage + 1)}
-                          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                          className={styles.pagerControl}
                           aria-label="次のページ"
                         >
                           <span className="material-symbols-rounded" aria-hidden="true">
@@ -1007,7 +1021,7 @@ function AdminVideosPageContent() {
                           </span>
                         </button>
                       ) : (
-                        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                        <span className={styles.pagerControlDisabled}>
                           <span className="material-symbols-rounded" aria-hidden="true">
                             arrow_forward
                           </span>
@@ -1020,7 +1034,7 @@ function AdminVideosPageContent() {
                     type="button"
                     onClick={handleSubmit}
                     disabled={loading || submitting || videos.length === 0}
-                    className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
+                    className={styles.primaryButton}
                   >
                     {submitting ? "送信中…" : "更新"}
                   </button>
@@ -1075,7 +1089,7 @@ function renderEmbeddedVideo(video: AdminVideo) {
         href={video.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="flex h-full items-center justify-center text-slate-900 underline underline-offset-4 hover:text-slate-700"
+        className={`flex h-full items-center justify-center ${styles.cardLink}`}
       >
         開く
       </a>

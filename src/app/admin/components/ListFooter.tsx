@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
+import styles from "../adminTheme.module.scss";
 
 type ListFooterProps = {
   headerContent?: ReactNode;
@@ -26,7 +27,7 @@ export function ListFooter({ headerContent, paging }: ListFooterProps) {
   ) => {
     if (!enabled) {
       return (
-        <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+        <span className={styles.controlDisabled}>
           <span className="material-symbols-rounded" aria-hidden="true">
             {icon}
           </span>
@@ -36,24 +37,14 @@ export function ListFooter({ headerContent, paging }: ListFooterProps) {
     }
     if (href) {
       return (
-        <Link
-          href={href}
-          prefetch={false}
-          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
-          aria-label={label}
-        >
+        <Link href={href} prefetch={false} className={styles.control} aria-label={label}>
           <span className="material-symbols-rounded">{icon}</span>
         </Link>
       );
     }
     if (onClick) {
       return (
-        <button
-          type="button"
-          onClick={onClick}
-          className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
-          aria-label={label}
-        >
+        <button type="button" onClick={onClick} className={styles.control} aria-label={label}>
           <span className="material-symbols-rounded">{icon}</span>
         </button>
       );
@@ -61,14 +52,17 @@ export function ListFooter({ headerContent, paging }: ListFooterProps) {
     return null;
   };
 
+  // フッター全体も落ち着いたダークトーンで統一し、操作性を高めています。
   return (
-    <div className="flex flex-col gap-3">
+    <div className={styles.footer}>
       {headerContent ? (
-        <div className="flex flex-wrap items-center justify-between gap-4">{headerContent}</div>
+        <div className={styles.header}>
+          {headerContent}
+        </div>
       ) : null}
-      <div className="flex flex-col items-center gap-3 pt-4">
-        <span className="text-sm text-slate-600">ページ {paging.currentPage}</span>
-        <div className="flex gap-3">
+      <div className={styles.pageInfoBlock}>
+        <span className={styles.pageInfo}>ページ {paging.currentPage}</span>
+        <div className={styles.controls}>
           {renderControl(paging.hasPrev, paging.prevHref, paging.onPrev, "前のページ", "arrow_back")}
           {renderControl(paging.hasNext, paging.nextHref, paging.onNext, "次のページ", "arrow_forward")}
         </div>
