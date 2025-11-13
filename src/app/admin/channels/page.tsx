@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { ChannelAdminSection } from "./ChannelAdminSection";
+import styles from "../adminTheme.module.scss";
 
 type AdminChannel = {
   id: string;
@@ -181,7 +182,7 @@ export default async function AdminChannelsPage({ searchParams }: PageProps) {
   return (
     <AdminTabsLayout activeTab="channels">
       {errorMessage ? (
-        <p className="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className={styles.errorMessage}>
           {errorMessage}
         </p>
       ) : (

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import styles from "../adminTheme.module.scss";
 
 type SearchResultMeta = { hasNext: boolean };
 
@@ -61,9 +62,10 @@ export function SearchForm<T>({
   };
 
   return (
-    <section>
-      <form onSubmit={handleSubmit}>
-        <div className="relative flex-1 text-sm text-slate-600">
+    <section className={styles.searchSection}>
+      <form onSubmit={handleSubmit} className={styles.form}>
+        {/* ダークトーンの入力フィールドで統一し、操作時も視認性を保ちます。 */}
+        <div className={styles.inputWrapper}>
           <label className="sr-only" htmlFor={inputId}>
             {ariaLabel}
           </label>
@@ -73,14 +75,14 @@ export function SearchForm<T>({
             value={keyword}
             onChange={(event) => setKeyword(event.target.value)}
             placeholder={placeholder}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className={styles.input}
           />
           {keyword ? (
             <button
               type="button"
               onClick={handleReset}
               disabled={loading}
-              className="material-symbols-rounded absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2 py-1disabled:opacity-60"
+              className={`${styles.clearButton} material-symbols-rounded`}
               aria-label="検索欄をクリア"
             >
               close
@@ -89,7 +91,7 @@ export function SearchForm<T>({
         </div>
       </form>
       {message ? (
-        <p className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+        <p className={styles.message}>
           {message}
         </p>
       ) : null}

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ListFooter } from "./ListFooter";
 import { toast } from "react-toastify";
+import styles from "../adminTheme.module.scss";
 
 export type ChannelRow = {
   id: string;
@@ -152,7 +153,7 @@ export function ChannelBulkManager({
   return (
     <div className="flex flex-col gap-4">
       {channels.length === 0 ? (
-        <p className="rounded border border-slate-200 bg-white px-4 py-6 text-center text-sm text-slate-500">
+        <p className={styles.feedbackCard}>
           表示できるチャンネルがありません。
         </p>
       ) : (
@@ -161,23 +162,22 @@ export function ChannelBulkManager({
           {channels.map((channel) => {
             const entry = selections[channel.id] ?? createSelectionEntry(channel, registeredView);
             return (
-              <article
-                key={channel.id}
-                className="flex h-full flex-col rounded bg-white p-0"
-              >
+              <article key={channel.id} className={styles.card}>
                 {/* サムネイルを先頭に配置し、チャンネルの雰囲気をひと目で把握できるようにします。 */}
                 <div
-                  className="w-full overflow-hidden rounded border border-slate-200 shadow-sm"
+                  className={styles.thumbnailWrapper}
                   style={{ aspectRatio: "16 / 9" }}
                 >
                   {renderLatestVideoEmbed(channel)}
                 </div>
-                <div className="mt-3 flex flex-1 flex-col justify-between space-y-3 text-sm">
+                <div className={styles.cardBody}>
                   <div className="flex items-start justify-between gap-3">
-                    <label className="inline-flex flex-1 items-start gap-2 text-sm font-medium text-slate-700">
+                    <label
+                      className={`inline-flex flex-1 items-start gap-2 text-sm font-medium ${styles.cardLabel}`}
+                    >
                       <input
                         type="checkbox"
-                        className="mt-1 h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                        className={`${styles.checkbox} mt-1`}
                         checked={entry.selected}
                         onChange={(event) =>
                           setSelections((prev) => ({
@@ -194,19 +194,23 @@ export function ChannelBulkManager({
                           href={channel.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-slate-900 underline-offset-2 hover:underline"
+                          className={styles.cardLink}
                         >
                           {channel.name}
                         </a>
                         {channel.latestVideoTitle ? (
-                          <span className="text-xs text-slate-500">{channel.latestVideoTitle}</span>
+                          <span className={styles.cardMeta}>{channel.latestVideoTitle}</span>
                         ) : null}
                       </span>
                     </label>
                   </div>
                   {/* ラベルとフォームをサムネイル直下のコンテナへまとめ、操作フローを視線移動なく進めます。 */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className={entry.status === "1" ? "w-1/2" : "w-full"}>
+                  <div className={styles.controlRow}>
+                    <div
+                      className={
+                        entry.status === "1" ? styles.selectWrapperHalf : styles.selectWrapperFull
+                      }
+                    >
                       <label
                         htmlFor={`status-${channel.id}`}
                         className="sr-only"
@@ -215,7 +219,7 @@ export function ChannelBulkManager({
                       </label>
                       <select
                         id={`status-${channel.id}`}
-                        className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                        className={`${styles.selectControl} ${styles.cardSelect}`}
                         value={entry.status}
                         onChange={(event) =>
                           setSelections((prev) => ({
@@ -236,7 +240,7 @@ export function ChannelBulkManager({
                       </select>
                     </div>
                     {entry.status === "1" ? (
-                      <div className="w-1/2">
+                      <div className={styles.selectWrapperHalf}>
                         <label
                           htmlFor={`keyword-${channel.id}`}
                           className="sr-only"
@@ -245,7 +249,7 @@ export function ChannelBulkManager({
                         </label>
                         <select
                           id={`keyword-${channel.id}`}
-                          className="w-full rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                          className={`${styles.selectControl} ${styles.cardSelect}`}
                           value={entry.keywordId}
                           onChange={(event) =>
                             setSelections((prev) => ({
@@ -283,19 +287,19 @@ export function ChannelBulkManager({
             nextHref,
           }}
           headerContent={
-            <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
-              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+            <div className={`flex flex-1 flex-wrap items-center justify-between gap-3 ${styles.headerText}`}>
+              <div className="flex flex-wrap items-center gap-3 text-sm">
                 <label className="inline-flex items-center gap-2">
                   <input
                     type="checkbox"
-                    className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                    className={styles.checkbox}
                     checked={selectedCount > 0 && selectedCount === channels.length}
                     onChange={(event) => handleToggleAll(event.target.checked)}
                     aria-label="全て選択"
                   />
                   全て選択
                 </label>
-                <span className="text-sm text-slate-500">
+                <span className={styles.metaText}>
                   選択中: {selectedCount} / {channels.length}
                 </span>
               </div>
@@ -303,7 +307,7 @@ export function ChannelBulkManager({
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
+                className={styles.primaryButton}
               >
                 {submitting ? "送信中…" : "更新"}
               </button>
@@ -314,33 +318,31 @@ export function ChannelBulkManager({
 
       <div className="hidden lg:block">
         {/* 大画面では更新ボタンとページングを同列にまとめ、一覧操作の文脈を崩さずに表示します。 */}
-        <div className="rounded-2xl bg-white px-5 py-4">
+        <div className={styles.desktopFooterCard}>
           <div className="flex flex-wrap items-center justify-between gap-6">
-            <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+            <div className={`flex flex-wrap items-center gap-3 text-sm ${styles.headerText}`}>
               <label className="inline-flex items-center gap-2">
                 <input
                   type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-500"
+                  className={styles.checkbox}
                   checked={selectedCount > 0 && selectedCount === channels.length}
                   onChange={(event) => handleToggleAll(event.target.checked)}
                   aria-label="全て選択"
                 />
                 全て選択
               </label>
-              <span className="text-sm text-slate-500">
-                選択中: {selectedCount} / {channels.length}
-              </span>
+              <span className={styles.metaText}>選択中: {selectedCount} / {channels.length}</span>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-4">
               {/* ページ情報も同列に表示し、前後遷移を即座に実行できます。 */}
-              <div className="flex items-center gap-3 text-sm text-slate-600">
+              <div className={styles.pagerSection}>
                 <span>ページ {currentPage}</span>
-                <div className="flex gap-3">
+                <div className={styles.pagerControls}>
                   {hasPrev ? (
                     <Link
                       href={prevHref}
                       prefetch={false}
-                      className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                      className={styles.pagerControl}
                       aria-label="前のページ"
                     >
                       <span className="material-symbols-rounded" aria-hidden="true">
@@ -348,7 +350,7 @@ export function ChannelBulkManager({
                       </span>
                     </Link>
                   ) : (
-                    <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                    <span className={styles.pagerControlDisabled}>
                       <span className="material-symbols-rounded" aria-hidden="true">
                         arrow_back
                       </span>
@@ -359,7 +361,7 @@ export function ChannelBulkManager({
                     <Link
                       href={nextHref}
                       prefetch={false}
-                      className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-300 text-slate-700 transition-colors hover:bg-slate-100"
+                      className={styles.pagerControl}
                       aria-label="次のページ"
                     >
                       <span className="material-symbols-rounded" aria-hidden="true">
@@ -367,7 +369,7 @@ export function ChannelBulkManager({
                       </span>
                     </Link>
                   ) : (
-                    <span className="relative flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-300">
+                    <span className={styles.pagerControlDisabled}>
                       <span className="material-symbols-rounded" aria-hidden="true">
                         arrow_forward
                       </span>
@@ -380,7 +382,7 @@ export function ChannelBulkManager({
                 type="button"
                 onClick={handleSubmit}
                 disabled={submitting}
-                className="rounded-full bg-[#f2a51e] px-6 py-2 text-sm font-medium text-white transition-colors hover:brightness-110 disabled:opacity-60"
+                className={styles.primaryButton}
               >
                 {submitting ? "送信中…" : "更新"}
               </button>
@@ -401,7 +403,7 @@ function renderLatestVideoEmbed(channel: ChannelRow) {
         href={`https://www.youtube.com/watch?v=${channel.latestVideoId}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="block h-full w-full"
+        className={styles.thumbnailLink}
         aria-label={`${channel.name} の最新動画を開く`}
       >
         <img
@@ -415,13 +417,13 @@ function renderLatestVideoEmbed(channel: ChannelRow) {
   }
   if (channel.latestVideoTitle) {
     return (
-      <div className="flex h-full items-center justify-center px-3 text-center text-xs text-slate-500">
+      <div className={styles.thumbnailFallback}>
         {channel.latestVideoTitle}
       </div>
     );
   }
   return (
-    <div className="flex h-full items-center justify-center px-3 text-xs text-slate-400">
+    <div className={styles.thumbnailFallback}>
       最新動画情報がありません
     </div>
   );

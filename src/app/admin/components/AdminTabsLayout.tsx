@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Bounce, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
+import styles from "../adminTheme.module.scss";
 
 type AdminTabsLayoutProps = {
   activeTab: "videos" | "channels" | "playlists";
@@ -16,25 +17,33 @@ const TAB_ITEMS: Array<{ key: "videos" | "channels" | "playlists"; name: string;
 ];
 
 export function AdminTabsLayout({ activeTab, children }: AdminTabsLayoutProps) {
+  // 管理画面は常にダークトーンで統一する方針のため、ここでテーマ分岐を排除しています。
   return (
-    <main className="min-h-screen bg-white">
-      <ToastContainer position="top-right" autoClose={5000} newestOnTop closeOnClick pauseOnHover theme="light" transition={Bounce} />
-      <section className="mx-auto flex w-full max-w-[86.4rem] flex-col gap-4 p-4 sm:p-6">
-        <div className="flex border-b border-slate-200">
-          {TAB_ITEMS.map((tab) => (
-            <Link
-              key={tab.key}
-              href={tab.href}
-              prefetch={false}
-              className={`px-4 py-2 text-sm font-medium ${
-                tab.key === activeTab
-                  ? "border-b-2 border-slate-900 text-slate-900"
-                  : "text-slate-500 hover:text-slate-700"
-              }`}
-            >
-              {tab.name}
-            </Link>
-          ))}
+    <main className={styles.adminLayout}>
+      <ToastContainer
+        position="top-right"
+        autoClose={5000}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+        theme="dark"
+        transition={Bounce}
+      />
+      <section className={styles.layoutBody}>
+        <div className={styles.tabBar}>
+          {TAB_ITEMS.map((tab) => {
+            const isActive = tab.key === activeTab;
+            // アクティブ状態に応じてCSSモジュールのクラスを丁寧に切り替え、視認性を確保します。
+            const tabClassName = `${styles.tabItem} ${
+              isActive ? styles.tabItemActive : styles.tabItemInactive
+            }`;
+
+            return (
+              <Link key={tab.key} href={tab.href} prefetch={false} className={tabClassName}>
+                {tab.name}
+              </Link>
+            );
+          })}
         </div>
 
         {children}

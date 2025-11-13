@@ -1,0 +1,566 @@
+/* 管理画面全体をダークトーンで統一するための共通スタイル定義です。 */
+
+// カラーパレット
+$admin-bg: #020617;
+$admin-surface: #0b1120;
+$admin-surface-alt: #040b18;
+$admin-surface-muted: #0b1220;
+$admin-surface-strong: #020817;
+$admin-surface-hover: #111c33;
+$admin-surface-disabled: #070b13;
+$admin-text: #f8fafc;
+$admin-text-light: #e2e8f0;
+$admin-text-muted: #94a3b8;
+$admin-border-strong: #1f2937;
+$admin-border: #334155;
+$admin-accent: #fbbf24;
+$admin-accent-strong: #f59e0b;
+$admin-accent-outline: rgba(251, 191, 36, 0.35);
+$admin-success: #34d399;
+$admin-success-contrast: #052318;
+$admin-info: #60a5fa;
+$admin-info-contrast: #021126;
+$admin-danger: #f87171;
+$admin-danger-contrast: #2b0404;
+$admin-muted-text: #cbd5f5;
+$admin-disabled: #475569;
+$admin-primary-text: #0f172a;
+$admin-error-border: rgba(248, 113, 113, 0.65);
+$admin-error-bg: rgba(69, 10, 10, 0.65);
+$admin-error-text: #fecaca;
+$admin-overlay: rgba(7, 11, 20, 0.85);
+$admin-link-underline: rgba(248, 250, 252, 0.6);
+
+// 共通ミックスイン
+@mixin pill-button-base {
+  border-radius: 9999px;
+  border: 1px solid var(--admin-border);
+  background-color: var(--admin-surface);
+  color: var(--admin-text-light);
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    opacity 0.2s ease;
+}
+
+@mixin focusable-input {
+  border: 1px solid var(--admin-border);
+  background-color: var(--admin-surface-muted);
+  color: var(--admin-text);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    border-color: var(--admin-accent);
+    box-shadow: 0 0 0 2px var(--admin-accent-outline);
+    outline: none;
+  }
+}
+
+@mixin circular-control {
+  position: relative;
+  display: flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: var(--admin-muted-text);
+  background-color: var(--admin-surface);
+  transition: color 0.2s ease, background-color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--admin-accent);
+    background-color: var(--admin-surface-hover);
+    outline: none;
+  }
+
+  &.is-disabled {
+    color: var(--admin-disabled);
+    cursor: default;
+    background-color: var(--admin-surface-disabled);
+  }
+}
+
+@mixin card-shell {
+  display: flex;
+  flex-direction: column;
+  border-radius: 0.75rem;
+  background: var(--admin-bg);
+  padding: 0;
+  min-height: 100%;
+}
+
+@mixin checkbox-base {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-bg);
+  accent-color: var(--admin-accent);
+}
+
+@mixin primary-button {
+  border: none;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, var(--admin-accent), var(--admin-accent-strong));
+  color: var(--admin-primary-text);
+  padding: 0.5rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+
+  &:hover {
+    filter: brightness(1.05);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+@mixin message-card {
+  border-radius: 0.75rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  padding: 1rem 1.5rem;
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--admin-muted-text);
+}
+
+/* ------- レイアウト全体 ------- */
+.adminLayout {
+  --admin-bg: #{$admin-bg};
+  --admin-surface: #{$admin-surface};
+  --admin-surface-alt: #{$admin-surface-alt};
+  --admin-surface-muted: #{$admin-surface-muted};
+  --admin-surface-strong: #{$admin-surface-strong};
+  --admin-surface-hover: #{$admin-surface-hover};
+  --admin-surface-disabled: #{$admin-surface-disabled};
+  --admin-text: #{$admin-text};
+  --admin-text-light: #{$admin-text-light};
+  --admin-text-muted: #{$admin-text-muted};
+  --admin-border-strong: #{$admin-border-strong};
+  --admin-border: #{$admin-border};
+  --admin-accent: #{$admin-accent};
+  --admin-accent-strong: #{$admin-accent-strong};
+  --admin-accent-outline: #{$admin-accent-outline};
+  --admin-success: #{$admin-success};
+  --admin-success-contrast: #{$admin-success-contrast};
+  --admin-info: #{$admin-info};
+  --admin-info-contrast: #{$admin-info-contrast};
+  --admin-danger: #{$admin-danger};
+  --admin-danger-contrast: #{$admin-danger-contrast};
+  --admin-muted-text: #{$admin-muted-text};
+  --admin-disabled: #{$admin-disabled};
+  --admin-primary-text: #{$admin-primary-text};
+  --admin-error-border: #{$admin-error-border};
+  --admin-error-bg: #{$admin-error-bg};
+  --admin-error-text: #{$admin-error-text};
+  --admin-overlay: #{$admin-overlay};
+  --admin-link-underline: #{$admin-link-underline};
+  min-height: 100vh;
+  margin: 0;
+  background-color: var(--admin-bg);
+  color: var(--admin-text);
+}
+
+.layoutBody {
+  margin: 0 auto;
+  width: 100%;
+  max-width: 86.4rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+
+  @media (min-width: 640px) {
+    padding: 1.5rem;
+  }
+}
+
+.tabBar {
+  display: flex;
+  border-bottom: 1px solid var(--admin-border-strong);
+}
+
+.tabItem {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: color 0.2s ease, border-color 0.2s ease;
+  border-bottom: 2px solid transparent;
+
+  &.tabItemInactive {
+    color: var(--admin-text-muted);
+
+    &:hover {
+      color: var(--admin-text-light);
+    }
+  }
+
+  &.tabItemActive {
+    color: var(--admin-accent);
+    border-color: var(--admin-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--admin-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ------- 検索フォーム ------- */
+.searchSection {
+  color: var(--admin-text-light);
+
+  .form {
+    width: 100%;
+  }
+
+  .inputWrapper {
+    position: relative;
+    display: flex;
+    flex: 1;
+    font-size: 0.875rem;
+    color: var(--admin-text-muted);
+  }
+
+  .input {
+    width: 100%;
+    border-radius: 0.5rem;
+    @include focusable-input;
+    background-color: var(--admin-surface-muted);
+    color: var(--admin-text);
+    padding: 0.5rem 0.75rem;
+  }
+
+  .clearButton {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: transparent;
+    color: var(--admin-text-muted);
+    border-radius: 9999px;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    transition: color 0.2s ease, opacity 0.2s ease;
+
+    &:hover {
+      color: var(--admin-text);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+  }
+
+  .message {
+    margin-top: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--admin-border);
+    background: var(--admin-overlay);
+    color: var(--admin-text-light);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* ------- セクションとフィルター ------- */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filterButton,
+.shortcutButton {
+  @include pill-button-base;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--admin-accent);
+    color: var(--admin-accent);
+    outline: none;
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.shortcutButton {
+  font-weight: 600;
+}
+
+.buttonActiveAmber {
+  border-color: var(--admin-accent);
+  background-color: var(--admin-accent);
+  color: var(--admin-primary-text);
+}
+
+.buttonActiveGreen {
+  border-color: var(--admin-success);
+  background-color: var(--admin-success);
+  color: var(--admin-success-contrast);
+}
+
+.buttonActiveBlue {
+  border-color: var(--admin-info);
+  background-color: var(--admin-info);
+  color: var(--admin-info-contrast);
+}
+
+.buttonActiveRed {
+  border-color: var(--admin-danger);
+  background-color: var(--admin-danger);
+  color: var(--admin-danger-contrast);
+}
+
+.shortcutButtonActive {
+  border-color: var(--admin-accent);
+  background-color: var(--admin-accent);
+  color: var(--admin-primary-text);
+}
+
+.filterSelect {
+  width: auto;
+  min-width: 11rem;
+}
+
+/* ------- フォーム操作・セレクト ------- */
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.selectWrapperFull {
+  flex: 1 1 100%;
+}
+
+.selectWrapperHalf {
+  flex: 1 1 50%;
+}
+
+.selectControl,
+.cardSelect,
+.cardSelectFull {
+  border-radius: 9999px;
+  border: 1px solid var(--admin-border);
+  background-color: var(--admin-surface-alt);
+  color: var(--admin-text-light);
+  padding: 0.5rem 0.85rem;
+  font-size: 0.875rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus {
+    border-color: var(--admin-accent);
+    box-shadow: 0 0 0 2px var(--admin-accent-outline);
+    outline: none;
+  }
+}
+
+.cardSelect,
+.cardSelectFull {
+  width: 100%;
+}
+
+/* ------- カード表示 ------- */
+.videoCard,
+.playlistCard,
+.card {
+  @include card-shell;
+}
+
+.thumbnailWrapper {
+  width: 100%;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: var(--admin-bg);
+}
+
+.thumbnailLink {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.thumbnailFallback {
+  display: flex;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--admin-text-muted);
+}
+
+.cardBody {
+  margin-top: 0.75rem;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  color: var(--admin-text);
+}
+
+.cardLabel {
+  color: var(--admin-text);
+  font-weight: 600;
+}
+
+.checkboxControl,
+.checkbox {
+  @include checkbox-base;
+}
+
+.cardLink {
+  color: var(--admin-text);
+  text-decoration-color: var(--admin-link-underline);
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.cardMeta,
+.cardChannel,
+.cardHint {
+  font-size: 0.75rem;
+  color: var(--admin-text-muted);
+}
+
+/* ------- メッセージ・ボタン ------- */
+.errorMessage {
+  border-radius: 0.75rem;
+  border: 1px solid var(--admin-error-border);
+  background: var(--admin-error-bg);
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: var(--admin-error-text);
+}
+
+.feedbackCard {
+  @include message-card;
+}
+
+.headerText {
+  color: var(--admin-text-light);
+}
+
+.metaText {
+  font-size: 0.875rem;
+  color: var(--admin-text-muted);
+}
+
+.primaryButton {
+  @include primary-button;
+}
+
+/* ------- フッター／ページング ------- */
+.desktopFooterCard {
+  border-radius: 1rem;
+  background: var(--admin-surface-strong);
+  padding: 1.25rem 1.5rem;
+}
+
+.pagerSection {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.9rem;
+  color: var(--admin-text-light);
+}
+
+.pagerControls {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.pagerControl {
+  @include circular-control;
+}
+
+.pagerControlDisabled {
+  @include circular-control;
+  color: var(--admin-disabled);
+  cursor: default;
+  background-color: var(--admin-surface-disabled);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--admin-disabled);
+    background-color: var(--admin-surface-disabled);
+  }
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--admin-text-light);
+}
+
+.pageInfoBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.25rem;
+}
+
+.pageInfo {
+  font-size: 0.875rem;
+  color: var(--admin-muted-text);
+}
+
+.controls {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.control {
+  @include circular-control;
+}
+
+.controlDisabled {
+  @include circular-control;
+  color: var(--admin-disabled);
+  cursor: default;
+  background-color: var(--admin-surface-disabled);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--admin-disabled);
+    background-color: var(--admin-surface-disabled);
+  }
+}
