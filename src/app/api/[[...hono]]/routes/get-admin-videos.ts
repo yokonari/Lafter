@@ -5,7 +5,23 @@ import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
-const MAX_LIMIT = 10;
+const DESKTOP_LIMIT = 50;
+const NON_DESKTOP_LIMIT = 10;
+const MAX_LIMIT = 100;
+
+const DESKTOP_PATTERN = /(windows nt|macintosh|x11|linux x86_64)/i;
+const MOBILE_PATTERN = /(iphone|ipad|ipod|android|mobile)/i;
+
+function resolveDefaultLimit(userAgentHeader: string | null): number {
+  const ua = userAgentHeader ?? "";
+  if (ua && MOBILE_PATTERN.test(ua)) {
+    return NON_DESKTOP_LIMIT;
+  }
+  if (ua && DESKTOP_PATTERN.test(ua)) {
+    return DESKTOP_LIMIT;
+  }
+  return NON_DESKTOP_LIMIT;
+}
 
 export function registerGetAdminVideos(app: Hono<AdminEnv>) {
   app.get("/admin/videos", async (c) => {
@@ -42,6 +58,22 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       }
     }
 
+    // PC からのアクセスなら 50 件、それ以外は 10 件を既定値に据えつつ、limit パラメータで上書き可能にします。
+    const rawLimit = c.req.query("limit");
+    const userAgent = c.req.header("user-agent") ?? null;
+    const defaultLimit = resolveDefaultLimit(userAgent);
+    let limit = defaultLimit;
+    if (rawLimit !== undefined) {
+      const parsedLimit = Number(rawLimit);
+      if (!Number.isFinite(parsedLimit) || parsedLimit <= 0 || parsedLimit > MAX_LIMIT) {
+        return c.json(
+          { message: `limit は 1〜${MAX_LIMIT} の整数で指定してください。` },
+          400,
+        );
+      }
+      limit = Math.floor(parsedLimit);
+    }
+
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
 
@@ -73,10 +105,10 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(whereExpression)
       .orderBy(desc(videos.createdAt))
-      .limit(MAX_LIMIT)
-      .offset((page - 1) * MAX_LIMIT);
+      .limit(limit)
+      .offset((page - 1) * limit);
 
-    const hasNext = rows.length === MAX_LIMIT;
+    const hasNext = rows.length === limit;
 
     const payload = rows.map((row) => ({
       id: row.id,
@@ -91,7 +123,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       {
         videos: payload,
         page,
-        limit: MAX_LIMIT,
+        limit,
         hasNext,
       },
       200,

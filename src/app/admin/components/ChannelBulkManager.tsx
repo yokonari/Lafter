@@ -312,8 +312,8 @@ export function ChannelBulkManager({
         />
       </div>
 
-      <div className="hidden lg:block lg:fixed lg:bottom-6 lg:left-1/2 lg:z-30 lg:w-full lg:max-w-5xl lg:-translate-x-1/2">
-        {/* 大画面では更新ボタンとページングを同列にまとめ、一覧操作を画面下部で完結できるように固定表示します。 */}
+      <div className="hidden lg:block">
+        {/* 大画面では更新ボタンとページングを同列にまとめ、一覧操作の文脈を崩さずに表示します。 */}
         <div className="rounded-2xl bg-white px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-6">
             <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">

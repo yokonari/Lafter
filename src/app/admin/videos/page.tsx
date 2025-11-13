@@ -951,8 +951,8 @@ function AdminVideosPageContent() {
             />
           </div>
 
-          <div className="hidden lg:block lg:fixed lg:bottom-6 lg:left-1/2 lg:z-30 lg:w-full lg:max-w-5xl lg:-translate-x-1/2">
-            {/* 大画面では更新ボタンとページングを同列にまとめ、操作フローを見通し良くしつつ画面下部へ固定表示します。 */}
+          <div className="hidden lg:block">
+            {/* 大画面では更新ボタンとページングを同列にまとめ、操作フローを見通し良く保ちます。 */}
             <div className="rounded-2xl bg-white px-5 py-4">
               <div className="flex flex-wrap items-center justify-between gap-6">
                 <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">

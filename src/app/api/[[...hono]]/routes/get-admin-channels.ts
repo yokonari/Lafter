@@ -5,7 +5,23 @@ import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
-const LIMIT = 10;
+const DESKTOP_LIMIT = 50;
+const NON_DESKTOP_LIMIT = 10;
+const MAX_LIMIT = 100;
+
+const DESKTOP_PATTERN = /(windows nt|macintosh|x11|linux x86_64)/i;
+const MOBILE_PATTERN = /(iphone|ipad|ipod|android|mobile)/i;
+
+function resolveDefaultLimit(userAgentHeader: string | null): number {
+  const ua = userAgentHeader ?? "";
+  if (ua && MOBILE_PATTERN.test(ua)) {
+    return NON_DESKTOP_LIMIT;
+  }
+  if (ua && DESKTOP_PATTERN.test(ua)) {
+    return DESKTOP_LIMIT;
+  }
+  return NON_DESKTOP_LIMIT;
+}
 
 export function registerGetAdminChannels(app: Hono<AdminEnv>) {
   app.get("/admin/channels", async (c) => {
@@ -25,6 +41,22 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       );
     }
     const channelStatus = parsedStatus;
+
+    // クライアントの User-Agent と limit パラメータを丁寧に判定し、PC なら 50 件・それ以外は 10 件を既定値とします。
+    const rawLimit = c.req.query("limit");
+    const userAgent = c.req.header("user-agent") ?? null;
+    const defaultLimit = resolveDefaultLimit(userAgent);
+    let limit = defaultLimit;
+    if (rawLimit !== undefined) {
+      const parsedLimit = Number(rawLimit);
+      if (!Number.isFinite(parsedLimit) || parsedLimit <= 0 || parsedLimit > MAX_LIMIT) {
+        return c.json(
+          { message: `limit は 1〜${MAX_LIMIT} の整数で指定してください。` },
+          400,
+        );
+      }
+      limit = Math.floor(parsedLimit);
+    }
 
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
@@ -49,10 +81,10 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
 
     const rows = await baseQuery
       .orderBy(keyword ? asc(channels.name) : desc(channels.createdAt))
-      .limit(LIMIT)
-      .offset((page - 1) * LIMIT);
+      .limit(limit)
+      .offset((page - 1) * limit);
 
-    const hasNext = rows.length === LIMIT;
+    const hasNext = rows.length === limit;
 
     const latestVideoByChannel = new Map<string, { title: string; videoId: string | null }>();
     if (rows.length > 0) {
@@ -92,7 +124,7 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       {
         channels: payload,
         page,
-        limit: LIMIT,
+        limit,
         hasNext,
       },
       200,
