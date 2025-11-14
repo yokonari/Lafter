@@ -2,7 +2,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { and, asc, eq } from "drizzle-orm";
 import { CLASSIFIER_THRESHOLD, classifyTitle } from "@/lib/video-classifier";
 import { getOpenAIClient } from "@/lib/openai-client";
-import { classifyTitleWithLLM, type LLMClassification } from "@/lib/llm-classifier";
+import { classifyTitleWithLLM } from "@/lib/llm-classifier";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "@/app/api/[[...hono]]/context";
 import { verifyApiSecret } from "@/lib/api-secret";
@@ -95,6 +95,7 @@ export async function POST(request: Request) {
           nextStatus,
         });
       } catch (error) {
+        console.error("[api/classify] LLM 判定中にエラーが発生しました。", error);
         llmResults.push({
           title: video.title,
           label: "false",

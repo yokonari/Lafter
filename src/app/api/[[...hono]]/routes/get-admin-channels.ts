@@ -113,7 +113,7 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       id: row.id,
       url: `https://www.youtube.com/channel/${row.id}`,
       name: row.name,
-      status: row.status ?? 0,
+      status: row.status ?? 2,
       keyword: row.keyword ?? "",
       latest_video_title: latestVideoByChannel.get(row.id)?.title ?? null,
       latest_video_id: latestVideoByChannel.get(row.id)?.videoId ?? null,

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { motion } from "motion/react";
 import type { VideoItem } from "@/lib/videoService";
 
@@ -23,14 +24,14 @@ export function VideoCard({ video, onSelect }: VideoCardProps) {
         }
       }}
     >
-      <div className="relative overflow-hidden rounded-lg border-0">
-        <img
+      <div className="relative overflow-hidden rounded-lg border-0" style={{ aspectRatio: "16 / 9" }}>
+        <Image
           src={video.thumbnail}
           alt={video.title}
-          className="w-full h-auto border-0 block"
-          loading="lazy"
+          fill
+          sizes="(max-width: 768px) 50vw, 25vw"
+          className="object-cover"
         />
-
       </div>
 
       <div className="mt-2">
