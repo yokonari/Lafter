@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ListFooter } from "./ListFooter";
 import { toast } from "react-toastify";
@@ -34,8 +35,6 @@ type ChannelSelection = {
 };
 
 const STATUS_OPTIONS = [
-  { value: "", label: "変更しない" },
-  { value: "0", label: "待ち" },
   { value: "1", label: "✅ OK" },
   { value: "2", label: "⛔ NG" },
 ];
@@ -89,16 +88,13 @@ export function ChannelBulkManager({
   };
 
   const handleSubmit = async () => {
-    const items = Object.entries(selections)
+      const items = Object.entries(selections)
       .filter(([, entry]) => entry.selected)
       .map(([id, entry]) => {
         const payload: Record<string, unknown> = { id };
         const isOfficial = entry.status === "1";
 
-        // ステータスが OK (1) の場合のみ、追加情報を丁寧に送信いたします。
-        if (entry.status !== "") {
-          payload.channel_status = Number(entry.status);
-        }
+        payload.channel_status = Number(entry.status);
         if (isOfficial && entry.keywordId.trim() !== "") {
           payload.keyword_id = Number(entry.keywordId);
         }
@@ -406,11 +402,12 @@ function renderLatestVideoEmbed(channel: ChannelRow) {
         className={styles.thumbnailLink}
         aria-label={`${channel.name} の最新動画を開く`}
       >
-        <img
+        <Image
           src={thumbnailUrl}
           alt={channel.latestVideoTitle ?? `${channel.name} の最新動画`}
-          className="h-full w-full object-cover"
-          loading="lazy"
+          fill
+          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
+          className={styles.thumbnailImage}
         />
       </a>
     );

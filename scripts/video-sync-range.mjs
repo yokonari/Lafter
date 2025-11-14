@@ -339,7 +339,7 @@ async function main() {
   if (args.csv && args.csv !== "true") {
     console.log(`CSV     : ${args.csv}`);
   }
-  const apiCallLimit = 15;
+  const apiCallLimit = 30;
   const tasksToDisplay = tasks.slice(0, apiCallLimit);
   const taskSummary = tasksToDisplay
     .map((task) => task.artist)

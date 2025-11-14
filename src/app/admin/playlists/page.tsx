@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
@@ -519,11 +520,12 @@ function renderPlaylistThumbnail(playlist: AdminPlaylist) {
         className={styles.thumbnailLink}
         aria-label={`${playlist.title} の代表動画を開く`}
       >
-        <img
+        <Image
           src={thumbnailUrl}
           alt={playlist.title}
-          className="h-full w-full object-cover"
-          loading="lazy"
+          fill
+          sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
+          className={styles.thumbnailImage}
         />
       </a>
     );

@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import {
   Suspense,
   useCallback,
@@ -134,8 +135,10 @@ function AdminVideosPageContent() {
   const [searchSelectionDefaults, setSearchSelectionDefaults] = useState<SelectionDefaults | null>(null);
   const searchKeywordRef = useRef<string | null>(null);
   const [activeShortcut, setActiveShortcut] = useState<ShortcutKey | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string>("0"); // 初期状態では未分類のみを表示し、必要に応じて他カテゴリへ切り替えます。
+  const [categoryFilter, setCategoryFilter] = useState<string>("all"); // 初期状態では全カテゴリを表示し、必要に応じて他カテゴリへ切り替えます。
   const categoryFilterRef = useRef(categoryFilter);
+  const [autoCategorizing, setAutoCategorizing] = useState(false);
+  const [autoCategorizeLimit, setAutoCategorizeLimit] = useState(500);
   useEffect(() => {
     // フィルタ変更時の最新値を保持し、API 再取得時に取りこぼさないようにいたします。
     categoryFilterRef.current = categoryFilter;
@@ -436,7 +439,7 @@ function AdminVideosPageContent() {
         return next;
       });
     },
-    [filteredVideos],
+    [filteredVideos, videoStatusFilter],
   );
 
   const handleShortcutSearch = useCallback(
@@ -508,6 +511,35 @@ function AdminVideosPageContent() {
     ],
   );
 
+  const runAutoCategorization = useCallback(async () => {
+    setAutoCategorizing(true);
+    try {
+      const response = await fetch("/api/admin/videos/auto-categorize", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ limit: autoCategorizeLimit }),
+      });
+      const result = (await response.json()) as { scanned?: number; updated?: number; message?: string };
+      if (!response.ok) {
+        const message =
+          typeof result?.message === "string" ? result.message : "自動分類の実行に失敗しました。";
+        toast.error(message);
+        setAutoCategorizing(false);
+        return;
+      }
+      toast.success(`自動分類を実行しました (検査 ${result.scanned ?? 0} 件 / 更新 ${result.updated ?? 0} 件)`);
+      await loadVideos(currentPage, videoStatusFilter);
+    } catch (error) {
+      const fallback =
+        error instanceof Error ? error.message : "自動分類の実行中にエラーが発生しました。";
+      toast.error(fallback);
+    } finally {
+      setAutoCategorizing(false);
+    }
+  }, [autoCategorizeLimit, currentPage, loadVideos, videoStatusFilter]);
+
   const handleShortcutSelectChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
       const value = event.target.value as "" | ShortcutKey;
@@ -556,6 +588,7 @@ function AdminVideosPageContent() {
     router.push(isNgFilter ? defaultFilterHref : ngFilterHref);
   };
   const handleAiOkFilterClick = () => {
+    setCategoryFilter("all");
     router.push(isAiOkFilter ? defaultFilterHref : aiOkFilterHref);
   };
   const handleAiNgFilterClick = () => {
@@ -741,14 +774,14 @@ function AdminVideosPageContent() {
             </button>
             <button
               type="button"
-              onClick={() => router.push(isAiOkFilter ? defaultFilterHref : aiOkFilterHref)}
+              onClick={handleAiOkFilterClick}
               className={`${styles.filterButton} ${isAiOkFilter ? styles.buttonActiveGreen : ""}`}
             >
               AI-OK
             </button>
             <button
               type="button"
-              onClick={() => router.push(isAiNgFilter ? defaultFilterHref : aiNgFilterHref)}
+              onClick={handleAiNgFilterClick}
               className={`${styles.filterButton} ${isAiNgFilter ? styles.buttonActiveAmber : ""}`}
             >
               AI-NG
@@ -770,6 +803,31 @@ function AdminVideosPageContent() {
           </div>
           {/* よく使う漫才・コント・ネタ検索をドロップダウンで提供し、選択と解除を簡潔にします。 */}
           <div className="flex flex-wrap items-center gap-2">
+            <label className="sr-only" htmlFor="auto-categorize-limit">
+              自動分類の対象件数
+            </label>
+            <select
+              id="auto-categorize-limit"
+              value={autoCategorizeLimit}
+              onChange={(event) => setAutoCategorizeLimit(Number(event.target.value))}
+              className={`${styles.selectControl} ${styles.filterSelect}`}
+              disabled={autoCategorizing || loading}
+              aria-label="自動分類の対象件数を選択"
+            >
+              {[30, 50, 100, 200, 300, 400, 500].map((option) => (
+                <option key={option} value={option}>
+                  {option} 件
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={runAutoCategorization}
+              className={styles.primaryButton}
+              disabled={autoCategorizing || loading}
+            >
+              {autoCategorizing ? "自動分類中…" : "自動分類を実行"}
+            </button>
             <label className="sr-only" htmlFor="shortcut-select">
               ショートカット検索
             </label>
@@ -1102,14 +1160,15 @@ function renderEmbeddedVideo(video: AdminVideo) {
       href={`https://www.youtube.com/watch?v=${videoId}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="block h-full w-full"
+      className={styles.thumbnailLink}
       aria-label={`${video.title} を開く`}
     >
-      <img
+      <Image
         src={thumbnailUrl}
         alt={video.title}
-        className="h-full w-full object-cover"
-        loading="lazy"
+        fill
+        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
+        className={styles.thumbnailImage}
       />
     </a>
   );

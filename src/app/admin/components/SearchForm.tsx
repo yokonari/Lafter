@@ -63,6 +63,7 @@ export function SearchForm<T>({
 
   return (
     <section className={styles.searchSection}>
+      <h3 className="sr-only">{title}</h3>
       <form onSubmit={handleSubmit} className={styles.form}>
         {/* ダークトーンの入力フィールドで統一し、操作時も視認性を保ちます。 */}
         <div className={styles.inputWrapper}>

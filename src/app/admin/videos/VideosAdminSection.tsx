@@ -40,8 +40,6 @@ export function VideosAdminSection({
     });
   }, [initialChannels, currentPage, hasPrev, hasNext, prevHref, nextHref]);
 
-  const handleResults = () => {};
-
   return (
     <ChannelBulkManager
       channels={channels}

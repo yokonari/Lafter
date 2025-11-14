@@ -391,6 +391,7 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 }
 
 .thumbnailWrapper {
+  position: relative;
   width: 100%;
   overflow: hidden;
   border-radius: 0.75rem;
@@ -398,9 +399,14 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 }
 
 .thumbnailLink {
+  position: relative;
   display: block;
   height: 100%;
   width: 100%;
+}
+
+.thumbnailImage {
+  object-fit: cover;
 }
 
 .thumbnailFallback {
