@@ -405,6 +405,19 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   width: 100%;
 }
 
+.thumbnailButton {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+
+  &:focus-visible {
+    outline: 2px solid var(--admin-accent);
+    outline-offset: 2px;
+  }
+}
+
 .thumbnailImage {
   object-fit: cover;
 }

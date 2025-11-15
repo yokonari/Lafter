@@ -11,6 +11,8 @@ import {
   type ChangeEvent,
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { VideoDialog } from "@/components/user/VideoDialog";
+import type { VideoItem } from "@/lib/videoService";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { SearchForm } from "../components/SearchForm";
 import { ListFooter } from "../components/ListFooter";
@@ -113,6 +115,7 @@ function AdminVideosPageContent() {
   const [activeShortcut, setActiveShortcut] = useState<ShortcutKey | null>(null);
   const [autoCategorizing, setAutoCategorizing] = useState(false);
   const [autoCategorizeLimit, setAutoCategorizeLimit] = useState(500);
+  const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
   const resolveStatusValue = (value?: number | string | null) => {
     const numeric =
       typeof value === "string"
@@ -125,6 +128,19 @@ function AdminVideosPageContent() {
     }
     return "1";
   };
+  // サムネイル押下時にモーダル動画を表示させる制御を丁寧に用意します。
+  const handleThumbnailDialogOpen = useCallback((video: AdminVideo, videoId: string) => {
+    const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+    setDialogVideo({
+      id: videoId,
+      videoId,
+      title: video.title,
+      thumbnail: thumbnailUrl,
+    });
+  }, []);
+  const handleDialogClose = useCallback(() => {
+    setDialogVideo(null);
+  }, []);
 
   const createInitialSelections = useCallback(
     (rows: AdminVideo[], defaults?: SelectionDefaults) => {
@@ -661,7 +677,8 @@ function AdminVideosPageContent() {
   };
 
   return (
-    <AdminTabsLayout activeTab="videos">
+    <>
+      <AdminTabsLayout activeTab="videos">
       {errorMessage ? (
         <p className={styles.errorMessage}>
           {errorMessage}
@@ -781,7 +798,7 @@ function AdminVideosPageContent() {
                       className={styles.thumbnailWrapper}
                       style={{ aspectRatio: "16 / 9" }}
                     >
-                      {renderEmbeddedVideo(video)}
+                      {renderEmbeddedVideo(video, handleThumbnailDialogOpen)}
                     </div>
                     <div className={styles.cardBody}>
                       <div className="flex items-start justify-between gap-3">
@@ -969,7 +986,10 @@ function AdminVideosPageContent() {
           </div>
         </div>
       )}
-    </AdminTabsLayout>
+      </AdminTabsLayout>
+      {/* サムネイル押下で指定された動画をその場で再生できるようモーダルを常駐させます。 */}
+      <VideoDialog video={dialogVideo} onClose={handleDialogClose} />
+    </>
   );
 }
 
@@ -1006,7 +1026,10 @@ function extractYouTubeVideoId(url: string): string | null {
   return null;
 }
 
-function renderEmbeddedVideo(video: AdminVideo) {
+function renderEmbeddedVideo(
+  video: AdminVideo,
+  openDialog: (video: AdminVideo, videoId: string) => void,
+) {
   const videoId = extractYouTubeVideoId(video.url);
   if (!videoId) {
     return (
@@ -1021,14 +1044,13 @@ function renderEmbeddedVideo(video: AdminVideo) {
     );
   }
   const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
-  // YouTube 埋め込みの代わりに軽量なサムネイルを表示し、クリックで本編へ遷移できるようにします。
+  // 動画詳細はモーダルで再生するため、ボタン押下をトリガーにダイアログを開きます。
   return (
-    <a
-      href={`https://www.youtube.com/watch?v=${videoId}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={styles.thumbnailLink}
-      aria-label={`${video.title} を開く`}
+    <button
+      type="button"
+      onClick={() => openDialog(video, videoId)}
+      className={`${styles.thumbnailLink} ${styles.thumbnailButton}`}
+      aria-label={`${video.title} を再生`}
     >
       <Image
         src={thumbnailUrl}
@@ -1037,6 +1059,6 @@ function renderEmbeddedVideo(video: AdminVideo) {
         sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
         className={styles.thumbnailImage}
       />
-    </a>
+    </button>
   );
 }
