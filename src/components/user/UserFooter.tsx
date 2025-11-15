@@ -19,7 +19,7 @@ export function UserFooter() {
           </a>
         </div>
         <div className={styles.footerBadge}>
-          <a href="https://www.youtube.com/" target="_blank" rel="noreferrer" aria-label="YouTube">
+          <a href="https://youtube.com/" target="_blank" rel="noreferrer" aria-label="YouTube">
             <Image
               src="/developed-with-youtube-sentence-case-light.png"
               alt="Developed with YouTube"
