@@ -837,33 +837,42 @@ function AdminVideosPageContent() {
                       </div>
                       {/* タイトル群をサムネイル直下へ寄せたため、操作コンポーネントも同じラッパー内で整然と並べます。 */}
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <div className="w-full">
-                            <label htmlFor={`video-status-${video.id}`} className="sr-only">
-                              動画ステータス
-                            </label>
-                            <select
-                              id={`video-status-${video.id}`}
-                              className={`${styles.selectControl} ${styles.cardSelect}`}
-                              value={entry.videoStatus}
-                              onChange={(event) =>
-                                setSelections((prev) => ({
-                                  ...prev,
-                                  [video.id]: {
-                                    ...entry,
-                                    videoStatus: event.target.value,
-                                  },
-                                }))
-                              }
-                            >
-                              {VIDEO_STATUS_OPTIONS.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
+                        {/* ステータス選択をラジオボタンへ切り替え、ワンタップで判定を付けやすくします。 */}
+                        <fieldset className={styles.radioGroup}>
+                          <legend className="sr-only">動画ステータス</legend>
+                          <div className={styles.radioOptions}>
+                            {VIDEO_STATUS_OPTIONS.map((option) => {
+                              const inputId = `video-status-${video.id}-${option.value}`;
+                              const isChecked = entry.videoStatus === option.value;
+                              return (
+                                <label
+                                  key={option.value}
+                                  htmlFor={inputId}
+                                  className={`${styles.radioOption} ${isChecked ? styles.radioOptionActive : ""}`}
+                                >
+                                  <input
+                                    type="radio"
+                                    id={inputId}
+                                    name={`video-status-${video.id}`}
+                                    className={styles.radioInput}
+                                    value={option.value}
+                                    checked={isChecked}
+                                    onChange={(event) =>
+                                      setSelections((prev) => ({
+                                        ...prev,
+                                        [video.id]: {
+                                          ...entry,
+                                          videoStatus: event.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                  <span>{option.label}</span>
+                                </label>
+                              );
+                            })}
                           </div>
-                        </div>
+                        </fieldset>
                       </div>
                     </div>
                   </article>
