@@ -7,6 +7,7 @@ import { HomeSections } from "./HomeSections";
 import { SearchResults } from "./SearchResults";
 import { UserFooter } from "./UserFooter";
 import { VideoDialog } from "./VideoDialog";
+import styles from "./userTheme.module.scss";
 
 export function UserHome() {
   const [searchInput, setSearchInput] = useState("");
@@ -33,7 +34,8 @@ export function UserHome() {
   }, []);
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    // 管理画面と同様に全体をダークトーンで包み込み、視覚的な統一感を丁寧に確保します。
+    <div className={styles.userLayout}>
       <UserHeader
         query={searchInput}
         onQueryChange={setSearchInput}
@@ -41,7 +43,9 @@ export function UserHome() {
         onReset={handleReset}
       />
 
-      <main className="flex-1 bg-white pt-[73px]">
+      {/* メインも暗めの背景に切り替え、上部ヘッダーとの境界を自然に馴染ませます。 */}
+      {/* ヘッダー高さに合わせて上部余白も56px（pt-14）に揃え、重なりを防ぎます。 */}
+      <main className={styles.main}>
         {isSearching && activeQuery ? (
           <SearchResults query={activeQuery} onVideoSelect={handleVideoSelect} />
         ) : (

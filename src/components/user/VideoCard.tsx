@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { motion } from "motion/react";
 import type { VideoItem } from "@/lib/videoService";
+import styles from "./userTheme.module.scss";
 
 type VideoCardProps = {
   video: VideoItem;
@@ -13,7 +14,8 @@ export function VideoCard({ video, onSelect }: VideoCardProps) {
     <motion.div
       whileHover={{ scale: 1.05, y: -4 }}
       transition={{ duration: 0.2 }}
-      className="cursor-pointer block border-0 bg-white outline-none focus-visible:outline-none rounded-lg overflow-hidden"
+      // ダークトーンに馴染むカードにホバー時の浮遊感を丁寧に加えています。
+      className={styles.videoCard}
       onClick={() => onSelect(video)}
       role="button"
       tabIndex={0}
@@ -24,18 +26,18 @@ export function VideoCard({ video, onSelect }: VideoCardProps) {
         }
       }}
     >
-      <div className="relative overflow-hidden rounded-lg border-0" style={{ aspectRatio: "16 / 9" }}>
+      <div className={styles.thumbnail}>
         <Image
           src={video.thumbnail}
           alt={video.title}
           fill
           sizes="(max-width: 768px) 50vw, 25vw"
-          className="object-cover"
+          className={styles.thumbnailImage}
         />
       </div>
 
-      <div className="mt-2">
-        <h3 className="line-clamp-2 text-sm font-medium text-slate-900">
+      <div className={styles.cardBody}>
+        <h3 className={styles.cardTitle}>
           {video.title}
         </h3>
       </div>

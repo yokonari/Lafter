@@ -5,6 +5,7 @@
 import { useEffect, useState } from "react";
 import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
+import styles from "./userTheme.module.scss";
 
 type HomeSectionsProps = {
   onVideoSelect: (video: VideoItem) => void;
@@ -81,25 +82,27 @@ export function HomeSections({ onVideoSelect }: HomeSectionsProps) {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    // セクション全体でも暗めの背景に寄り添うようカラー調整を丁寧に行います。
+    // 上下16px（py-4）で呼吸感を確保しつつ、ヘッダー/フッターとのバランスを整えます。
+    <div className={styles.sectionContainer}>
       {(newLoading || randomLoading) && (
-        <p className="mb-6 text-sm text-slate-500">
+        <p className={styles.statusText}>
           現在のおすすめ動画を読み込んでいます…
         </p>
       )}
 
       {(newError || randomError) && (
-        <p className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+        <p className={styles.errorCard}>
           {newError ?? randomError}
         </p>
       )}
 
       {/* 新着動画セクション */}
-      <section className="mb-12">
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-slate-900">新着ネタ動画</h2>
+      <section className={styles.section}>
+        <div className={styles.sectionHeadingWrap}>
+          <h2 className={styles.sectionHeading}>最近</h2>
         </div>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <div className={styles.sectionGrid}>
           {newVideos.map((video) => (
             <VideoCard
               key={`new-${video.id}`}
@@ -112,10 +115,10 @@ export function HomeSections({ onVideoSelect }: HomeSectionsProps) {
 
       {/* ランダム動画セクション */}
       <section>
-        <div className="mb-4">
-          <h2 className="text-xl font-semibold text-slate-900">ランダム動画</h2>
+        <div className={styles.sectionHeadingWrap}>
+          <h2 className={styles.sectionHeading}>ランダム</h2>
         </div>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-5">
+        <div className={styles.sectionGrid}>
           {randomVideos.map((video) => (
             <VideoCard
               key={`random-${video.id}`}

@@ -1,0 +1,386 @@
+/* ユーザー画面のダークトーンを１ファイルで丁寧に管理するテーマスタイルです。 */
+
+// カラーパレット（ダークトーンに合わせた控えめな彩度で統一）
+$user-bg: #020617;
+$user-surface: #0b1224;
+$user-surface-muted: rgba(11, 18, 36, 0.9);
+$user-surface-hover: #0f172a;
+$user-text: #e2e8f0;
+$user-text-muted: #94a3b8;
+$user-border: #1f2937;
+$user-accent: #fbbf24;
+$user-accent-strong: #f59e0b;
+$user-shadow: rgba(0, 0, 0, 0.2);
+$user-error-border: rgba(248, 113, 113, 0.5);
+$user-error-bg: rgba(69, 10, 10, 0.6);
+$user-error-text: #fecdd3;
+$user-card-overlay: rgba(2, 6, 23, 0.95);
+
+.userLayout {
+  --user-bg: #{$user-bg};
+  --user-surface: #{$user-surface};
+  --user-surface-muted: #{$user-surface-muted};
+  --user-surface-hover: #{$user-surface-hover};
+  --user-text: #{$user-text};
+  --user-text-muted: #{$user-text-muted};
+  --user-border: #{$user-border};
+  --user-accent: #{$user-accent};
+  --user-accent-strong: #{$user-accent-strong};
+  --user-shadow: #{$user-shadow};
+  --user-error-border: #{$user-error-border};
+  --user-error-bg: #{$user-error-bg};
+  --user-error-text: #{$user-error-text};
+  --user-card-overlay: #{$user-card-overlay};
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--user-bg);
+  color: var(--user-text);
+}
+
+.main {
+  flex: 1;
+  background: var(--user-bg);
+  padding-top: 56px; // ヘッダー高さを56pxで固定し、重なりを防止
+  padding-bottom: 0;
+}
+
+/* ------- ヘッダー ------- */
+.header {
+  position: fixed;
+  inset: 0 0 auto 0; // 左右を0で締めて全幅に広げ、中央寄せの内側コンテナが機能するようにします。
+  top: 0;
+  z-index: 40;
+  height: 3.5rem; // 56px
+  border-bottom: 1px solid var(--user-border);
+  background-color: var(--user-card-overlay);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+}
+
+.headerInner {
+  max-width: 72rem; // Tailwind 6xl 相当
+  width: 100%;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.brandButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--user-accent);
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--user-accent-strong);
+  }
+}
+
+.brandLabel {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: inherit;
+}
+
+.searchArea {
+  flex: 1;
+  max-width: 40rem; // Tailwind max-w-2xl 相当
+}
+
+.searchInput {
+  width: 100%;
+  height: 2.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: var(--user-surface-muted);
+  color: var(--user-text);
+  font-size: 0.95rem;
+  padding: 0 1rem;
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background-color 0.2s ease;
+
+  &::placeholder {
+    color: var(--user-text-muted);
+  }
+
+  &:focus {
+    border-color: var(--user-accent);
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
+    background: var(--user-surface);
+  }
+}
+
+/* ------- セクション ------- */
+.sectionContainer {
+  width: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1rem 1rem;
+  color: var(--user-text);
+}
+
+.searchContainer {
+  @extend .sectionContainer;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.statusText {
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--user-text-muted);
+}
+
+.errorCard {
+  margin-bottom: 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--user-error-border);
+  background: var(--user-error-bg);
+  padding: 0.75rem 1rem;
+  font-size: 0.9rem;
+  color: var(--user-error-text);
+}
+
+.section {
+  margin-bottom: 1.5rem; // 24px: セクション間隔を半分に調整
+}
+
+.sectionHeadingWrap {
+  margin-bottom: 1rem;
+}
+
+.sectionHeading {
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: var(--user-text);
+}
+
+.sectionGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.searchGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  @media (min-width: 1280px) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.searchHeader {
+  margin-bottom: 1.5rem;
+}
+
+.searchTitle {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--user-text);
+}
+
+.searchMeta {
+  font-size: 0.9rem;
+  color: var(--user-text-muted);
+}
+
+.loadMoreWrap {
+  margin-top: 2rem;
+  display: flex;
+  justify-content: center;
+}
+
+.loadMoreButton {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 9999px;
+  border: 1px solid rgba(148, 163, 184, 0.6);
+  background: rgba(11, 18, 36, 0.6);
+  color: var(--user-text);
+  padding: 0.65rem 1.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background-color 0.2s ease;
+
+  &:hover {
+    border-color: var(--user-accent);
+    color: var(--user-accent);
+    background: rgba(15, 23, 42, 0.8);
+  }
+}
+
+/* ------- カード ------- */
+.videoCard {
+  cursor: pointer;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  background: rgba(15, 23, 42, 0.75);
+  box-shadow: 0 10px 24px var(--user-shadow);
+  outline: none;
+  transition: box-shadow 0.2s ease;
+
+  &:focus-visible {
+    outline: 2px solid var(--user-accent);
+    outline-offset: 2px;
+  }
+}
+
+.thumbnail {
+  position: relative;
+  overflow: hidden;
+  border: 0;
+  border-radius: 0.75rem;
+  aspect-ratio: 16 / 9;
+  background: var(--user-surface);
+}
+
+.thumbnailImage {
+  object-fit: cover;
+}
+
+.cardBody {
+  margin-top: 0.5rem;
+  padding: 0 0.25rem 0.5rem;
+}
+
+.cardTitle {
+  color: var(--user-text);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ------- フッター ------- */
+.footer {
+  margin-top: 4rem;
+  border-top: 1px solid var(--user-border);
+  background: var(--user-card-overlay);
+  color: var(--user-text-muted);
+}
+
+.footerInner {
+  max-width: 72rem;
+  width: 100%;
+  margin: 0 auto;
+  padding: 1.5rem 1rem; // py-6 相当
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2rem;
+  font-size: 0.9rem;
+}
+
+.footerLink {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--user-accent);
+  }
+}
+
+.footerCopy {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--user-text-muted);
+}
+
+/* ------- 動画モーダル ------- */
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 2rem 0;
+
+  @media (min-width: 640px) {
+    padding: 2rem;
+  }
+}
+
+.dialogContainer {
+  position: relative;
+  width: 100%;
+  max-width: 64rem;
+  overflow: hidden;
+  background: #000;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.55);
+}
+
+.dialogClose {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  border: none;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+}
+
+.dialogFrameWrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.dialogIframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
+import styles from "./userTheme.module.scss";
 
 type SearchResultsProps = {
   query: string;
@@ -57,36 +58,26 @@ export function SearchResults({ query, onVideoSelect }: SearchResultsProps) {
   const hasMore = visibleCount < results.length;
 
   return (
-    <div className="mx-auto w-full max-w-6xl px-4 py-8">
-      <div className="mb-6 space-y-2">
-        <h1 className="text-2xl font-semibold text-slate-900">
-          「{query}」の検索結果
-        </h1>
-        <p className="text-sm text-slate-500">
-          {results.length}件の結果が見つかりました
-        </p>
-      </div>
+    // 検索結果ページもダークトーンへ合わせ、各状態メッセージの色味を丁寧に調整します。
+    <div className={styles.searchContainer}>
+      <div className={styles.searchHeader} />
 
       {loading && (
-        <p className="mb-6 text-sm text-slate-500">
-          検索結果を読み込んでいます…
-        </p>
+        <p className={styles.statusText}>検索結果を読み込んでいます…</p>
       )}
 
       {error && (
-        <p className="mb-6 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-          {error}
-        </p>
+        <p className={styles.errorCard}>{error}</p>
       )}
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      <div className={styles.searchGrid}>
         {displayedResults.map((video) => (
           <VideoCard key={video.id} video={video} onSelect={onVideoSelect} />
         ))}
       </div>
 
       {hasMore && (
-        <div className="mt-8 flex justify-center">
+        <div className={styles.loadMoreWrap}>
           <button
             type="button"
             onClick={() =>
@@ -94,7 +85,7 @@ export function SearchResults({ query, onVideoSelect }: SearchResultsProps) {
                 Math.min(prev + 20, results.length),
               )
             }
-            className="inline-flex items-center rounded-full border border-slate-300 px-6 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            className={styles.loadMoreButton}
           >
             もっと見る（残り{results.length - visibleCount}件）
           </button>
