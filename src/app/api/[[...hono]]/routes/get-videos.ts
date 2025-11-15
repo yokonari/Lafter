@@ -149,6 +149,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const videosPayload = videoRows.map((row) => ({
       url: `https://www.youtube.com/watch?v=${row.id}`,
       title: row.title,
+      channel_name: row.channelName,
       published_at: toUnixTime(row.publishedAt),
     }));
 

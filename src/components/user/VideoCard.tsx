@@ -6,9 +6,10 @@ import styles from "./userTheme.module.scss";
 type VideoCardProps = {
   video: VideoItem;
   onSelect: (video: VideoItem) => void;
+  onChannelSelect: (channelName: string) => void;
 };
 
-export function VideoCard({ video, onSelect }: VideoCardProps) {
+export function VideoCard({ video, onSelect, onChannelSelect }: VideoCardProps) {
   // サンプルと同じホバー挙動（scale + y offset）を motion で実装
   return (
     <motion.div
@@ -40,6 +41,18 @@ export function VideoCard({ video, onSelect }: VideoCardProps) {
         <h3 className={styles.cardTitle}>
           {video.title}
         </h3>
+        {video.channelName && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onChannelSelect(video.channelName || "");
+            }}
+            className={styles.cardChannel}
+          >
+            {video.channelName}
+          </button>
+        )}
       </div>
     </motion.div>
   );
