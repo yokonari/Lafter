@@ -16,41 +16,57 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
 
     const qRaw = c.req.query("q") ?? "";
     const q = qRaw.trim();
-    const pattern = q ? buildLikePattern(q) : undefined;
+    // 複数キーワードは半角・全角スペースで区切り、すべてを AND で満たすように扱います。
+    const keywords = q ? q.split(/\s+/u).filter(Boolean) : [];
+    const patterns = keywords.map((word) => buildLikePattern(word));
     const mode = c.req.query("mode");
+    const offsetParam = Number(c.req.query("offset") ?? 0);
+    const safeOffset = Number.isFinite(offsetParam) && offsetParam > 0 ? offsetParam : 0;
+    const includePlaylistsParam = c.req.query("includePlaylists");
+    const shouldIncludePlaylists =
+      includePlaylistsParam === "false" || includePlaylistsParam === "0" ? false : true;
     const channelIdsMatchingQuery: string[] = [];
-    if (pattern) {
-      const matchedChannels = await db
-        .select({ id: channels.id })
-        .from(channels)
-        .where(and(eq(channels.status, 1), like(channels.name, pattern)));
-      channelIdsMatchingQuery.push(...matchedChannels.map((row) => row.id));
+    if (patterns.length) {
+      // 各キーワードでヒットするチャンネルIDを都度取得し、積集合をとって「全キーワードを含むチャンネル」に絞ります。
+      for (const [index, pattern] of patterns.entries()) {
+        const matchedChannels = await db
+          .select({ id: channels.id })
+          .from(channels)
+          .where(and(eq(channels.status, 1), like(channels.name, pattern)));
+        const ids = matchedChannels.map((row) => row.id);
+        if (index === 0) {
+          channelIdsMatchingQuery.push(...ids);
+        } else {
+          const next = channelIdsMatchingQuery.filter((id) => ids.includes(id));
+          channelIdsMatchingQuery.splice(0, channelIdsMatchingQuery.length, ...next);
+        }
+      }
     }
 
     const videoConditions = [
       eq(videos.status, 1),
       eq(channels.status, 1),
     ];
-    if (pattern) {
-      const titleMatch = like(videos.title, pattern) as SQL<boolean>;
-      // drizzle の like は SQL<unknown> を返すため、論理条件として扱うべく boolean 型にキャストいたします。
-      // 型推論で論理条件として扱われるよう、SQL ブール条件の配列型を明示します。
-      const patternChecks: SQL<boolean>[] = [titleMatch];
-      if (channelIdsMatchingQuery.length) {
-        patternChecks.push(
-          // inArray も SQL<unknown> を返すため、論理演算に組み込めるよう boolean 条件へ統一いたします。
-          inArray(videos.channelId, channelIdsMatchingQuery) as SQL<boolean>,
-        );
-      }
-      if (patternChecks.length === 1) {
-        // タイトル条件は先に生成された '`titleMatch`' で保証できますので安全に追加いたします。
-        videoConditions.push(titleMatch);
-      } else if (patternChecks.length > 1) {
-        const combinedPattern = or(...patternChecks);
-        if (combinedPattern) {
-          // or も undefined を返し得るため、存在確認後に boolean 条件として利用いたします。
-          videoConditions.push(combinedPattern as SQL<boolean>);
+    if (patterns.length) {
+      // キーワードごとに (タイトルLIKE または チャンネルID一致) を作り、すべて AND で縛ります。
+      const keywordConditions: SQL<boolean>[] = patterns.map((pattern) => {
+        const titleMatch = like(videos.title, pattern) as SQL<boolean>;
+        const checks: SQL<boolean>[] = [titleMatch];
+        if (channelIdsMatchingQuery.length) {
+          // inArray も SQL<unknown> を返すため、boolean 条件へそろえます。
+          checks.push(inArray(videos.channelId, channelIdsMatchingQuery) as SQL<boolean>);
         }
+        if (checks.length === 1) {
+          return titleMatch;
+        }
+        const combined = or(...checks);
+        return combined as SQL<boolean>;
+      });
+
+      if (keywordConditions.length === 1) {
+        videoConditions.push(keywordConditions[0]);
+      } else if (keywordConditions.length > 1) {
+        videoConditions.push(and(...keywordConditions) as SQL<boolean>);
       }
     }
     const videoWhere =
@@ -78,48 +94,57 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         ? Math.min(limitParam, MAX_LIMIT)
         : MAX_LIMIT;
 
-    const videoRows = await orderedVideoQuery.limit(safeLimit);
+    const videoRows = await orderedVideoQuery.limit(safeLimit).offset(safeOffset);
 
-    const playlistConditions = [
-      eq(playlists.status, 1),
-      eq(channels.status, 1),
-    ];
-    if (pattern) {
-      const playlistNameMatch = like(playlists.name, pattern) as SQL<boolean>;
-      // drizzle の like は SQL<unknown> のため、こちらも boolean 条件として扱えるようキャストしております。
-      // プレイリスト検索でも条件は SQL のブール型として扱い、`or` 展開に安全な配列型で保持しておきます。
-      const playlistPattern: SQL<boolean>[] = [playlistNameMatch];
-      if (channelIdsMatchingQuery.length) {
-        playlistPattern.push(
-          // プレイリスト側でも inArray の戻りを boolean 型へ揃え、or 展開で型エラーを避けます。
-          inArray(playlists.channelId, channelIdsMatchingQuery) as SQL<boolean>,
-        );
-      }
-      if (playlistPattern.length === 1) {
-        // プレイリスト名の条件は `playlistNameMatch` で非 undefined を確保しています。
-        playlistConditions.push(playlistNameMatch);
-      } else if (playlistPattern.length > 1) {
-        const combinedPlaylistPattern = or(...playlistPattern);
-        if (combinedPlaylistPattern) {
-          // プレイリスト条件側でも undefined を弾いたうえで boolean 条件として追加いたします。
-          playlistConditions.push(combinedPlaylistPattern as SQL<boolean>);
+    let playlistRows:
+      | Array<{
+          id: string;
+          title: string;
+          channelName: string | null;
+        }>
+      | [] = [];
+    if (shouldIncludePlaylists) {
+      const playlistConditions = [
+        eq(playlists.status, 1),
+        eq(channels.status, 1),
+      ];
+      if (patterns.length) {
+        // プレイリストもキーワードごとに AND で束ねます。
+        const playlistKeywordConditions: SQL<boolean>[] = patterns.map((pattern) => {
+          const playlistNameMatch = like(playlists.name, pattern) as SQL<boolean>;
+          const checks: SQL<boolean>[] = [playlistNameMatch];
+          if (channelIdsMatchingQuery.length) {
+            checks.push(inArray(playlists.channelId, channelIdsMatchingQuery) as SQL<boolean>);
+          }
+          if (checks.length === 1) {
+            return playlistNameMatch;
+          }
+          const combinedPlaylistPattern = or(...checks);
+          return combinedPlaylistPattern as SQL<boolean>;
+        });
+
+        if (playlistKeywordConditions.length === 1) {
+          playlistConditions.push(playlistKeywordConditions[0]);
+        } else if (playlistKeywordConditions.length > 1) {
+          playlistConditions.push(and(...playlistKeywordConditions) as SQL<boolean>);
         }
       }
-    }
-    const playlistWhere =
-      playlistConditions.length === 1 ? playlistConditions[0] : and(...playlistConditions);
+      const playlistWhere =
+        playlistConditions.length === 1 ? playlistConditions[0] : and(...playlistConditions);
 
-    const playlistRows = await db
-      .select({
-        id: playlists.id,
-        title: playlists.name,
-        channelName: channels.name,
-      })
-      .from(playlists)
-      .innerJoin(channels, eq(playlists.channelId, channels.id))
-      .where(playlistWhere)
-      .orderBy(desc(playlists.createdAt))
-      .limit(MAX_LIMIT);
+      playlistRows = await db
+        .select({
+          id: playlists.id,
+          title: playlists.name,
+          channelName: channels.name,
+        })
+        .from(playlists)
+        .innerJoin(channels, eq(playlists.channelId, channels.id))
+        .where(playlistWhere)
+        .orderBy(desc(playlists.createdAt))
+        .limit(MAX_LIMIT)
+        .offset(safeOffset);
+    }
 
     const videosPayload = videoRows.map((row) => ({
       url: `https://www.youtube.com/watch?v=${row.id}`,

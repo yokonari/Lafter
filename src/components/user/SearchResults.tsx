@@ -1,18 +1,23 @@
-import { useEffect, useMemo, useState } from "react";
-import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
+import { useEffect, useState } from "react";
+import { fetchVideoItems, type VideoItem, type PlaylistItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
+import { PlaylistCard } from "./PlaylistCard";
 import styles from "./userTheme.module.scss";
 
 type SearchResultsProps = {
   query: string;
   onVideoSelect: (video: VideoItem) => void;
+  onPlaylistSelect: (playlist: PlaylistItem) => void;
 };
 
-export function SearchResults({ query, onVideoSelect }: SearchResultsProps) {
-  const [results, setResults] = useState<VideoItem[]>([]);
-  const [visibleCount, setVisibleCount] = useState(20);
+export function SearchResults({ query, onVideoSelect, onPlaylistSelect }: SearchResultsProps) {
+  const [videos, setVideos] = useState<VideoItem[]>([]);
+  const [playlists, setPlaylists] = useState<PlaylistItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const PAGE_SIZE = 20;
 
   useEffect(() => {
     let canceled = false;
@@ -21,14 +26,20 @@ export function SearchResults({ query, onVideoSelect }: SearchResultsProps) {
     const run = async () => {
       setLoading(true);
       setError(null);
+      setVideos([]);
+      setPlaylists([]);
+      setHasMore(false);
       try {
-        const items = await fetchVideoItems(fetch, {
+        const { videos: fetchedVideos, playlists: fetchedPlaylists } = await fetchVideoItems(fetch, {
           query,
           signal: controller.signal,
+          limit: PAGE_SIZE,
+          offset: 0,
         });
         if (canceled) return;
-        setResults(items);
-        setVisibleCount(20);
+        setVideos(fetchedVideos);
+        setPlaylists(fetchedPlaylists);
+        setHasMore(fetchedVideos.length === PAGE_SIZE || fetchedPlaylists.length === PAGE_SIZE);
       } catch (err) {
         if (canceled) return;
         setError(err instanceof Error ? err.message : String(err));
@@ -51,11 +62,27 @@ export function SearchResults({ query, onVideoSelect }: SearchResultsProps) {
     };
   }, [query]);
 
-  const displayedResults = useMemo(
-    () => results.slice(0, visibleCount),
-    [results, visibleCount],
-  );
-  const hasMore = visibleCount < results.length;
+  const handleLoadMore = async () => {
+    if (loadingMore) return;
+    // ページング用に続きの動画を丁寧に追加します。
+    setLoadingMore(true);
+    setError(null);
+
+    try {
+      const { videos: fetchedVideos, playlists: fetchedPlaylists } = await fetchVideoItems(fetch, {
+        query,
+        limit: PAGE_SIZE,
+        offset: Math.max(videos.length, playlists.length),
+      });
+      setVideos((prev) => [...prev, ...fetchedVideos]);
+      setPlaylists((prev) => [...prev, ...fetchedPlaylists]);
+      setHasMore(fetchedVideos.length === PAGE_SIZE || fetchedPlaylists.length === PAGE_SIZE);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   return (
     // 検索結果ページもダークトーンへ合わせ、各状態メッセージの色味を丁寧に調整します。
@@ -70,24 +97,29 @@ export function SearchResults({ query, onVideoSelect }: SearchResultsProps) {
         <p className={styles.errorCard}>{error}</p>
       )}
 
-      <div className={styles.searchGrid}>
-        {displayedResults.map((video) => (
-          <VideoCard key={video.id} video={video} onSelect={onVideoSelect} />
-        ))}
-      </div>
+      {/* ヒットがない場合は空メッセージを丁寧に表示します。 */}
+      {!loading && !error && videos.length === 0 && playlists.length === 0 ? (
+        <p className={styles.statusText}>検索結果が見つかりませんでした。</p>
+      ) : (
+        <div className={styles.searchGrid}>
+          {playlists.map((playlist) => (
+            <PlaylistCard key={`playlist-${playlist.id}`} playlist={playlist} onSelect={onPlaylistSelect} />
+          ))}
+          {videos.map((video) => (
+            <VideoCard key={video.id} video={video} onSelect={onVideoSelect} />
+          ))}
+        </div>
+      )}
 
       {hasMore && (
         <div className={styles.loadMoreWrap}>
           <button
             type="button"
-            onClick={() =>
-              setVisibleCount((prev) =>
-                Math.min(prev + 20, results.length),
-              )
-            }
+            onClick={handleLoadMore}
+            disabled={loadingMore}
             className={styles.loadMoreButton}
           >
-            もっと見る（残り{results.length - visibleCount}件）
+            もっと見る
           </button>
         </div>
       )}

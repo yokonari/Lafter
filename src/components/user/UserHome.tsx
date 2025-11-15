@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useState } from "react";
-import type { VideoItem } from "@/lib/videoService";
+import type { VideoItem, PlaylistItem } from "@/lib/videoService";
 import { UserHeader } from "./UserHeader";
 import { HomeSections } from "./HomeSections";
 import { SearchResults } from "./SearchResults";
 import { UserFooter } from "./UserFooter";
 import { VideoDialog } from "./VideoDialog";
+import { PlaylistDialog } from "./PlaylistDialog";
 import styles from "./userTheme.module.scss";
 
 export function UserHome() {
@@ -14,6 +15,7 @@ export function UserHome() {
   const [activeQuery, setActiveQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
+  const [dialogPlaylist, setDialogPlaylist] = useState<PlaylistItem | null>(null);
 
   // ヘッダーから検索が実行されたタイミングを集中管理
   const handleSearch = useCallback((value: string) => {
@@ -32,6 +34,10 @@ export function UserHome() {
   const handleVideoSelect = useCallback((video: VideoItem) => {
     setDialogVideo(video);
   }, []);
+  // プレイリストカードの選択でモーダル表示を開く
+  const handlePlaylistSelect = useCallback((playlist: PlaylistItem) => {
+    setDialogPlaylist(playlist);
+  }, []);
 
   return (
     // 管理画面と同様に全体をダークトーンで包み込み、視覚的な統一感を丁寧に確保します。
@@ -47,15 +53,20 @@ export function UserHome() {
       {/* ヘッダー高さに合わせて上部余白も56px（pt-14）に揃え、重なりを防ぎます。 */}
       <main className={styles.main}>
         {isSearching && activeQuery ? (
-          <SearchResults query={activeQuery} onVideoSelect={handleVideoSelect} />
+          <SearchResults
+            query={activeQuery}
+            onVideoSelect={handleVideoSelect}
+            onPlaylistSelect={handlePlaylistSelect}
+          />
         ) : (
-          <HomeSections onVideoSelect={handleVideoSelect} />
+          <HomeSections onVideoSelect={handleVideoSelect} onPlaylistSelect={handlePlaylistSelect} />
         )}
       </main>
 
       <UserFooter />
 
       <VideoDialog video={dialogVideo} onClose={() => setDialogVideo(null)} />
+      <PlaylistDialog playlist={dialogPlaylist} onClose={() => setDialogPlaylist(null)} />
     </div>
   );
 }
