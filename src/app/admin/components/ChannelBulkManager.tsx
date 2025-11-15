@@ -184,34 +184,42 @@ export function ChannelBulkManager({
                   </div>
                   {/* ラベルとフォームをサムネイル直下のコンテナへまとめ、操作フローを視線移動なく進めます。 */}
                   <div className={styles.controlRow}>
-                    <div className={styles.selectWrapperFull}>
-                      <label
-                        htmlFor={`status-${channel.id}`}
-                        className="sr-only"
-                      >
-                        ステータス
-                      </label>
-                      <select
-                        id={`status-${channel.id}`}
-                        className={`${styles.selectControl} ${styles.cardSelect}`}
-                        value={entry.status}
-                        onChange={(event) =>
-                          setSelections((prev) => ({
-                            ...prev,
-                            [channel.id]: {
-                              ...entry,
-                              status: event.target.value,
-                            },
-                          }))
-                        }
-                      >
-                        {STATUS_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    {/* ステータス切り替えもラジオボタンへ統一し、動画画面と同じ操作感を保ちます。 */}
+                    <fieldset className={`${styles.radioGroup} ${styles.selectWrapperFull}`}>
+                      <legend className="sr-only">ステータス</legend>
+                      <div className={styles.radioOptions}>
+                        {STATUS_OPTIONS.map((option) => {
+                          const inputId = `status-${channel.id}-${option.value}`;
+                          const isChecked = entry.status === option.value;
+                          return (
+                            <label
+                              key={option.value}
+                              htmlFor={inputId}
+                              className={`${styles.radioOption} ${isChecked ? styles.radioOptionActive : ""}`}
+                            >
+                              <input
+                                type="radio"
+                                id={inputId}
+                                name={`status-${channel.id}`}
+                                className={styles.radioInput}
+                                value={option.value}
+                                checked={isChecked}
+                                onChange={(event) =>
+                                  setSelections((prev) => ({
+                                    ...prev,
+                                    [channel.id]: {
+                                      ...entry,
+                                      status: event.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                              <span>{option.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
                   </div>
                 </div>
               </article>
