@@ -123,6 +123,9 @@ function AdminVideosPageContent() {
         : typeof value === "number"
           ? value
           : undefined;
+    if (numeric === 4) {
+      return "2";
+    }
     if (numeric === 1 || numeric === 2) {
       return String(numeric);
     }
@@ -755,7 +758,7 @@ function AdminVideosPageContent() {
             <button
               type="button"
               onClick={runAutoCategorization}
-              className={styles.primaryButton}
+              className={styles.filterButton}
               disabled={autoCategorizing || loading}
             >
               {autoCategorizing ? "自動分類中…" : "自動分類を実行"}
