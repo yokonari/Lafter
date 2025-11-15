@@ -8,7 +8,6 @@ type AdminChannel = {
   url: string;
   name: string;
   status: number;
-  keyword?: string;
   latestVideoTitle?: string | null;
   latestVideoId?: string | null;
 };
@@ -97,7 +96,6 @@ async function fetchAdminChannels(
       url: string;
       name: string;
       status: number;
-      keyword?: string | null;
       latest_video_title?: string | null;
       latest_video_id?: string | null;
     }>;
@@ -111,7 +109,6 @@ async function fetchAdminChannels(
     url: channel.url,
     name: channel.name,
     status: channel.status,
-    keyword: channel.keyword ?? undefined,
     latestVideoTitle: channel.latest_video_title ?? null,
     latestVideoId: channel.latest_video_id ?? null,
   }));

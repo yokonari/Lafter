@@ -598,7 +598,6 @@ async function insertVideo(
     title: input.title,
     channelId: input.channelId,
     publishedAt: input.publishedAt ?? null,
-    category: 0,
     status: 0,
     lastCheckedAt: new Date().toISOString(),
   });

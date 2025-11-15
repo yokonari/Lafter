@@ -9,7 +9,6 @@ import type { AdminEnv } from "../types";
 type BulkItem = {
   id?: unknown;
   video_status?: unknown;
-  video_category?: unknown;
 };
 
 type BulkRequestBody = {
@@ -66,14 +65,6 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
         return fail(`${path}.video_status には 0〜4 の整数を指定してください。`);
       }
       videoUpdates.status = videoStatus;
-
-      const videoCategoryInput = normalizeInt(item.video_category);
-      if (item.video_category !== undefined) {
-        if (videoCategoryInput === undefined || videoCategoryInput < 0 || videoCategoryInput > 4) {
-          return fail(`${path}.video_category は 0〜4 の整数を指定してください。`);
-        }
-        videoUpdates.category = videoCategoryInput;
-      }
 
       if (Object.keys(videoUpdates).length > 0) {
         await db.update(videos).set(videoUpdates).where(eq(videos.id, videoId));

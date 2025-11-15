@@ -339,7 +339,7 @@ async function main() {
   if (args.csv && args.csv !== "true") {
     console.log(`CSV     : ${args.csv}`);
   }
-  const apiCallLimit = 30;
+  const apiCallLimit = 100;
   const tasksToDisplay = tasks.slice(0, apiCallLimit);
   const taskSummary = tasksToDisplay
     .map((task) => task.artist)
@@ -352,6 +352,7 @@ async function main() {
   const shouldLimitCalls = cliIndices.length === 0;
   let processedCount = 0;
 
+  let encounteredError = false;
   for (const task of tasks) {
     try {
       console.log(
@@ -374,6 +375,9 @@ async function main() {
             typeof body === "object" ? JSON.stringify(body) : body
           }`,
         );
+        encounteredError = true;
+        process.exitCode = 1;
+        break;
       } else {
         console.log(
           `  ✅ 成功: ${
@@ -389,11 +393,17 @@ async function main() {
                 error instanceof Error ? error.message : String(error)
               }`,
             );
+            encounteredError = true;
+            process.exitCode = 1;
+            break;
           }
         }
       }
     } catch (error) {
       console.error(`  ⚠️ エラー: ${(error instanceof Error ? error.message : String(error))}`);
+      encounteredError = true;
+      process.exitCode = 1;
+      break;
     }
     processedCount += 1;
     if (shouldLimitCalls && processedCount >= apiCallLimit) {
@@ -405,7 +415,11 @@ async function main() {
     }
   }
 
-  console.log("\n処理が完了しました。");
+  if (encounteredError) {
+    console.error("\nエラーが発生したため処理を中断しました。");
+  } else {
+    console.log("\n処理が完了しました。");
+  }
 }
 
 main().catch((error) => {

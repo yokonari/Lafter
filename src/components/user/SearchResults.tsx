@@ -7,52 +7,48 @@ type SearchResultsProps = {
   onVideoSelect: (video: VideoItem) => void;
 };
 
-const categoryTabs = [
-  { label: "すべて", categoryNumber: 0 },
-  { label: "漫才", categoryNumber: 1 },
-  { label: "コント", categoryNumber: 2 },
-  { label: "その他", categoryNumber: 4 },
-] as const;
-
 export function SearchResults({ query, onVideoSelect }: SearchResultsProps) {
   const [results, setResults] = useState<VideoItem[]>([]);
   const [visibleCount, setVisibleCount] = useState(20);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<typeof categoryTabs[number]>(
-    categoryTabs[0],
-  );
 
   useEffect(() => {
     let canceled = false;
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
-    fetchVideoItems(fetch, {
-      query,
-      category: activeTab.categoryNumber || undefined,
-      signal: controller.signal,
-    })
-      .then((items) => {
+
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const items = await fetchVideoItems(fetch, {
+          query,
+          signal: controller.signal,
+        });
         if (canceled) return;
         setResults(items);
         setVisibleCount(20);
-      })
-      .catch((err) => {
+      } catch (err) {
         if (canceled) return;
-        setError(err.message);
-      })
-      .finally(() => {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
         if (!canceled) {
           setLoading(false);
         }
-      });
+      }
+    };
+
+    run().catch(() => {
+      if (!canceled) {
+        setLoading(false);
+      }
+    });
 
     return () => {
       canceled = true;
       controller.abort();
     };
-  }, [query, activeTab]);
+  }, [query]);
 
   const displayedResults = useMemo(
     () => results.slice(0, visibleCount),
@@ -69,32 +65,6 @@ export function SearchResults({ query, onVideoSelect }: SearchResultsProps) {
         <p className="text-sm text-slate-500">
           {results.length}件の結果が見つかりました
         </p>
-      </div>
-
-      {/* カテゴリタブ */}
-      <div className="mb-6">
-        <div className="inline-flex h-10 items-center rounded-2xl bg-slate-100 p-1">
-          {categoryTabs.map((tab) => {
-            const isActive = activeTab.label === tab.label;
-            return (
-              <button
-                key={tab.label}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab);
-                  setVisibleCount(20);
-                }}
-                className={`rounded-2xl px-4 py-2 text-sm font-medium transition ${
-                  isActive
-                    ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {loading && (

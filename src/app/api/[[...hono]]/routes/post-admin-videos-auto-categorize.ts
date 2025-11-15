@@ -12,15 +12,14 @@ const AUTO_STATUS_OK = 3;
 
 const AUTO_CATEGORIZATION_RULES: Array<{
   key: string;
-  category: number;
   keywords?: string[];
   titleRegex?: RegExp;
 }> = [
-  { key: "manzai", category: 1, keywords: ["漫才"] },
-  { key: "conte", category: 2, keywords: ["コント"] },
-  { key: "neta", category: 3, keywords: ["ネタ"] },
-  { key: "variety", category: 3, keywords: ["ものまね", "モノマネ", "歌", "あるある"] },
-  { key: "titled", category: 3, titleRegex: /[「」『』【】]/ },
+  { key: "manzai", keywords: ["漫才"] },
+  { key: "conte", keywords: ["コント"] },
+  { key: "neta", keywords: ["ネタ"] },
+  { key: "variety", keywords: ["ものまね", "モノマネ", "歌", "あるある"] },
+  { key: "titled", titleRegex: /[「」『』【】]/ },
 ];
 
 type AutoCategorizeRequest = {
@@ -50,7 +49,6 @@ export function registerPostAdminVideosAutoCategorize(app: Hono<AdminEnv>) {
         id: videos.id,
         title: videos.title,
         currentStatus: videos.status,
-        currentCategory: videos.category,
       })
       .from(videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
@@ -61,27 +59,24 @@ export function registerPostAdminVideosAutoCategorize(app: Hono<AdminEnv>) {
       return c.json({ scanned: 0, updated: 0, results: [] });
     }
 
-    const updates: Array<{ id: string; appliedRule: string; previousStatus: number; previousCategory: number | null; nextStatus: number; nextCategory: number }> = [];
+    const updates: Array<{ id: string; appliedRule: string; previousStatus: number; nextStatus: number }> = [];
 
     for (const row of rows) {
       const classification = classifyTitle(row.title ?? "");
       if (!classification) continue;
 
       const nextStatus = AUTO_STATUS_OK;
-      const nextCategory = classification.category;
 
-      const shouldUpdate = row.currentStatus !== nextStatus || row.currentCategory !== nextCategory;
+      const shouldUpdate = row.currentStatus !== nextStatus;
       if (!shouldUpdate) continue;
 
-      await db.update(videos).set({ status: nextStatus, category: nextCategory }).where(eq(videos.id, row.id));
+      await db.update(videos).set({ status: nextStatus }).where(eq(videos.id, row.id));
 
       updates.push({
         id: row.id,
         appliedRule: classification.key,
         previousStatus: row.currentStatus,
-        previousCategory: row.currentCategory ?? null,
         nextStatus,
-        nextCategory,
       });
     }
 
@@ -89,14 +84,14 @@ export function registerPostAdminVideosAutoCategorize(app: Hono<AdminEnv>) {
   });
 }
 
-function classifyTitle(title: string): { key: string; category: number } | null {
+function classifyTitle(title: string): { key: string } | null {
   if (!title) return null;
   const normalized = title.toLowerCase();
   for (const rule of AUTO_CATEGORIZATION_RULES) {
     const matchedByKeyword = rule.keywords?.some((keyword) => normalized.includes(keyword.toLowerCase())) ?? false;
     const matchedByRegex = rule.titleRegex?.test(title) ?? false;
     if (matchedByKeyword || matchedByRegex) {
-      return { key: rule.key, category: rule.category };
+      return { key: rule.key };
     }
   }
   return null;

@@ -71,6 +71,13 @@
       "when": 1762944916537,
       "tag": "0009_first_zuras",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1763164828080,
+      "tag": "0010_robust_demogoblin",
+      "breakpoints": true
     }
   ]
 }

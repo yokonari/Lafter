@@ -16,11 +16,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
 
     const qRaw = c.req.query("q") ?? "";
     const q = qRaw.trim();
-    const categoryRaw = c.req.query("category");
-    const category = categoryRaw !== undefined ? Number(categoryRaw) : 0;
-    const categoryFilter =
-      Number.isFinite(category) && [1, 2, 3].includes(Number(category)) ? Number(category) : 0;
-
     const pattern = q ? buildLikePattern(q) : undefined;
     const mode = c.req.query("mode");
     const channelIdsMatchingQuery: string[] = [];
@@ -58,9 +53,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         }
       }
     }
-    if (categoryFilter) {
-      videoConditions.push(eq(videos.category, categoryFilter));
-    }
     const videoWhere =
       videoConditions.length === 1 ? videoConditions[0] : and(...videoConditions);
 
@@ -69,7 +61,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         id: videos.id,
         title: videos.title,
         publishedAt: videos.publishedAt,
-        category: videos.category,
         channelName: channels.name,
       })
       .from(videos)
@@ -131,10 +122,9 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       .limit(MAX_LIMIT);
 
     const videosPayload = videoRows.map((row) => ({
-               url: `https://www.youtube.com/watch?v=${row.id}`,
+      url: `https://www.youtube.com/watch?v=${row.id}`,
       title: row.title,
       published_at: toUnixTime(row.publishedAt),
-      category: typeof row.category === "number" ? row.category : 0,
     }));
 
     const playlistsPayload = playlistRows.map((row) => ({

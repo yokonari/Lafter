@@ -16,7 +16,6 @@ export const channels = sqliteTable(
     name: text("name").notNull(),
     status: integer("status").notNull().default(0),
     searchCount: integer("search_count").notNull().default(0),
-    keyword: text("keyword"),
     lastChecked: text("last_checked"),
     createdAt: text("created_at")
       .notNull()
@@ -36,7 +35,6 @@ export const videos = sqliteTable(
       .notNull()
       .references(() => channels.id, { onDelete: "cascade", onUpdate: "cascade" }),
     publishedAt: text("published_at"),
-    category: integer("category").default(0),
     status: integer("status").notNull().default(0),
     lastCheckedAt: text("last_checked_at"),
     createdAt: text("created_at")

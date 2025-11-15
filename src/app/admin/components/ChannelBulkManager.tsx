@@ -13,7 +13,6 @@ export type ChannelRow = {
   name: string;
   url: string;
   status?: number | null;
-  keyword?: string | null;
   latestVideoTitle?: string | null;
   latestVideoId?: string | null;
 };
@@ -31,27 +30,12 @@ type ChannelBulkManagerProps = {
 type ChannelSelection = {
   selected: boolean;
   status: string;
-  keywordId: string;
 };
 
 const STATUS_OPTIONS = [
   { value: "1", label: "✅ OK" },
   { value: "2", label: "⛔ NG" },
 ];
-
-const KEYWORD_OPTIONS = [
-  { value: "", label: "変更しない" },
-  { value: "1", label: "🎙️ 漫才" },
-  { value: "2", label: "🎬 コント" },
-  { value: "3", label: "🎯 ネタ" },
-];
-
-// DB に保存されているキーワード文字列をセレクトボックスの値へ丁寧に正規化します。
-const KEYWORD_LABEL_TO_ID: Record<string, string> = {
-  漫才: "1",
-  コント: "2",
-  ネタ: "3",
-};
 
 export function ChannelBulkManager({
   channels,
@@ -92,11 +76,9 @@ export function ChannelBulkManager({
       .filter(([, entry]) => entry.selected)
       .map(([id, entry]) => {
         const payload: Record<string, unknown> = { id };
-        const isOfficial = entry.status === "1";
-
-        payload.channel_status = Number(entry.status);
-        if (isOfficial && entry.keywordId.trim() !== "") {
-          payload.keyword_id = Number(entry.keywordId);
+        const statusValue = entry.status.trim();
+        if (statusValue !== "") {
+          payload.channel_status = Number(statusValue);
         }
         return payload;
       })
@@ -202,11 +184,7 @@ export function ChannelBulkManager({
                   </div>
                   {/* ラベルとフォームをサムネイル直下のコンテナへまとめ、操作フローを視線移動なく進めます。 */}
                   <div className={styles.controlRow}>
-                    <div
-                      className={
-                        entry.status === "1" ? styles.selectWrapperHalf : styles.selectWrapperFull
-                      }
-                    >
+                    <div className={styles.selectWrapperFull}>
                       <label
                         htmlFor={`status-${channel.id}`}
                         className="sr-only"
@@ -223,7 +201,6 @@ export function ChannelBulkManager({
                             [channel.id]: {
                               ...entry,
                               status: event.target.value,
-                              keywordId: event.target.value === "1" ? entry.keywordId : "",
                             },
                           }))
                         }
@@ -235,36 +212,6 @@ export function ChannelBulkManager({
                         ))}
                       </select>
                     </div>
-                    {entry.status === "1" ? (
-                      <div className={styles.selectWrapperHalf}>
-                        <label
-                          htmlFor={`keyword-${channel.id}`}
-                          className="sr-only"
-                        >
-                          キーワード
-                        </label>
-                        <select
-                          id={`keyword-${channel.id}`}
-                          className={`${styles.selectControl} ${styles.cardSelect}`}
-                          value={entry.keywordId}
-                          onChange={(event) =>
-                            setSelections((prev) => ({
-                              ...prev,
-                              [channel.id]: {
-                                ...entry,
-                                keywordId: event.target.value,
-                              },
-                            }))
-                          }
-                        >
-                          {KEYWORD_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    ) : null}
                   </div>
                 </div>
               </article>
@@ -434,28 +381,18 @@ function buildInitialSelections(channels: ChannelRow[], registeredView: boolean)
   return initial;
 }
 
-function resolveKeywordId(keyword?: string | null): string {
-  if (!keyword) {
-    return "";
-  }
-  return KEYWORD_LABEL_TO_ID[keyword] ?? "";
-}
-
 function createSelectionEntry(channel: ChannelRow, registeredView: boolean): ChannelSelection {
   if (registeredView) {
     // 登録済み一覧では既存データを丁寧に初期値へ反映し、無用な再入力を避けます。
     const status = channel.status === null || channel.status === undefined ? "" : String(channel.status);
-    const keywordId = resolveKeywordId(channel.keyword);
     return {
       selected: true,
       status,
-      keywordId,
     };
   }
 
   return {
     selected: true,
     status: "2",
-    keywordId: "1",
   };
 }

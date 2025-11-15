@@ -22,15 +22,10 @@ export type AdminVideo = {
   url: string;
   title: string;
   channel_name: string;
-  category?: number | null;
 };
 
 type AdminVideosResponse = {
-  videos: Array<
-    AdminVideo & {
-      category?: number | null;
-    }
-  >;
+  videos: AdminVideo[];
   page: number;
   limit: number;
   hasNext: boolean;
@@ -38,14 +33,12 @@ type AdminVideosResponse = {
 
 type SelectionDefaults = {
   videoStatus: string;
-  videoCategory: string;
   selected?: boolean;
 };
 
 type VideoSelection = {
   selected: boolean;
   videoStatus: string;
-  videoCategory: string;
 };
 
 const VIDEO_STATUS_OPTIONS = [
@@ -53,39 +46,22 @@ const VIDEO_STATUS_OPTIONS = [
   { value: "2", label: "⛔ NG" },
 ];
 
-const VIDEO_CATEGORY_OPTIONS = [
-  { value: "0", label: "🗂️ 未分類" },
-  { value: "1", label: "🎙️ 漫才" },
-  { value: "2", label: "🎬 コント" },
-  { value: "3", label: "🎭 ピン" },
-  { value: "4", label: "🏢 その他" },
-];
-
-const CATEGORY_FILTER_OPTIONS = [
-  { value: "all", label: "全カテゴリ" },
-  ...VIDEO_CATEGORY_OPTIONS,
-];
-
 type ShortcutConfig = {
   label: string;
   keywords?: string[];
-  category: string;
   filterTitles?: RegExp;
 };
 
 const SHORTCUT_CONFIG: Record<string, ShortcutConfig> = {
-  manzai: { label: "漫才", keywords: ["漫才"], category: "1" },
-  conte: { label: "コント", keywords: ["コント"], category: "2" },
-  neta: { label: "ネタ", keywords: ["ネタ"], category: "1" },
+  manzai: { label: "漫才", keywords: ["漫才"] },
+  conte: { label: "コント", keywords: ["コント"] },
+  neta: { label: "ネタ", keywords: ["ネタ"] },
   variety: {
     label: "ものまね / モノマネ / 歌 / あるある",
     keywords: ["ものまね", "モノマネ", "歌", "あるある"],
-    category: "1",
   },
   titled: {
     label: "タイトルあり",
-    keywords: [],
-    category: "1",
     filterTitles: /[「」『』【】]/,
   },
 };
@@ -135,15 +111,8 @@ function AdminVideosPageContent() {
   const [searchSelectionDefaults, setSearchSelectionDefaults] = useState<SelectionDefaults | null>(null);
   const searchKeywordRef = useRef<string | null>(null);
   const [activeShortcut, setActiveShortcut] = useState<ShortcutKey | null>(null);
-  const [categoryFilter, setCategoryFilter] = useState<string>("all"); // 初期状態では全カテゴリを表示し、必要に応じて他カテゴリへ切り替えます。
-  const categoryFilterRef = useRef(categoryFilter);
   const [autoCategorizing, setAutoCategorizing] = useState(false);
   const [autoCategorizeLimit, setAutoCategorizeLimit] = useState(500);
-  useEffect(() => {
-    // フィルタ変更時の最新値を保持し、API 再取得時に取りこぼさないようにいたします。
-    categoryFilterRef.current = categoryFilter;
-  }, [categoryFilter]);
-
   const resolveStatusValue = (value?: number | string | null) => {
     const numeric =
       typeof value === "string"
@@ -160,18 +129,12 @@ function AdminVideosPageContent() {
   const createInitialSelections = useCallback(
     (rows: AdminVideo[], defaults?: SelectionDefaults) => {
       const statusDefault = resolveStatusValue(defaults?.videoStatus ?? videoStatusFilter);
-      const categoryDefault = defaults?.videoCategory ?? "0";
       const selectedDefault = defaults?.selected ?? true;
       const next: Record<string, VideoSelection> = {};
       for (const row of rows) {
-        const existingCategory =
-          typeof row.category === "number" && row.category > 0
-            ? String(row.category)
-            : categoryDefault;
         next[row.id] = {
           selected: selectedDefault,
           videoStatus: statusDefault,
-          videoCategory: existingCategory,
         };
       }
       return next;
@@ -205,20 +168,15 @@ function AdminVideosPageContent() {
 
   // API から管理画面用の動画一覧を丁寧に取り出します。
   const loadVideos = useCallback(
-    async (targetPage: number, statusFilter: number, categoryValue?: string) => {
+    async (targetPage: number, statusFilter: number) => {
       setLoading(true);
       setErrorMessage(null);
-      const activeCategory = categoryValue ?? categoryFilterRef.current ?? "all";
       try {
         const search = new URLSearchParams();
         if (targetPage > 1) {
           search.set("page", String(targetPage));
         }
         search.set("video_status", String(statusFilter));
-        const categoryParam = activeCategory === "all" ? null : activeCategory;
-        if (categoryParam !== null) {
-          search.set("category", categoryParam);
-        }
         const query = search.toString();
         const response = await fetch(`/api/admin/videos${query ? `?${query}` : ""}`, {
           method: "GET",
@@ -269,11 +227,9 @@ function AdminVideosPageContent() {
         setVideos(data.videos);
         setCurrentPage(data.page);
         const defaultStatusForSelection = resolveStatusValue(statusFilter);
-        const defaultCategoryForSelection = categoryParam === null ? "0" : categoryParam;
         setSelections(
           createInitialSelections(data.videos, {
             videoStatus: defaultStatusForSelection,
-            videoCategory: defaultCategoryForSelection,
             selected: true,
           }),
         );
@@ -313,7 +269,6 @@ function AdminVideosPageContent() {
       applySearchResults(results, meta, {
         defaults: {
           videoStatus: statusDefault,
-          videoCategory: "1",
           selected: true,
         },
         mode: "form",
@@ -336,19 +291,13 @@ function AdminVideosPageContent() {
     keyword: string,
     pageNumber = 1,
     statusFilter: number,
-    categoryValue?: string,
   ) => {
-    const activeCategory = categoryValue ?? categoryFilterRef.current ?? "all";
     const searchParams = new URLSearchParams();
     searchParams.set("page", String(pageNumber));
     searchParams.set("video_status", String(statusFilter));
     const trimmed = keyword.trim();
     if (trimmed) {
       searchParams.set("q", trimmed);
-    }
-    const categoryParam = activeCategory === "all" ? null : activeCategory;
-    if (categoryParam !== null) {
-      searchParams.set("category", categoryParam);
     }
     const response = await fetch(`/api/admin/videos?${searchParams.toString()}`, {
       method: "GET",
@@ -384,7 +333,6 @@ function AdminVideosPageContent() {
       const statusDefault = resolveStatusValue(videoStatusFilter);
       setSearchSelectionDefaults({
         videoStatus: statusDefault,
-        videoCategory: "1",
         selected: true,
       });
       const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter);
@@ -393,12 +341,7 @@ function AdminVideosPageContent() {
     [fetchVideosByKeyword, videoStatusFilter],
   );
 
-  const filteredVideos = useMemo(() => {
-    if (categoryFilter === "all") {
-      return videos;
-    }
-    return videos.filter((video) => String(video.category ?? 0) === categoryFilter);
-  }, [videos, categoryFilter]);
+  const filteredVideos = useMemo(() => videos, [videos]);
 
   const selectedCount = useMemo(
     () =>
@@ -426,10 +369,6 @@ function AdminVideosPageContent() {
             {
               selected: true,
               videoStatus: resolveStatusValue(videoStatusFilter),
-              videoCategory:
-                typeof video.category === "number" && video.category > 0
-                  ? String(video.category)
-                  : "0",
             };
           next[video.id] = {
             ...fallback,
@@ -444,7 +383,7 @@ function AdminVideosPageContent() {
 
   const handleShortcutSearch = useCallback(
     async (shortcut: ShortcutKey) => {
-      const { keywords = [], category: videoCategoryDefault, filterTitles } = SHORTCUT_CONFIG[shortcut];
+      const { keywords = [], filterTitles } = SHORTCUT_CONFIG[shortcut];
       // 同じショートカットを再度押した場合は状態をクリアし、通常の一覧へ戻します。
       if (searchContext === "shortcut" && activeShortcut === shortcut) {
         setSearchContext(null);
@@ -459,7 +398,6 @@ function AdminVideosPageContent() {
       setLoading(true);
       const defaults: SelectionDefaults = {
         videoStatus: resolveStatusValue(videoStatusFilter),
-        videoCategory: videoCategoryDefault,
         selected: true,
       };
       try {
@@ -588,7 +526,6 @@ function AdminVideosPageContent() {
     router.push(isNgFilter ? defaultFilterHref : ngFilterHref);
   };
   const handleAiOkFilterClick = () => {
-    setCategoryFilter("all");
     router.push(isAiOkFilter ? defaultFilterHref : aiOkFilterHref);
   };
   const handleAiNgFilterClick = () => {
@@ -599,23 +536,20 @@ function AdminVideosPageContent() {
     searchContext === "shortcut" && activeShortcut ? activeShortcut : "";
 
   const loadSearchPage = useCallback(
-    async (targetPage: number, categoryValue?: string) => {
+    async (targetPage: number) => {
       if (!currentSearchKeyword || !searchContext) return;
       searchKeywordRef.current = currentSearchKeyword;
       setLoading(true);
       try {
-        const activeCategory = categoryValue ?? categoryFilterRef.current ?? "all";
         const data = await fetchVideosByKeyword(
           currentSearchKeyword,
           targetPage,
           videoStatusFilter,
-          activeCategory,
         );
         setVideos(data.videos);
         setCurrentPage(typeof data.page === "number" ? data.page : targetPage);
         const defaults: SelectionDefaults = {
           videoStatus: resolveStatusValue(videoStatusFilter),
-          videoCategory: "1",
           selected: true,
           ...(searchSelectionDefaults ?? {}),
         };
@@ -645,19 +579,6 @@ function AdminVideosPageContent() {
     ],
   );
 
-  const handleCategoryFilterChange = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const nextValue = event.target.value;
-      setCategoryFilter(nextValue);
-      if (searchContext && currentSearchKeyword) {
-        void loadSearchPage(1, nextValue);
-        return;
-      }
-      void loadVideos(currentPage, videoStatusFilter, nextValue);
-    },
-    [searchContext, currentSearchKeyword, loadSearchPage, loadVideos, currentPage, videoStatusFilter],
-  );
-
   const handleSubmit = async () => {
     // 選択済みの行だけを丁寧にリクエスト形式へ整えます。
     const selectedEntries = Object.entries(selections).filter(([, entry]) => entry.selected);
@@ -668,10 +589,9 @@ function AdminVideosPageContent() {
     }
 
     const items = selectedEntries.map(([id, entry]) => ({
-        id,
-        video_status: Number(entry.videoStatus),
-        video_category: Number(entry.videoCategory),
-      }));
+      id,
+      video_status: Number(entry.videoStatus),
+    }));
 
     setSubmitting(true);
     try {
@@ -699,14 +619,9 @@ function AdminVideosPageContent() {
       setSelections((prev) => {
         const next: Record<string, VideoSelection> = {};
         for (const video of videos) {
-          const fallbackCategory =
-            typeof video.category === "number" && video.category > 0
-              ? String(video.category)
-              : "0";
           next[video.id] = {
             ...(prev[video.id] ?? {
               videoStatus: resolveStatusValue(videoStatusFilter),
-              videoCategory: fallbackCategory,
             }),
             selected: true,
           };
@@ -846,20 +761,6 @@ function AdminVideosPageContent() {
                 </option>
               ))}
             </select>
-            {/* カテゴリごとの絞り込みも同列に配置し、ショートカットと併せて直感的に操作できるようにします。 */}
-            <select
-              value={categoryFilter}
-              onChange={handleCategoryFilterChange}
-              className={`${styles.selectControl} ${styles.filterSelect}`}
-              disabled={loading}
-              aria-label="カテゴリでフィルタ"
-            >
-              {CATEGORY_FILTER_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
           </div>
           {loading ? (
             <p className={styles.feedbackCard}>読み込み中です…</p>
@@ -872,10 +773,6 @@ function AdminVideosPageContent() {
                 const entry = selections[video.id] ?? {
                   selected: true,
                   videoStatus: resolveStatusValue(videoStatusFilter),
-                  videoCategory:
-                    typeof video.category === "number" && video.category > 0
-                      ? String(video.category)
-                      : "0",
                 };
                 return (
                   <article key={video.id} className={styles.videoCard}>
@@ -921,7 +818,7 @@ function AdminVideosPageContent() {
                       {/* タイトル群をサムネイル直下へ寄せたため、操作コンポーネントも同じラッパー内で整然と並べます。 */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm">
-                          <div className={entry.videoStatus === "2" ? "w-full" : "w-1/2"}>
+                          <div className="w-full">
                             <label htmlFor={`video-status-${video.id}`} className="sr-only">
                               動画ステータス
                             </label>
@@ -946,37 +843,7 @@ function AdminVideosPageContent() {
                               ))}
                             </select>
                           </div>
-                          {entry.videoStatus !== "2" ? (
-                            <div className="w-1/2">
-                              <label htmlFor={`video-category-${video.id}`} className="sr-only">
-                                動画カテゴリ
-                              </label>
-                              <select
-                                id={`video-category-${video.id}`}
-                                className={`${styles.selectControl} ${styles.cardSelect}`}
-                                value={entry.videoCategory}
-                                onChange={(event) =>
-                                  setSelections((prev) => ({
-                                    ...prev,
-                                    [video.id]: {
-                                      ...entry,
-                                      videoCategory: event.target.value,
-                                    },
-                                  }))
-                                }
-                              >
-                                {VIDEO_CATEGORY_OPTIONS.map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                          ) : null}
                         </div>
-                        {entry.videoStatus === "2" ? (
-                          <p className={styles.cardHint}>NG のためカテゴリ設定は不要です。</p>
-                        ) : null}
                       </div>
                     </div>
                   </article>

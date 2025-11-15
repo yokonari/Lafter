@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { desc, eq, and, like, or, isNull } from "drizzle-orm";
+import { desc, eq, and, like } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -42,22 +42,6 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     }
     const videoStatus = parsedStatus;
 
-    const rawCategory = c.req.query("category");
-    let categoryFilter: number | null = null;
-    if (rawCategory !== undefined && rawCategory !== null) {
-      const categoryText = rawCategory.trim();
-      if (categoryText && categoryText !== "all") {
-        const parsedCategory = Number(categoryText);
-        if (!Number.isInteger(parsedCategory) || parsedCategory < 0 || parsedCategory > 4) {
-          return c.json(
-            { message: "category は 0〜4 の整数で指定してください。" },
-            400,
-          );
-        }
-        categoryFilter = parsedCategory;
-      }
-    }
-
     // PC からのアクセスなら 50 件、それ以外は 10 件を既定値に据えつつ、limit パラメータで上書き可能にします。
     const rawLimit = c.req.query("limit");
     const userAgent = c.req.header("user-agent") ?? null;
@@ -81,24 +65,12 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     if (keyword) {
       whereConditions.push(like(videos.title, `%${keyword}%`));
     }
-    if (categoryFilter !== null) {
-      if (categoryFilter === 0) {
-        // 未分類は 0 と null の両方を対象とし、従来の管理画面表示と揃えます。
-        const unclassifiedCondition = or(isNull(videos.category), eq(videos.category, 0));
-        if (unclassifiedCondition) {
-          whereConditions.push(unclassifiedCondition);
-        }
-      } else {
-        whereConditions.push(eq(videos.category, categoryFilter));
-      }
-    }
     const whereExpression = and(...whereConditions);
 
     const rows = await db
       .select({
         id: videos.id,
         title: videos.title,
-        category: videos.category,
         channelName: channels.name,
       })
       .from(videos)
@@ -114,7 +86,6 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       id: row.id,
       url: `https://www.youtube.com/watch?v=${row.id}`,
       title: row.title,
-      category: typeof row.category === "number" ? row.category : null,
       channel_name: row.channelName ?? "",
     }));
 
