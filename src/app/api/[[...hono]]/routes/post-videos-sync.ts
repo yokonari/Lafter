@@ -3,7 +3,7 @@ import type { KVNamespace } from "@cloudflare/workers-types";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
-import { POSITIVE_KEYWORDS, NEGATIVE_KEYWORDS } from "@/lib/video-keywords";
+import { NEGATIVE_KEYWORDS } from "@/lib/video-keywords";
 import { createDatabase, type AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
@@ -618,9 +618,12 @@ async function insertPlaylist(
 
 function shouldSkipVideo(title: string): boolean {
   const normalized = title.toLowerCase();
-  const hasPositive = POSITIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
   const hasNegative = NEGATIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
-  return !hasPositive && hasNegative;
+  // NGワードが含まれている場合は、OKワードの有無に関係なく即座に除外します。
+  if (hasNegative) {
+    return true;
+  }
+  return false;
 }
 
 async function playlistExists(db: DatabaseClient, playlistId: string): Promise<boolean> {
@@ -634,7 +637,10 @@ async function playlistExists(db: DatabaseClient, playlistId: string): Promise<b
 
 function shouldSkipChannel(name: string): boolean {
   const normalized = name.toLowerCase();
-  const hasPositive = POSITIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
   const hasNegative = NEGATIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
-  return !hasPositive && hasNegative;
+  // NGワードを含むチャンネルは安全側で必ず除外します。
+  if (hasNegative) {
+    return true;
+  }
+  return false;
 }
