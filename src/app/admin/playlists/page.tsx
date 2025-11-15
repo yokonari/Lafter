@@ -357,30 +357,43 @@ function AdminPlaylistsPageContent() {
                     </label>
                   </div>
                   {/* タイトル直下にフォームを置き、チャンネル画面と同じ操作フローに寄せます。 */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <label htmlFor={`playlist-status-${playlist.id}`} className="sr-only">
-                      ステータス
-                    </label>
-                    <select
-                      id={`playlist-status-${playlist.id}`}
-                      className={`${styles.selectControl} ${styles.cardSelect}`}
-                      value={entry.status}
-                      onChange={(event) =>
-                        setSelections((prev) => ({
-                          ...prev,
-                          [playlist.id]: {
-                            ...entry,
-                            status: event.target.value,
-                          },
-                        }))
-                      }
-                    >
-                      {PLAYLIST_STATUS_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="space-y-2">
+                    {/* プレイリストもラジオボタンで OK/NG を即決できるよう統一します。 */}
+                    <fieldset className={styles.radioGroup}>
+                      <legend className="sr-only">ステータス</legend>
+                      <div className={styles.radioOptions}>
+                        {PLAYLIST_STATUS_OPTIONS.map((option) => {
+                          const inputId = `playlist-status-${playlist.id}-${option.value}`;
+                          const isChecked = entry.status === option.value;
+                          return (
+                            <label
+                              key={option.value}
+                              htmlFor={inputId}
+                              className={`${styles.radioOption} ${isChecked ? styles.radioOptionActive : ""}`}
+                            >
+                              <input
+                                type="radio"
+                                id={inputId}
+                                name={`playlist-status-${playlist.id}`}
+                                className={styles.radioInput}
+                                value={option.value}
+                                checked={isChecked}
+                                onChange={(event) =>
+                                  setSelections((prev) => ({
+                                    ...prev,
+                                    [playlist.id]: {
+                                      ...entry,
+                                      status: event.target.value,
+                                    },
+                                  }))
+                                }
+                              />
+                              <span>{option.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </fieldset>
                   </div>
                 </div>
               </article>
