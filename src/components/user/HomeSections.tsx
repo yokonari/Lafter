@@ -3,17 +3,21 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
+import { fetchVideoItems, type VideoItem, type PlaylistItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
+import { PlaylistCard } from "./PlaylistCard";
 import styles from "./userTheme.module.scss";
 
 type HomeSectionsProps = {
   onVideoSelect: (video: VideoItem) => void;
+  onPlaylistSelect: (playlist: PlaylistItem) => void;
 };
 
-export function HomeSections({ onVideoSelect }: HomeSectionsProps) {
+export function HomeSections({ onVideoSelect, onPlaylistSelect }: HomeSectionsProps) {
   const [newVideos, setNewVideos] = useState<VideoItem[]>([]);
+  const [newPlaylists, setNewPlaylists] = useState<PlaylistItem[]>([]);
   const [randomVideos, setRandomVideos] = useState<VideoItem[]>([]);
+  const [randomPlaylists, setRandomPlaylists] = useState<PlaylistItem[]>([]);
   const [newError, setNewError] = useState<string | null>(null);
   const [randomError, setRandomError] = useState<string | null>(null);
   const [newLoading, setNewLoading] = useState(false);
@@ -27,11 +31,13 @@ export function HomeSections({ onVideoSelect }: HomeSectionsProps) {
     fetchVideoItems(fetch, {
       mode: "new",
       limit: 10,
+      includePlaylists: false, // ホーム画面ではプレイリスト取得を省き、動画だけを軽量に取得します。
       signal: controller.signal,
     })
-      .then((items) => {
+      .then(({ videos, playlists }) => {
         if (!controller.signal.aborted) {
-          setNewVideos(items);
+          setNewVideos(videos);
+          setNewPlaylists(playlists);
         }
       })
       .catch((err) => {
@@ -58,11 +64,13 @@ export function HomeSections({ onVideoSelect }: HomeSectionsProps) {
     fetchVideoItems(fetch, {
       mode: "random",
       limit: 10,
+      includePlaylists: false, // ホーム画面ではプレイリスト取得を省きます。
       signal: controller.signal,
     })
-      .then((items) => {
+      .then(({ videos, playlists }) => {
         if (!controller.signal.aborted) {
-          setRandomVideos(items);
+          setRandomVideos(videos);
+          setRandomPlaylists(playlists);
         }
       })
       .catch((err) => {
@@ -103,6 +111,13 @@ export function HomeSections({ onVideoSelect }: HomeSectionsProps) {
           <h2 className={styles.sectionHeading}>最近</h2>
         </div>
         <div className={styles.sectionGrid}>
+          {newPlaylists.map((playlist) => (
+            <PlaylistCard
+              key={`new-playlist-${playlist.id}`}
+              playlist={playlist}
+              onSelect={onPlaylistSelect}
+            />
+          ))}
           {newVideos.map((video) => (
             <VideoCard
               key={`new-${video.id}`}
@@ -119,6 +134,13 @@ export function HomeSections({ onVideoSelect }: HomeSectionsProps) {
           <h2 className={styles.sectionHeading}>ランダム</h2>
         </div>
         <div className={styles.sectionGrid}>
+          {randomPlaylists.map((playlist) => (
+            <PlaylistCard
+              key={`random-playlist-${playlist.id}`}
+              playlist={playlist}
+              onSelect={onPlaylistSelect}
+            />
+          ))}
           {randomVideos.map((video) => (
             <VideoCard
               key={`random-${video.id}`}

@@ -96,17 +96,19 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 .searchArea {
   flex: 1;
   max-width: 40rem; // Tailwind max-w-2xl 相当
+  position: relative;
+  min-width: 0; // 検索幅を縮める際もアイコンが崩れないようにします。
 }
 
 .searchInput {
   width: 100%;
-  height: 2.75rem;
+  height: 2.5rem; // サンプルに合わせ40px相当の高さに調整
   border-radius: 9999px;
   border: 1px solid rgba(148, 163, 184, 0.5);
   background: var(--user-surface-muted);
   color: var(--user-text);
   font-size: 0.95rem;
-  padding: 0 1rem;
+  padding: 0 1rem 0 2.6rem; // 左にアイコン分のスペースを確保しつつ、右はコンパクトに。
   outline: none;
   transition:
     border-color 0.2s ease,
@@ -122,6 +124,17 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
     box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
     background: var(--user-surface);
   }
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.5rem; // 左方向に約8px寄せて配置します。
+  top: 50%;
+  transform: translateY(-50%); // 中央揃え
+  color: var(--user-text-muted);
+  height: 1.125rem; // 約18px
+  width: 1.125rem;
+  pointer-events: none;
 }
 
 /* ------- セクション ------- */
@@ -165,14 +178,15 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 
 .sectionHeading {
   font-size: 1.25rem;
-  font-weight: 400;
+  font-weight: 600;
   color: var(--user-text);
 }
 
 .sectionGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  column-gap: 1rem;
+  row-gap: 1.1rem; // 縦だけ約10%広げ、カード間の呼吸感を確保します。
 
   @media (min-width: 768px) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -186,7 +200,8 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 .searchGrid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
+  column-gap: 1rem;
+  row-gap: 1.1rem; // 検索結果の縦方向のみ約10%広げます。
 
   @media (min-width: 768px) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -249,7 +264,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   cursor: pointer;
   overflow: hidden;
   border-radius: 0.75rem;
-  background: rgba(15, 23, 42, 0.75);
+  background: var(--user-bg);
   box-shadow: 0 10px 24px var(--user-shadow);
   outline: none;
   transition: box-shadow 0.2s ease;
@@ -273,6 +288,12 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   object-fit: cover;
 }
 
+.thumbnailPlaceholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.85));
+}
+
 .cardBody {
   margin-top: 0.5rem;
   padding: 0 0.25rem 0.5rem;
@@ -287,6 +308,20 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.playlistBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.1rem 0.5rem;
+  margin-bottom: 0.25rem;
+  border-radius: 9999px;
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--user-accent);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 /* ------- フッター ------- */

@@ -5,10 +5,22 @@ export type VideoItem = {
   thumbnail: string;
 };
 
+export type PlaylistItem = {
+  id: string;
+  title: string;
+  playlistId: string;
+  thumbnail?: string;
+};
+
 type RawVideo = {
   url: string;
   title: string;
   published_at?: number;
+};
+
+type RawPlaylist = {
+  url: string;
+  title: string;
 };
 
 function parseYoutubeId(url: string): string | null {
@@ -38,6 +50,18 @@ function buildThumbnailUrl(videoId: string) {
   return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
 }
 
+function parsePlaylistId(url: string): string | null {
+  try {
+    const parsed = new URL(url);
+    const listParam = parsed.searchParams.get("list");
+    if (listParam) return listParam;
+  } catch {
+    // fallback to regex
+  }
+  const match = url.match(/list=([A-Za-z0-9_-]+)/);
+  return match ? match[1] : null;
+}
+
 function mapRawVideo(video: RawVideo): VideoItem | null {
   const videoId = parseYoutubeId(video.url);
   if (!videoId) {
@@ -52,17 +76,38 @@ function mapRawVideo(video: RawVideo): VideoItem | null {
   };
 }
 
+function mapRawPlaylist(playlist: RawPlaylist): PlaylistItem | null {
+  const playlistId = parsePlaylistId(playlist.url);
+  if (!playlistId) {
+    return null;
+  }
+
+  // プレイリストのサムネイルはAPIから取得できないため、ここでは未設定で扱います。
+  return {
+    id: playlistId,
+    playlistId,
+    title: playlist.title,
+  };
+}
+
 export type FetchVideoOptions = {
   query?: string;
   signal?: AbortSignal;
   mode?: "new" | "random";
   limit?: number;
+  offset?: number;
+  includePlaylists?: boolean;
+};
+
+export type FetchVideosResponse = {
+  videos: VideoItem[];
+  playlists: PlaylistItem[];
 };
 
 export async function fetchVideoItems(
   fetchFn: typeof fetch,
   options?: FetchVideoOptions,
-): Promise<VideoItem[]> {
+): Promise<FetchVideosResponse> {
   const params = new URLSearchParams();
   if (options?.query) {
     params.set("q", options.query);
@@ -72,6 +117,12 @@ export async function fetchVideoItems(
   }
   if (options?.limit) {
     params.set("limit", String(options.limit));
+  }
+  if (options?.offset) {
+    params.set("offset", String(options.offset));
+  }
+  if (options?.includePlaylists === false) {
+    params.set("includePlaylists", "false");
   }
 
   const url = `/api/videos${params.toString() ? `?${params}` : ""}`;
@@ -83,15 +134,24 @@ export async function fetchVideoItems(
 
   const payload = (await response.json()) as {
     videos?: RawVideo[];
+    play_lists?: RawPlaylist[];
   };
 
-  const items: VideoItem[] = [];
+  const videoItems: VideoItem[] = [];
   for (const raw of payload.videos ?? []) {
     const mapped = mapRawVideo(raw);
     if (mapped) {
-      items.push(mapped);
+      videoItems.push(mapped);
     }
   }
 
-  return items;
+  const playlistItems: PlaylistItem[] = [];
+  for (const raw of payload.play_lists ?? []) {
+    const mapped = mapRawPlaylist(raw);
+    if (mapped) {
+      playlistItems.push(mapped);
+    }
+  }
+
+  return { videos: videoItems, playlists: playlistItems };
 }
