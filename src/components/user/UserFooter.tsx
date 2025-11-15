@@ -1,3 +1,4 @@
+import Image from "next/image";
 import styles from "./userTheme.module.scss";
 
 export function UserFooter() {
@@ -17,9 +18,17 @@ export function UserFooter() {
             プライバシーポリシー
           </a>
         </div>
-        <p className={styles.footerCopy}>
-          © {new Date().getFullYear()} Lafter. All rights reserved.
-        </p>
+        <div className={styles.footerBadge}>
+          <a href="https://www.youtube.com/" target="_blank" rel="noreferrer" aria-label="YouTube">
+            <Image
+              src="/developed-with-youtube-sentence-case-light.png"
+              alt="Developed with YouTube"
+              width={192}
+              height={68}
+              className={styles.footerBadgeImage}
+            />
+          </a>
+        </div>
       </div>
     </footer>
   );
