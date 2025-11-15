@@ -42,6 +42,7 @@ export function VideoCard({ video, onSelect, onChannelSelect }: VideoCardProps) 
           {video.title}
         </h3>
         {video.channelName && (
+          // チャンネル名から同名検索を素早く行えるようリンク化します。
           <button
             type="button"
             onClick={(event) => {
