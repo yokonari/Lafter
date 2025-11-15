@@ -11,9 +11,14 @@ import styles from "./userTheme.module.scss";
 type HomeSectionsProps = {
   onVideoSelect: (video: VideoItem) => void;
   onPlaylistSelect: (playlist: PlaylistItem) => void;
+  onChannelSelect: (channelName: string) => void;
 };
 
-export function HomeSections({ onVideoSelect, onPlaylistSelect }: HomeSectionsProps) {
+export function HomeSections({
+  onVideoSelect,
+  onPlaylistSelect,
+  onChannelSelect,
+}: HomeSectionsProps) {
   const [newVideos, setNewVideos] = useState<VideoItem[]>([]);
   const [newPlaylists, setNewPlaylists] = useState<PlaylistItem[]>([]);
   const [randomVideos, setRandomVideos] = useState<VideoItem[]>([]);
@@ -93,63 +98,65 @@ export function HomeSections({ onVideoSelect, onPlaylistSelect }: HomeSectionsPr
     // セクション全体でも暗めの背景に寄り添うようカラー調整を丁寧に行います。
     // 上下16px（py-4）で呼吸感を確保しつつ、ヘッダー/フッターとのバランスを整えます。
     <div className={styles.sectionContainer}>
-      {(newLoading || randomLoading) && (
-        <p className={styles.statusText}>
-          現在のおすすめ動画を読み込んでいます…
-        </p>
+      {(newError || randomError) && <p className={styles.errorCard}>{newError ?? randomError}</p>}
+
+      {(newLoading || randomLoading) ? (
+        <div className="mt-6 flex justify-center" aria-label="読み込み中" aria-live="polite">
+          {/* 読み込み中の状態を視覚的に丁寧に伝えるスピナーです。 */}
+          <div className="h-8 w-8 animate-spin rounded-xl bg-[var(--user-accent)]" />
+        </div>
+      ) : (
+        <>
+          {/* 新着動画セクションはデータ取得完了後に表示します。 */}
+          <section className={styles.section}>
+            <div className={styles.sectionHeadingWrap}>
+              <h2 className={styles.sectionHeading}>最近</h2>
+            </div>
+            <div className={styles.sectionGrid}>
+              {newPlaylists.map((playlist) => (
+                <PlaylistCard
+                  key={`new-playlist-${playlist.id}`}
+                  playlist={playlist}
+                  onSelect={onPlaylistSelect}
+                />
+              ))}
+              {newVideos.map((video) => (
+                <VideoCard
+                  key={`new-${video.id}`}
+                  video={video}
+                  onSelect={onVideoSelect}
+                  onChannelSelect={onChannelSelect}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* ランダム動画セクションもデータ取得後に表示します。 */}
+          <section>
+            <div className={styles.sectionHeadingWrap}>
+              <h2 className={styles.sectionHeading}>ランダム</h2>
+            </div>
+            <div className={styles.sectionGrid}>
+              {randomPlaylists.map((playlist) => (
+                <PlaylistCard
+                  key={`random-playlist-${playlist.id}`}
+                  playlist={playlist}
+                  onSelect={onPlaylistSelect}
+                />
+              ))}
+              {randomVideos.map((video) => (
+                <VideoCard
+                  key={`random-${video.id}`}
+                  video={video}
+                  onSelect={onVideoSelect}
+                  onChannelSelect={onChannelSelect}
+                />
+              ))}
+            </div>
+          </section>
+        </>
       )}
 
-      {(newError || randomError) && (
-        <p className={styles.errorCard}>
-          {newError ?? randomError}
-        </p>
-      )}
-
-      {/* 新着動画セクション */}
-      <section className={styles.section}>
-        <div className={styles.sectionHeadingWrap}>
-          <h2 className={styles.sectionHeading}>最近</h2>
-        </div>
-        <div className={styles.sectionGrid}>
-          {newPlaylists.map((playlist) => (
-            <PlaylistCard
-              key={`new-playlist-${playlist.id}`}
-              playlist={playlist}
-              onSelect={onPlaylistSelect}
-            />
-          ))}
-          {newVideos.map((video) => (
-            <VideoCard
-              key={`new-${video.id}`}
-              video={video}
-              onSelect={onVideoSelect}
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* ランダム動画セクション */}
-      <section>
-        <div className={styles.sectionHeadingWrap}>
-          <h2 className={styles.sectionHeading}>ランダム</h2>
-        </div>
-        <div className={styles.sectionGrid}>
-          {randomPlaylists.map((playlist) => (
-            <PlaylistCard
-              key={`random-playlist-${playlist.id}`}
-              playlist={playlist}
-              onSelect={onPlaylistSelect}
-            />
-          ))}
-          {randomVideos.map((video) => (
-            <VideoCard
-              key={`random-${video.id}`}
-              video={video}
-              onSelect={onVideoSelect}
-            />
-          ))}
-        </div>
-      </section>
     </div>
   );
 }

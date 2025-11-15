@@ -8,9 +8,15 @@ type SearchResultsProps = {
   query: string;
   onVideoSelect: (video: VideoItem) => void;
   onPlaylistSelect: (playlist: PlaylistItem) => void;
+  onChannelSelect: (channelName: string) => void;
 };
 
-export function SearchResults({ query, onVideoSelect, onPlaylistSelect }: SearchResultsProps) {
+export function SearchResults({
+  query,
+  onVideoSelect,
+  onPlaylistSelect,
+  onChannelSelect,
+}: SearchResultsProps) {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistItem[]>([]);
   const [loading, setLoading] = useState(false);
@@ -90,7 +96,13 @@ export function SearchResults({ query, onVideoSelect, onPlaylistSelect }: Search
       <div className={styles.searchHeader} />
 
       {loading && (
-        <p className={styles.statusText}>検索結果を読み込んでいます…</p>
+        <>
+          <p className={styles.statusText}>検索結果を読み込んでいます…</p>
+          <div className="mt-6 flex justify-center" aria-label="読み込み中" aria-live="polite">
+            {/* 読み込み中の状態を視覚的に丁寧に伝えるスピナーです。 */}
+            <div className="animate-spin h-8 w-8 rounded-xl bg-[var(--user-accent)]" />
+          </div>
+        </>
       )}
 
       {error && (
@@ -106,7 +118,12 @@ export function SearchResults({ query, onVideoSelect, onPlaylistSelect }: Search
             <PlaylistCard key={`playlist-${playlist.id}`} playlist={playlist} onSelect={onPlaylistSelect} />
           ))}
           {videos.map((video) => (
-            <VideoCard key={video.id} video={video} onSelect={onVideoSelect} />
+            <VideoCard
+              key={video.id}
+              video={video}
+              onSelect={onVideoSelect}
+              onChannelSelect={onChannelSelect}
+            />
           ))}
         </div>
       )}

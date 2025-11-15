@@ -38,6 +38,12 @@ export function UserHome() {
   const handlePlaylistSelect = useCallback((playlist: PlaylistItem) => {
     setDialogPlaylist(playlist);
   }, []);
+  // チャンネル名クリックで検索結果へ遷移
+  const handleChannelSelect = useCallback((channelName: string) => {
+    setSearchInput(channelName);
+    setActiveQuery(channelName);
+    setIsSearching(true);
+  }, []);
 
   return (
     // 管理画面と同様に全体をダークトーンで包み込み、視覚的な統一感を丁寧に確保します。
@@ -57,9 +63,14 @@ export function UserHome() {
             query={activeQuery}
             onVideoSelect={handleVideoSelect}
             onPlaylistSelect={handlePlaylistSelect}
+            onChannelSelect={handleChannelSelect}
           />
         ) : (
-          <HomeSections onVideoSelect={handleVideoSelect} onPlaylistSelect={handlePlaylistSelect} />
+          <HomeSections
+            onVideoSelect={handleVideoSelect}
+            onPlaylistSelect={handlePlaylistSelect}
+            onChannelSelect={handleChannelSelect}
+          />
         )}
       </main>
 

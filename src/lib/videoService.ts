@@ -3,6 +3,7 @@ export type VideoItem = {
   title: string;
   videoId: string;
   thumbnail: string;
+  channelName?: string;
 };
 
 export type PlaylistItem = {
@@ -16,6 +17,7 @@ type RawVideo = {
   url: string;
   title: string;
   published_at?: number;
+  channel_name?: string | null;
 };
 
 type RawPlaylist = {
@@ -73,6 +75,7 @@ function mapRawVideo(video: RawVideo): VideoItem | null {
     videoId,
     title: video.title,
     thumbnail: buildThumbnailUrl(videoId),
+    channelName: video.channel_name ?? undefined,
   };
 }
 
