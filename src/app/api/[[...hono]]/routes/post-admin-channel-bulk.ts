@@ -9,7 +9,6 @@ import type { AdminEnv } from "../types";
 type BulkItem = {
   id?: unknown;
   channel_status?: unknown;
-  keyword_id?: unknown;
 };
 
 type BulkRequestBody = {
@@ -19,12 +18,6 @@ type BulkRequestBody = {
 type ChannelUpdate = Partial<typeof channels.$inferInsert>;
 
 const MAX_ITEMS_PER_REQUEST = 100;
-const KEYWORD_MAP: Record<number, string> = {
-  1: "漫才",
-  2: "コント",
-  3: "ネタ",
-};
-
 export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
   app.post("/admin/channel/bulk", async (c) => {
     const { env } = getCloudflareContext();
@@ -61,19 +54,6 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
       }
       if (channelStatusInput !== undefined) {
         update.status = channelStatusInput;
-      }
-
-      const keywordIdInput = normalizeInt(item.keyword_id);
-      if (keywordIdInput !== undefined) {
-        // ステータスが OK(1) のときのみキーワードを丁寧に紐付けられるよう制御します。
-        if (channelStatusInput !== 1) {
-          return fail(`${path}.keyword_id を指定する場合は channel_status を 1 にしてください。`);
-        }
-        const mappedKeyword = KEYWORD_MAP[keywordIdInput];
-        if (!mappedKeyword) {
-          return fail(`${path}.keyword_id には 1〜3 の整数を指定してください。`);
-        }
-        update.keyword = mappedKeyword;
       }
 
       if (Object.keys(update).length === 0) {

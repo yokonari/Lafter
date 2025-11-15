@@ -1,29 +1,15 @@
-export type VideoCategoryLabel = "漫才" | "コント" | "その他";
-
 export type VideoItem = {
   id: string;
   title: string;
   videoId: string;
   thumbnail: string;
-  category?: VideoCategoryLabel;
 };
 
 type RawVideo = {
   url: string;
   title: string;
   published_at?: number;
-  category?: number;
 };
-
-const categoryLabelMap: Record<number, VideoCategoryLabel> = {
-  1: "漫才",
-  2: "コント",
-  3: "その他",
-  4: "その他",
-};
-
-const isCategoryLabel = (category?: number): category is number =>
-  category !== undefined && Number.isFinite(category);
 
 function parseYoutubeId(url: string): string | null {
   try {
@@ -57,22 +43,17 @@ function mapRawVideo(video: RawVideo): VideoItem | null {
   if (!videoId) {
     return null;
   }
-  const category = isCategoryLabel(video.category)
-    ? categoryLabelMap[video.category] ?? "その他"
-    : undefined;
 
   return {
     id: videoId,
     videoId,
     title: video.title,
     thumbnail: buildThumbnailUrl(videoId),
-    category,
   };
 }
 
 export type FetchVideoOptions = {
   query?: string;
-  category?: number;
   signal?: AbortSignal;
   mode?: "new" | "random";
   limit?: number;
@@ -85,9 +66,6 @@ export async function fetchVideoItems(
   const params = new URLSearchParams();
   if (options?.query) {
     params.set("q", options.query);
-  }
-  if (options?.category) {
-    params.set("category", String(options.category));
   }
   if (options?.mode) {
     params.set("mode", options.mode);
