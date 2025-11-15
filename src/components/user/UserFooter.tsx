@@ -1,19 +1,23 @@
+import styles from "./userTheme.module.scss";
+
 export function UserFooter() {
   return (
-    <footer className="mt-16 bg-gray-50">
-      <div className="mx-auto w-full max-w-6xl px-4 py-8">
-        <div className="flex flex-wrap justify-center gap-8 text-sm text-gray-600">
-          <a href="#" className="transition hover:text-gray-900">
+    // ヘッダーと統一した落ち着いたダークトーンで、フッターでも一体感を丁寧に演出します。
+    <footer className={styles.footer}>
+      {/* 上下24px（py-6）で静かな余白を設け、ヘッダーとバランスを丁寧に保ちます。 */}
+      <div className={styles.footerInner}>
+        <div className={styles.footerLinks}>
+          <a href="#" className={styles.footerLink}>
             問い合わせ
           </a>
-          <a href="#" className="transition hover:text-gray-900">
+          <a href="#" className={styles.footerLink}>
             利用規約
           </a>
-          <a href="#" className="transition hover:text-gray-900">
+          <a href="#" className={styles.footerLink}>
             プライバシーポリシー
           </a>
         </div>
-        <p className="mt-4 text-center text-sm text-gray-500">
+        <p className={styles.footerCopy}>
           © {new Date().getFullYear()} Lafter. All rights reserved.
         </p>
       </div>
