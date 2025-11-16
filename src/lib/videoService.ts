@@ -1,7 +1,6 @@
 export type VideoItem = {
   id: string;
   title: string;
-  videoId: string;
   thumbnail: string;
   channelName?: string;
 };
@@ -14,65 +13,30 @@ export type PlaylistItem = {
 };
 
 type RawVideo = {
-  url: string;
+  id: string;
   title: string;
   published_at?: number;
   channel_name?: string | null;
 };
 
 type RawPlaylist = {
-  url: string;
+  id: string;
   title: string;
 };
 
-function parseYoutubeId(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    if (parsed.hostname === "youtu.be") {
-      return parsed.pathname.slice(1);
-    }
-    const vParam = parsed.searchParams.get("v");
-    if (vParam) {
-      return vParam;
-    }
-    const match = parsed.pathname.match(/\/embed\/([A-Za-z0-9_-]{11})/);
-    if (match && match[1]) {
-      return match[1];
-    }
-  } catch {
-    // fallback to regex
-  }
-
-  const regex = /(?:(?:v=)|(?:youtu\.be\/))([A-Za-z0-9_-]{11})/;
-  const match = url.match(regex);
-  return match ? match[1] : null;
-}
 
 function buildThumbnailUrl(videoId: string) {
   return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
 }
 
-function parsePlaylistId(url: string): string | null {
-  try {
-    const parsed = new URL(url);
-    const listParam = parsed.searchParams.get("list");
-    if (listParam) return listParam;
-  } catch {
-    // fallback to regex
-  }
-  const match = url.match(/list=([A-Za-z0-9_-]+)/);
-  return match ? match[1] : null;
-}
-
 function mapRawVideo(video: RawVideo): VideoItem | null {
-  const videoId = parseYoutubeId(video.url);
+  const videoId = video.id;
   if (!videoId) {
     return null;
   }
 
   return {
     id: videoId,
-    videoId,
     title: video.title,
     thumbnail: buildThumbnailUrl(videoId),
     channelName: video.channel_name ?? undefined,
@@ -80,7 +44,7 @@ function mapRawVideo(video: RawVideo): VideoItem | null {
 }
 
 function mapRawPlaylist(playlist: RawPlaylist): PlaylistItem | null {
-  const playlistId = parsePlaylistId(playlist.url);
+  const playlistId = playlist.id;
   if (!playlistId) {
     return null;
   }
