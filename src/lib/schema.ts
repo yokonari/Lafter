@@ -3,6 +3,7 @@ import {
   sqliteTable,
   text,
   integer,
+  index,
 } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 
@@ -21,6 +22,9 @@ export const channels = sqliteTable(
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
   },
+  (table) => ({
+    idxChannelsStatus: index("idx_channels_status").on(table.status),
+  }),
 );
 
 /* =========================
@@ -41,6 +45,11 @@ export const videos = sqliteTable(
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
   },
+  (table) => ({
+    idxVideosStatusCreatedAt: index("idx_videos_status_created_at").on(table.status, table.createdAt),
+    idxVideosChannelStatus: index("idx_videos_channel_status").on(table.channelId, table.status),
+    idxVideosStatusPublishedAt: index("idx_videos_status_published_at").on(table.status, table.publishedAt),
+  }),
 );
 
 /* =========================

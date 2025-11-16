@@ -33,8 +33,8 @@ type ChannelSelection = {
 };
 
 const STATUS_OPTIONS = [
-  { value: "1", label: "✅ OK" },
-  { value: "2", label: "⛔ NG" },
+  { value: "1", label: "OK" as const },
+  { value: "2", label: "NG" as const },
 ];
 
 export function ChannelBulkManager({
@@ -191,11 +191,17 @@ export function ChannelBulkManager({
                         {STATUS_OPTIONS.map((option) => {
                           const inputId = `status-${channel.id}-${option.value}`;
                           const isChecked = entry.status === option.value;
+                          const activeClass =
+                            isChecked && option.value === "1"
+                              ? styles.radioOptionOkActive
+                              : isChecked && option.value === "2"
+                                ? styles.radioOptionNgActive
+                                : "";
                           return (
                             <label
                               key={option.value}
                               htmlFor={inputId}
-                              className={`${styles.radioOption} ${isChecked ? styles.radioOptionActive : ""}`}
+                              className={`${styles.radioOption} ${activeClass}`}
                             >
                               <input
                                 type="radio"

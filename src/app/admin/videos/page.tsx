@@ -44,8 +44,8 @@ type VideoSelection = {
 };
 
 const VIDEO_STATUS_OPTIONS = [
-  { value: "1", label: "✅ OK" },
-  { value: "2", label: "⛔ NG" },
+  { value: "1", label: "OK" as const },
+  { value: "2", label: "NG" as const },
 ];
 
 type ShortcutConfig = {
@@ -136,9 +136,9 @@ function AdminVideosPageContent() {
     const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
     setDialogVideo({
       id: videoId,
-      videoId,
       title: video.title,
       thumbnail: thumbnailUrl,
+      channelName: video.channel_name,
     });
   }, []);
   const handleDialogClose = useCallback(() => {
@@ -844,11 +844,17 @@ function AdminVideosPageContent() {
                             {VIDEO_STATUS_OPTIONS.map((option) => {
                               const inputId = `video-status-${video.id}-${option.value}`;
                               const isChecked = entry.videoStatus === option.value;
+                              const activeClass =
+                                isChecked && option.value === "1"
+                                  ? styles.radioOptionOkActive
+                                  : isChecked && option.value === "2"
+                                    ? styles.radioOptionNgActive
+                                    : "";
                               return (
                                 <label
                                   key={option.value}
                                   htmlFor={inputId}
-                                  className={`${styles.radioOption} ${isChecked ? styles.radioOptionActive : ""}`}
+                                  className={`${styles.radioOption} ${activeClass}`}
                                 >
                                   <input
                                     type="radio"
