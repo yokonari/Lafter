@@ -19,7 +19,6 @@ const AUTO_CATEGORIZATION_RULES: Array<{
   { key: "conte", keywords: ["コント"] },
   { key: "neta", keywords: ["ネタ"] },
   { key: "variety", keywords: ["ものまね", "モノマネ", "歌", "あるある"] },
-  { key: "titled", titleRegex: /[「」『』【】]/ },
 ];
 
 type AutoCategorizeRequest = {
