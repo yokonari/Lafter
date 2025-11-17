@@ -17,8 +17,9 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const qRaw = c.req.query("q") ?? "";
     const q = qRaw.trim();
     // 複数キーワードは半角・全角スペースで区切り、すべてを AND で満たすように扱います。
+    // 「ダ/ダ」などの正規化差異も吸収するため、NFC/NFD 両方のパターンを用意します。
     const keywords = q ? q.split(/\s+/u).filter(Boolean) : [];
-    const patterns = keywords.map((word) => buildLikePattern(word));
+    const normalizedPatternsPerWord = keywords.map((word) => buildLikePatterns(word));
     const mode = c.req.query("mode");
     const offsetParam = Number(c.req.query("offset") ?? 0);
     const safeOffset = Number.isFinite(offsetParam) && offsetParam > 0 ? offsetParam : 0;
@@ -26,38 +27,40 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const shouldIncludePlaylists =
       includePlaylistsParam === "false" || includePlaylistsParam === "0" ? false : true;
     const channelIdsMatchingQuery: string[] = [];
-    if (patterns.length) {
-      // 各キーワードでヒットするチャンネルIDを都度取得し、積集合をとって「全キーワードを含むチャンネル」に絞ります。
-      for (const [index, pattern] of patterns.entries()) {
-        const matchedChannels = await db
-          .select({ id: channels.id })
-          .from(channels)
-          .where(and(eq(channels.status, 1), like(channels.name, pattern)));
-        const ids = matchedChannels.map((row) => row.id);
-        if (index === 0) {
-          channelIdsMatchingQuery.push(...ids);
-        } else {
-          const next = channelIdsMatchingQuery.filter((id) => ids.includes(id));
-          channelIdsMatchingQuery.splice(0, channelIdsMatchingQuery.length, ...next);
-        }
+    if (normalizedPatternsPerWord.length) {
+      const channelConditions: SQL<boolean>[] = [
+        eq(channels.status, 1) as SQL<boolean>,
+      ];
+      // 各キーワードに対する OR 群を AND で束ね、全キーワードを含むチャンネルのみ抽出。
+      for (const patterns of normalizedPatternsPerWord) {
+        const likeParts = patterns.map((pattern) => like(channels.name, pattern) as SQL<boolean>);
+        const wordCondition = likeParts.length === 1 ? likeParts[0] : or(...likeParts);
+        channelConditions.push(wordCondition as SQL<boolean>);
       }
+      const channelWhere =
+        channelConditions.length === 1 ? channelConditions[0] : and(...channelConditions);
+      const matchedChannels = await db
+        .select({ id: channels.id })
+        .from(channels)
+        .where(channelWhere);
+      channelIdsMatchingQuery.push(...matchedChannels.map((row) => row.id));
     }
 
     const videoConditions = [
       eq(videos.status, 1),
       eq(channels.status, 1),
     ];
-    if (patterns.length) {
+    if (normalizedPatternsPerWord.length) {
       // キーワードごとに (タイトルLIKE または チャンネルID一致) を作り、すべて AND で縛ります。
-      const keywordConditions: SQL<boolean>[] = patterns.map((pattern) => {
-        const titleMatch = like(videos.title, pattern) as SQL<boolean>;
-        const checks: SQL<boolean>[] = [titleMatch];
+      const keywordConditions: SQL<boolean>[] = normalizedPatternsPerWord.map((patterns) => {
+        const titleMatches = patterns.map((pattern) => like(videos.title, pattern) as SQL<boolean>);
+        const checks: SQL<boolean>[] = titleMatches;
         if (channelIdsMatchingQuery.length) {
           // inArray も SQL<unknown> を返すため、boolean 条件へそろえます。
           checks.push(inArray(videos.channelId, channelIdsMatchingQuery) as SQL<boolean>);
         }
         if (checks.length === 1) {
-          return titleMatch;
+          return checks[0];
         }
         const combined = or(...checks);
         return combined as SQL<boolean>;
@@ -108,20 +111,20 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         eq(playlists.status, 1),
         eq(channels.status, 1),
       ];
-      if (patterns.length) {
-        // プレイリストもキーワードごとに AND で束ねます。
-        const playlistKeywordConditions: SQL<boolean>[] = patterns.map((pattern) => {
-          const playlistNameMatch = like(playlists.name, pattern) as SQL<boolean>;
-          const checks: SQL<boolean>[] = [playlistNameMatch];
-          if (channelIdsMatchingQuery.length) {
-            checks.push(inArray(playlists.channelId, channelIdsMatchingQuery) as SQL<boolean>);
-          }
-          if (checks.length === 1) {
-            return playlistNameMatch;
-          }
-          const combinedPlaylistPattern = or(...checks);
-          return combinedPlaylistPattern as SQL<boolean>;
-        });
+    if (normalizedPatternsPerWord.length) {
+      // プレイリストもキーワードごとに AND で束ねます。
+      const playlistKeywordConditions: SQL<boolean>[] = normalizedPatternsPerWord.map((patterns) => {
+        const playlistNameMatches = patterns.map((pattern) => like(playlists.name, pattern) as SQL<boolean>);
+        const checks: SQL<boolean>[] = playlistNameMatches;
+        if (channelIdsMatchingQuery.length) {
+          checks.push(inArray(playlists.channelId, channelIdsMatchingQuery) as SQL<boolean>);
+        }
+        if (checks.length === 1) {
+          return checks[0];
+        }
+        const combinedPlaylistPattern = or(...checks);
+        return combinedPlaylistPattern as SQL<boolean>;
+      });
 
         if (playlistKeywordConditions.length === 1) {
           playlistConditions.push(playlistKeywordConditions[0]);
@@ -168,9 +171,13 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
   });
 }
 
-function buildLikePattern(keyword: string): string {
-  const escaped = keyword.replace(/[%_]/g, (m) => `\\${m}`);
-  return `%${escaped}%`;
+function buildLikePatterns(keyword: string): string[] {
+  const variants = [keyword.normalize("NFC"), keyword.normalize("NFD")];
+  const unique = Array.from(new Set(variants));
+  return unique.map((word) => {
+    const escaped = word.replace(/[%_]/g, (m) => `\\${m}`);
+    return `%${escaped}%`;
+  });
 }
 
 function toUnixTime(iso: string | null | undefined): number {
