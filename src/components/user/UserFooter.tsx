@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import styles from "./userTheme.module.scss";
 
 export function UserFooter() {
@@ -11,12 +12,14 @@ export function UserFooter() {
           <a href="#" className={styles.footerLink}>
             問い合わせ
           </a>
-          <a href="#" className={styles.footerLink}>
+          {/* 静的ページへ丁寧に遷移させ、利用規約の全文をユーザーにしっかり案内します。 */}
+          <Link href="/terms" className={styles.footerLink}>
             利用規約
-          </a>
-          <a href="#" className={styles.footerLink}>
+          </Link>
+          {/* プライバシーポリシーも同様に、Markdown から整然と表示する画面へ案内します。 */}
+          <Link href="/policy" className={styles.footerLink}>
             プライバシーポリシー
-          </a>
+          </Link>
         </div>
         <div className={styles.footerBadge}>
           <a href="https://youtube.com/" target="_blank" rel="noreferrer" aria-label="YouTube">

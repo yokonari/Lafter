@@ -36,6 +36,20 @@ body {
   color: var(--foreground);
 }
 
+.markdownBackLink {
+  /* Markdown ページ専用の戻るリンクを控えめなトーンで整えます。 */
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+}
+
+.markdownBackLink:hover {
+  color: #f1f5f9;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
