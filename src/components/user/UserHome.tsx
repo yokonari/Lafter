@@ -44,7 +44,12 @@ export function UserHome() {
         params.delete("channelId");
       }
       const queryString = params.toString();
-      router.replace(queryString ? `${pathname}?${queryString}` : pathname);
+      const nextUrl = queryString ? `${pathname}?${queryString}` : pathname;
+      const currentQuery = searchParams.toString();
+      const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
+      if (nextUrl !== currentUrl) {
+        router.push(nextUrl);
+      }
     },
     [pathname, router, searchParams],
   );
@@ -128,6 +133,7 @@ export function UserHome() {
             query={activeQuery}
             channelId={activeChannelId}
             onVideoSelect={handleVideoSelect}
+            onPlaylistSelect={handlePlaylistSelect}
             onChannelSelect={handleChannelSelect}
             onReportSelect={handleReportSelect}
           />
@@ -142,7 +148,11 @@ export function UserHome() {
 
       <UserFooter onContactClick={() => setIsContactOpen(true)} />
 
-      <VideoDialog video={dialogVideo} onClose={() => setDialogVideo(null)} />
+      <VideoDialog
+        video={dialogVideo}
+        onClose={() => setDialogVideo(null)}
+        onReport={handleReportSelect}
+      />
       <PlaylistDialog playlist={dialogPlaylist} onClose={() => setDialogPlaylist(null)} />
       <ContactDialog
         open={isContactOpen}

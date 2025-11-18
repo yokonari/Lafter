@@ -8,6 +8,7 @@ type SearchResultsProps = {
   query: string;
   channelId?: string;
   onVideoSelect: (video: VideoItem) => void;
+  onPlaylistSelect: (playlist: PlaylistItem) => void;
   onChannelSelect: (channelId: string) => void;
   onReportSelect: (video: VideoItem) => void;
 };
@@ -16,6 +17,7 @@ export function SearchResults({
   query,
   channelId,
   onVideoSelect,
+  onPlaylistSelect,
   onChannelSelect,
   onReportSelect,
 }: SearchResultsProps) {
@@ -122,7 +124,7 @@ export function SearchResults({
             <PlaylistCard
               key={`playlist-${playlist.id}`}
               playlist={playlist}
-              onSelect={() => {}}
+              onSelect={onPlaylistSelect}
               onChannelSelect={onChannelSelect}
             />
           ))}
