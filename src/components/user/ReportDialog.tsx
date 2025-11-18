@@ -47,6 +47,8 @@ export function ReportDialog({ open, video, onClose, onSuccess }: ReportDialogPr
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           videoTitle: video.title,
+          videoId: video.id ?? "",
+          channelId: video.channelId ?? "",
           channelName: video.channelName ?? "",
           reason: selectedReason,
         }),

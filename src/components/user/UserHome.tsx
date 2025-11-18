@@ -85,7 +85,7 @@ export function UserHome() {
     setDialogPlaylist(playlist);
   }, []);
   // チャンネル名クリックで検索結果へ遷移
-  const handleChannelSelect = useCallback((channelId: string, channelName: string) => {
+  const handleChannelSelect = useCallback((channelId: string) => {
     setSearchInput("");
     setActiveQuery("");
     setActiveChannelId(channelId);
@@ -106,6 +106,10 @@ export function UserHome() {
     toast.success("ご報告ありがとうございました！");
   }, []);
 
+  const handleContactSuccess = useCallback(() => {
+    toast.success("お問い合わせありがとうございました！");
+  }, []);
+
   return (
     // 管理画面と同様に全体をダークトーンで包み込み、視覚的な統一感を丁寧に確保します。
     <div className={styles.userLayout}>
@@ -124,14 +128,12 @@ export function UserHome() {
             query={activeQuery}
             channelId={activeChannelId}
             onVideoSelect={handleVideoSelect}
-            onPlaylistSelect={handlePlaylistSelect}
             onChannelSelect={handleChannelSelect}
             onReportSelect={handleReportSelect}
           />
         ) : (
           <HomeSections
             onVideoSelect={handleVideoSelect}
-            onPlaylistSelect={handlePlaylistSelect}
             onChannelSelect={handleChannelSelect}
             onReportSelect={handleReportSelect}
           />
@@ -142,9 +144,13 @@ export function UserHome() {
 
       <VideoDialog video={dialogVideo} onClose={() => setDialogVideo(null)} />
       <PlaylistDialog playlist={dialogPlaylist} onClose={() => setDialogPlaylist(null)} />
-      <ContactDialog open={isContactOpen} onClose={() => setIsContactOpen(false)} />
+      <ContactDialog
+        open={isContactOpen}
+        onClose={() => setIsContactOpen(false)}
+        onSuccess={handleContactSuccess}
+      />
       <ReportDialog open={Boolean(reportVideo)} video={reportVideo} onClose={handleReportClose} onSuccess={handleReportSuccess} />
-      <ToastContainer position="bottom-center" theme="dark" />
+      <ToastContainer position="top-center" theme="dark" />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import styles from "./userTheme.module.scss";
 type VideoCardProps = {
   video: VideoItem;
   onSelect: (video: VideoItem) => void;
-  onChannelSelect: (channelId: string, channelName: string) => void;
+  onChannelSelect: (channelId: string) => void;
   onReportSelect: (video: VideoItem) => void;
 };
 
@@ -71,7 +71,7 @@ export function VideoCard({ video, onSelect, onChannelSelect, onReportSelect }: 
             onClick={(event) => {
               event.stopPropagation();
               if (video.channelId) {
-                onChannelSelect(video.channelId, video.channelName || "");
+                onChannelSelect(video.channelId);
               }
             }}
             className={styles.cardChannel}

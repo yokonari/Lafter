@@ -7,10 +7,11 @@ import styles from "./userTheme.module.scss";
 type ContactDialogProps = {
   open: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
 };
 
 // ユーザー画面に溶け込むシンプルな問い合わせモーダルです。閉じた時に状態を丁寧に初期化します。
-export function ContactDialog({ open, onClose }: ContactDialogProps) {
+export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) {
   const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -90,6 +91,8 @@ export function ContactDialog({ open, onClose }: ContactDialogProps) {
       setSubmitted(true);
       form.reset();
       setMessageDraft("");
+      onClose();
+      onSuccess?.();
     } catch (error) {
       console.error("Failed to submit contact form", error);
       setErrorMessage("通信中にエラーが発生しました。ネットワーク環境をご確認のうえ再度お試しください。");

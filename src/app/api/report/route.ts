@@ -52,7 +52,9 @@ export async function POST(req: Request) {
     return json(400, { message: "JSON ボディを解析できませんでした。" });
   }
 
+  const videoId = typeof payload.videoId === "string" ? payload.videoId.trim() : "";
   const videoTitle = typeof payload.videoTitle === "string" ? payload.videoTitle.trim() : "";
+  const channelId = typeof payload.channelId === "string" ? payload.channelId.trim() : "";
   const channelName = typeof payload.channelName === "string" ? payload.channelName.trim() : "";
   const reasonRaw = typeof payload.reason === "string" ? payload.reason : "";
 
@@ -72,6 +74,8 @@ export async function POST(req: Request) {
     `報告種別: ${reasonLabel}`,
     `動画名: ${videoTitle}`,
     `チャンネル名: ${channelName || "未入力"}`,
+    `動画ID: ${videoId || "未入力"}`,
+    `チャンネルID: ${channelId || "未入力"}`,
   ].join("\n");
 
   const ensuredApiKey = apiKey as string;

@@ -1,30 +1,23 @@
 'use client';
 
-'use client';
-
 import { useEffect, useState } from "react";
-import { fetchVideoItems, type VideoItem, type PlaylistItem } from "@/lib/videoService";
+import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
-import { PlaylistCard } from "./PlaylistCard";
 import styles from "./userTheme.module.scss";
 
 type HomeSectionsProps = {
   onVideoSelect: (video: VideoItem) => void;
-  onPlaylistSelect: (playlist: PlaylistItem) => void;
-  onChannelSelect: (channelId: string, channelName: string) => void;
+  onChannelSelect: (channelId: string) => void;
   onReportSelect: (video: VideoItem) => void;
 };
 
 export function HomeSections({
   onVideoSelect,
-  onPlaylistSelect,
   onChannelSelect,
   onReportSelect,
 }: HomeSectionsProps) {
   const [newVideos, setNewVideos] = useState<VideoItem[]>([]);
-  const [newPlaylists, setNewPlaylists] = useState<PlaylistItem[]>([]);
   const [randomVideos, setRandomVideos] = useState<VideoItem[]>([]);
-  const [randomPlaylists, setRandomPlaylists] = useState<PlaylistItem[]>([]);
   const [newError, setNewError] = useState<string | null>(null);
   const [randomError, setRandomError] = useState<string | null>(null);
   const [newLoading, setNewLoading] = useState(false);
@@ -41,10 +34,9 @@ export function HomeSections({
       includePlaylists: false, // ホームではプレイリストを表示しないため取得を省きます。
       signal: controller.signal,
     })
-      .then(({ videos, playlists }) => {
+      .then(({ videos }) => {
         if (!controller.signal.aborted) {
           setNewVideos(videos);
-          setNewPlaylists(playlists);
         }
       })
       .catch((err) => {
@@ -74,10 +66,9 @@ export function HomeSections({
       includePlaylists: false, // ホームではプレイリストを表示しないため取得を省きます。
       signal: controller.signal,
     })
-      .then(({ videos, playlists }) => {
+      .then(({ videos }) => {
         if (!controller.signal.aborted) {
           setRandomVideos(videos);
-          setRandomPlaylists(playlists);
         }
       })
       .catch((err) => {
