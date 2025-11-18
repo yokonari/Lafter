@@ -128,7 +128,7 @@ export function UserHeader({
             onKeyDown={handleKeyDown}
             onFocus={() => setIsHistoryOpen(true)}
             placeholder="動画を検索..."
-            aria-label="動画を検索"
+            aria-label="芸人名、動画タイトル、チャンネル名などで検索"
             className={styles.searchInput}
             ref={searchInputRef}
           />

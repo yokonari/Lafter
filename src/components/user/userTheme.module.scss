@@ -266,12 +266,48 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 
 .sectionHeadingWrap {
   margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; // タイトルと「もっと見る」ボタンを左右に振り分けて視認性を高めます。
+  gap: 0.75rem;
 }
 
 .sectionHeading {
   font-size: 1.25rem;
   font-weight: 400;
   color: var(--user-text);
+}
+
+.sectionFooterWrap {
+  margin: 0.5rem 0; // 上下とも8pxの余白にし、コンパクトに整えます。
+  display: flex;
+  justify-content: flex-end; // カード群の右下に「もっと見る」ボタンを寄せます。
+}
+
+.sectionFooterAction {
+  padding: 0.55rem 1.2rem;
+  border-radius: 9999px;
+  border: none;
+  background: var(--user-accent); // 単色のプライマリーカラーで明快に強調します。
+  color: var(--user-bg);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  font-size: 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(251, 191, 36, 0.25);
+  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--user-accent-strong);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 34px rgba(251, 191, 36, 0.35);
+  }
+
+  &:focus-visible {
+    outline: 3px solid rgba(251, 191, 36, 0.45);
+    outline-offset: 2px;
+  }
 }
 
 .sectionGrid {
@@ -288,6 +324,12 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   @media (min-width: 1024px) {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
+}
+
+.sectionDivider {
+  margin: 1.5rem 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.45); // わずかに暗くし、背景となじみつつ区切りを残します。
+  opacity: 0.8;
 }
 
 .searchGrid {
@@ -503,6 +545,37 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   }
 }
 
+.cardActionRow {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.cardReportButton {
+  min-width: 72px;
+  padding: 0.35rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: rgba(11, 18, 36, 0.75);
+  color: var(--user-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--user-surface-hover);
+    color: var(--user-accent);
+    border-color: rgba(251, 191, 36, 0.35);
+    transform: translateY(-1px);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(251, 191, 36, 0.35);
+    outline-offset: 2px;
+  }
+}
+
 .playlistBadge {
   display: inline-flex;
   align-items: center;
@@ -612,16 +685,20 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   flex-direction: row;
   justify-content: flex-end;
   gap: 8px;
-  padding: 8px 0 0 0;
+  padding: 0; // 上側に不要な余白が出ないようパディングを取り除き、埋め込みの頭に無駄な間隔を作りません。
   background: transparent;
+  margin: 0;
+  // 埋め込みダイアログのボタン群を右下に寄せつつ画面端に張り付かないよう、右と下へそれぞれ8pxきっちり余白を確保します。
+  margin-right: 8px;
   margin-bottom: 8px;
+  opacity: 0.8; // ボタン群全体の主張を抑えつつ視認性を損なわないよう70%の透明度を適用します。
 }
 
 .dialogClose,
 .dialogFlag {
   border: none;
   background: transparent;
-  padding: 4px;
+  padding: 0; // 余白をなくし、必要なボタンだけ個別にサイズ調整します。
   color: #e2e8f0;
   cursor: pointer;
   display: inline-flex;
@@ -632,6 +709,21 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
     font-size: 20px;
     line-height: 1;
   }
+}
+
+// 閉じるボタンのみ余白をなくし、アイコン位置をより正確に揃えます。
+.dialogClose {
+  padding: 0; // 内側の余白を完全になくしてアイコンにぴったり合わせます。
+  margin: 0; // 外側の余白をなくし、周囲の配置ズレを防ぎます。
+  width: auto; // アイコンの実寸に合わせて無駄な空白を排除します。
+  height: auto; // 高さ方向の余白も取り除きます。
+  min-width: 0;
+  min-height: 0;
+}
+
+// フラグボタンは押しやすさを確保するため最小限の余白を保持します。
+.dialogFlag {
+  padding: 4px;
 }
 
 .dialogSpinnerWrap {
@@ -722,11 +814,15 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: auto; // アイコンサイズに合わせて余白をゼロにします。
+  height: auto; // 高さ方向の余白もゼロにします。
+  min-width: 0;
+  min-height: 0;
   border-radius: 10px;
   border: none;
   background: none;
+  padding: 0; // 閉じるボタンの余白をなくし、周囲とのズレを防ぎます。
+  margin: 0; // 外側の余白もなくして、ヘッダーのレイアウトを安定させます。
   color: var(--user-text);
   cursor: pointer;
   transition: color 0.15s ease;

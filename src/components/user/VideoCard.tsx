@@ -44,25 +44,6 @@ export function VideoCard({ video, onSelect, onChannelSelect, onReportSelect }: 
           <h3 className={styles.cardTitle}>
             {video.title}
           </h3>
-          <div className={styles.cardMenuWrap}>
-            <button
-              type="button"
-            className={styles.cardMenuButton}
-            aria-label="この動画を報告する"
-            onClick={(event) => {
-              event.stopPropagation();
-              onReportSelect(video);
-            }}
-          >
-            <span
-              className="material-symbols-rounded"
-              aria-hidden
-              style={{ fontSize: "20px", lineHeight: 1, color: "#94a3b8" }}
-            >
-              flag_2
-            </span>
-          </button>
-          </div>
         </div>
         {video.channelName && (
           // チャンネル名から同名検索を素早く行えるようリンク化します。
@@ -79,6 +60,19 @@ export function VideoCard({ video, onSelect, onChannelSelect, onReportSelect }: 
             {video.channelName}
           </button>
         )}
+        <div className={styles.cardActionRow}>
+          <button
+            type="button"
+            onClick={(event) => {
+              // カード選択とは独立して報告モーダルを開きます。
+              event.stopPropagation();
+              onReportSelect(video);
+            }}
+            className={styles.cardReportButton}
+          >
+            報告
+          </button>
+        </div>
       </div>
     </motion.div>
   );

@@ -9,12 +9,16 @@ type HomeSectionsProps = {
   onVideoSelect: (video: VideoItem) => void;
   onChannelSelect: (channelId: string) => void;
   onReportSelect: (video: VideoItem) => void;
+  onShowNewList: () => void;
+  onShowRandomList: () => void;
 };
 
 export function HomeSections({
   onVideoSelect,
   onChannelSelect,
   onReportSelect,
+  onShowNewList,
+  onShowRandomList,
 }: HomeSectionsProps) {
   const [newVideos, setNewVideos] = useState<VideoItem[]>([]);
   const [randomVideos, setRandomVideos] = useState<VideoItem[]>([]);
@@ -116,7 +120,19 @@ export function HomeSections({
                 />
               ))}
             </div>
+            <div className={styles.sectionFooterWrap}>
+              <button
+                type="button"
+                onClick={onShowNewList}
+                className={styles.sectionFooterAction}
+              >
+                もっと見る
+              </button>
+            </div>
           </section>
+
+          {/* セクション間の区切り線で視覚的に区分します。 */}
+          <div className={styles.sectionDivider} aria-hidden="true" />
 
           {/* ランダム動画セクションもデータ取得後に表示します。 */}
           <section>
@@ -133,6 +149,15 @@ export function HomeSections({
                   onReportSelect={onReportSelect}
                 />
               ))}
+            </div>
+            <div className={styles.sectionFooterWrap}>
+              <button
+                type="button"
+                onClick={onShowRandomList}
+                className={styles.sectionFooterAction}
+              >
+                もっと見る
+              </button>
             </div>
           </section>
         </>

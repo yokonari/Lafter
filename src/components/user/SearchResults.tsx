@@ -7,6 +7,7 @@ import styles from "./userTheme.module.scss";
 type SearchResultsProps = {
   query: string;
   channelId?: string;
+  mode?: "new" | "random";
   onVideoSelect: (video: VideoItem) => void;
   onPlaylistSelect: (playlist: PlaylistItem) => void;
   onChannelSelect: (channelId: string) => void;
@@ -16,6 +17,7 @@ type SearchResultsProps = {
 export function SearchResults({
   query,
   channelId,
+  mode,
   onVideoSelect,
   onPlaylistSelect,
   onChannelSelect,
@@ -39,10 +41,17 @@ export function SearchResults({
       setVideos([]);
       setPlaylists([]);
       setHasMore(false);
+      // 新しい検索を開始したら、結果表示の先頭がすぐ見えるよう必ずページ最上部へスクロールします。
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
       try {
         const { videos: fetchedVideos, playlists: fetchedPlaylists } = await fetchVideoItems(fetch, {
           query,
           channelId,
+          mode,
+          // 「最近」「ランダム」モードではプレイリストを除外し、動画のみに絞り込みます。
+          includePlaylists: mode ? false : undefined,
           signal: controller.signal,
           limit: PAGE_SIZE,
           offset: 0,
@@ -50,7 +59,8 @@ export function SearchResults({
         if (canceled) return;
         setVideos(fetchedVideos);
         setPlaylists(fetchedPlaylists);
-        setHasMore(fetchedVideos.length === PAGE_SIZE || fetchedPlaylists.length === PAGE_SIZE);
+        // GET /videos の上限(20件)を超えた動画がある場合のみ「もっと見る」を出すよう動画件数のみで判定します。
+        setHasMore(fetchedVideos.length === PAGE_SIZE);
       } catch (err) {
         if (canceled) return;
         setError(err instanceof Error ? err.message : String(err));
@@ -71,7 +81,7 @@ export function SearchResults({
       canceled = true;
       controller.abort();
     };
-  }, [query, channelId]);
+  }, [query, channelId, mode]);
 
   const handleLoadMore = async () => {
     if (loadingMore) return;
@@ -83,12 +93,16 @@ export function SearchResults({
       const { videos: fetchedVideos, playlists: fetchedPlaylists } = await fetchVideoItems(fetch, {
         query,
         channelId,
+        mode,
+        // 初回と同様にモード指定時はプレイリストを取得しないようにします。
+        includePlaylists: mode ? false : undefined,
         limit: PAGE_SIZE,
         offset: Math.max(videos.length, playlists.length),
       });
       setVideos((prev) => [...prev, ...fetchedVideos]);
       setPlaylists((prev) => [...prev, ...fetchedPlaylists]);
-      setHasMore(fetchedVideos.length === PAGE_SIZE || fetchedPlaylists.length === PAGE_SIZE);
+      // 続きの読み込みも動画件数だけで上限超過を確認し、不要な「もっと見る」表示を防ぎます。
+      setHasMore(fetchedVideos.length === PAGE_SIZE);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {

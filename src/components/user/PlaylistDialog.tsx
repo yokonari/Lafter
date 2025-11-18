@@ -7,7 +7,7 @@ type PlaylistDialogProps = {
   onReport?: (videoId: string, playlistTitle: string) => void;
 };
 
-export function PlaylistDialog({ playlist, onClose }: PlaylistDialogProps) {
+export function PlaylistDialog({ playlist, onClose, onReport }: PlaylistDialogProps) {
   if (!playlist) {
     return null;
   }
