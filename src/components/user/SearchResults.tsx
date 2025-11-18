@@ -6,16 +6,20 @@ import styles from "./userTheme.module.scss";
 
 type SearchResultsProps = {
   query: string;
+  channelId?: string;
   onVideoSelect: (video: VideoItem) => void;
   onPlaylistSelect: (playlist: PlaylistItem) => void;
-  onChannelSelect: (channelName: string) => void;
+  onChannelSelect: (channelId: string, channelName: string) => void;
+  onReportSelect: (video: VideoItem) => void;
 };
 
 export function SearchResults({
   query,
+  channelId,
   onVideoSelect,
   onPlaylistSelect,
   onChannelSelect,
+  onReportSelect,
 }: SearchResultsProps) {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistItem[]>([]);
@@ -38,6 +42,7 @@ export function SearchResults({
       try {
         const { videos: fetchedVideos, playlists: fetchedPlaylists } = await fetchVideoItems(fetch, {
           query,
+          channelId,
           signal: controller.signal,
           limit: PAGE_SIZE,
           offset: 0,
@@ -66,7 +71,7 @@ export function SearchResults({
       canceled = true;
       controller.abort();
     };
-  }, [query]);
+  }, [query, channelId]);
 
   const handleLoadMore = async () => {
     if (loadingMore) return;
@@ -77,6 +82,7 @@ export function SearchResults({
     try {
       const { videos: fetchedVideos, playlists: fetchedPlaylists } = await fetchVideoItems(fetch, {
         query,
+        channelId,
         limit: PAGE_SIZE,
         offset: Math.max(videos.length, playlists.length),
       });
@@ -115,7 +121,12 @@ export function SearchResults({
       ) : (
         <div className={styles.searchGrid}>
           {playlists.map((playlist) => (
-            <PlaylistCard key={`playlist-${playlist.id}`} playlist={playlist} onSelect={onPlaylistSelect} />
+            <PlaylistCard
+              key={`playlist-${playlist.id}`}
+              playlist={playlist}
+              onSelect={onPlaylistSelect}
+              onChannelSelect={onChannelSelect}
+            />
           ))}
           {videos.map((video) => (
             <VideoCard
@@ -123,6 +134,7 @@ export function SearchResults({
               video={video}
               onSelect={onVideoSelect}
               onChannelSelect={onChannelSelect}
+              onReportSelect={onReportSelect}
             />
           ))}
         </div>
@@ -134,7 +146,7 @@ export function SearchResults({
             type="button"
             onClick={handleLoadMore}
             disabled={loadingMore}
-            className={styles.loadMoreButton}
+            className={styles.userButton}
           >
             もっと見る
           </button>

@@ -86,7 +86,6 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   background: none;
   color: var(--user-accent);
   font-size: 1.25rem;
-  font-weight: 600;
   cursor: pointer;
   transition: color 0.2s ease;
   justify-self: flex-start;
@@ -149,6 +148,40 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   height: 1.125rem; // 約18px
   width: 1.125rem;
   pointer-events: none;
+}
+
+.searchClear {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 9999px;
+  background: var(--user-surface-muted);
+  color: var(--user-text-muted);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+
+  .material-symbols-rounded {
+    font-size: 18px;
+    line-height: 1;
+  }
+
+  &:hover,
+  &:focus-visible {
+    background: var(--user-surface-hover);
+    color: var(--user-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(251, 191, 36, 0.35);
+    outline-offset: 2px;
+  }
 }
 
 .searchHistory {
@@ -298,7 +331,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   justify-content: center;
 }
 
-.loadMoreButton {
+.userButton {
   display: inline-flex;
   align-items: center;
   border-radius: 9999px;
@@ -307,7 +340,6 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   color: var(--user-text);
   padding: 0.65rem 1.5rem;
   font-size: 0.95rem;
-  font-weight: 600;
   transition:
     border-color 0.2s ease,
     color 0.2s ease,
@@ -320,15 +352,20 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   }
 }
 
+.loadMoreButton {
+  @extend .userButton;
+}
+
 /* ------- カード ------- */
 .videoCard {
   cursor: pointer;
-  overflow: hidden;
+  overflow: visible; // メニューをカード外にも表示できるよう可視化します。
   border-radius: 0.75rem;
   background: var(--user-bg);
   box-shadow: 0 10px 24px var(--user-shadow);
   outline: none;
   transition: box-shadow 0.2s ease;
+  position: relative; // メニューの重なり順を安定させます。
 
   &:focus-visible {
     outline: 2px solid var(--user-accent);
@@ -360,6 +397,12 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   padding: 0 0.25rem 0.5rem;
 }
 
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
 .cardTitle {
   color: var(--user-text);
   font-size: 0.875rem;
@@ -369,6 +412,77 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  flex: 1 1 auto;
+}
+
+.cardMenuWrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.cardMenuOpen {
+  z-index: 40; // 隣接カードより前面に重ね、ホバー時も埋もれないようにします。
+}
+
+.cardMenuButton {
+  border: none;
+  background: transparent;
+  color: var(--user-text);
+  border-radius: 10px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--user-surface-hover);
+    color: var(--user-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(251, 191, 36, 0.35);
+    outline-offset: 2px;
+  }
+}
+
+.cardMenu {
+  position: absolute;
+  right: 0;
+  top: 36px;
+  min-width: 180px;
+  border: 1px solid var(--user-border);
+  border-radius: 12px;
+  background: var(--user-surface);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
+  padding: 6px;
+  z-index: 10;
+  max-height: 240px;
+  overflow-y: auto;
+  transform: translateX(4px);
+}
+
+.cardMenuItem {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: var(--user-text);
+  border-radius: 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--user-surface-hover);
+    color: var(--user-accent);
+    outline: none;
+  }
 }
 
 .cardChannel {
@@ -376,14 +490,13 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   color: var(--user-text-muted);
   font-size: 0.8rem; // タイトルより小さいサイズで控えめに
   text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
+  display: block;
   transition: color 0.2s ease, text-decoration-color 0.2s ease;
-  max-width: 100%;
+  width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
 
   &:hover {
     color: var(--user-accent);
@@ -431,6 +544,20 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 .footerLink {
   color: inherit;
   text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: var(--user-accent);
+  }
+}
+
+.footerLinkButton {
+  border: none;
+  background: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
   transition: color 0.2s ease;
 
   &:hover {
@@ -517,5 +644,241 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* ------- お問い合わせモーダル ------- */
+.contactOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+}
+
+.contactDialog {
+  width: min(100%, 420px);
+  background: var(--user-surface);
+  border-radius: 18px;
+  padding: 24px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55);
+  color: var(--user-text);
+}
+
+.contactHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.contactEyebrow {
+  margin: 0 0 4px;
+  font-size: 0.85rem;
+  color: var(--user-text-muted);
+}
+
+.contactTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.contactClose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--user-border);
+  background: var(--user-surface-muted);
+  color: var(--user-text);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--user-surface-hover);
+    border-color: rgba(255, 255, 255, 0.12);
+    color: var(--user-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba(251, 191, 36, 0.35);
+    outline-offset: 2px;
+  }
+}
+
+.contactForm {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.contactLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.95rem;
+  color: var(--user-text);
+}
+
+.contactInput,
+.contactTextarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--user-border);
+  background: var(--user-surface-muted);
+  color: var(--user-text);
+  padding: 12px;
+  font-size: 0.95rem;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+
+  &::placeholder {
+    color: var(--user-text-muted);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: var(--user-accent);
+    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
+    background: var(--user-surface);
+  }
+}
+
+.contactTextarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.contactHelper {
+  font-size: 0.8rem;
+  color: var(--user-text-muted);
+}
+
+.contactSuccess,
+.contactError {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.contactSuccess {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #bbf7d0;
+}
+
+.contactError {
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  color: var(--user-error-text);
+}
+
+.contactActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.reportSummary {
+  margin: 8px 0 12px;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  color: var(--user-text);
+}
+
+.reportText {
+  margin: 0 0 8px;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.reportDetails {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  background: transparent;
+}
+
+.reportLabel {
+  display: block;
+  color: var(--user-text-muted);
+  font-weight: 500;
+  font-size: 0.85rem;
+}
+
+.reportValue {
+  color: var(--user-text);
+  font-size: 0.85rem;
+  display: block;
+}
+
+.reportRadioGroup {
+  border: none;
+  margin: 0 0 12px;
+  padding: 0;
+}
+
+.reportRadioOptions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reportRadio {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border-radius: 0;
+  border: none;
+  background: transparent;
+  color: var(--user-text);
+  cursor: pointer;
+
+  input {
+    accent-color: var(--user-accent);
+    width: 18px;
+    height: 18px;
+  }
+}
+
+.contactCancel,
+.contactSubmit {
+  @extend .userButton;
+  padding: 10px 14px;
+  border-color: rgba(148, 163, 184, 0.6);
+}
+
+.contactSubmit {
+  background: var(--user-accent-strong);
+  border-color: transparent;
+  color: #0f172a;
+  box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+
+  &:disabled {
+    background: #4b5563;
+    color: #e5e7eb;
+    cursor: not-allowed;
+    box-shadow: none;
+  }
+
+  &:not(:disabled):hover,
+  &:not(:disabled):focus-visible {
+    background: #fbbf24;
+    color: #0f172a;
   }
 }

@@ -2,16 +2,20 @@ import Image from "next/image";
 import Link from "next/link";
 import styles from "./userTheme.module.scss";
 
-export function UserFooter() {
+type UserFooterProps = {
+  onContactClick: () => void;
+};
+
+export function UserFooter({ onContactClick }: UserFooterProps) {
   return (
     // ヘッダーと統一した落ち着いたダークトーンで、フッターでも一体感を丁寧に演出します。
     <footer className={styles.footer}>
       {/* 上下24px（py-6）で静かな余白を設け、ヘッダーとバランスを丁寧に保ちます。 */}
       <div className={styles.footerInner}>
         <div className={styles.footerLinks}>
-          <a href="#" className={styles.footerLink}>
-            問い合わせ
-          </a>
+          <button type="button" className={`${styles.footerLinkButton} ${styles.userButton}`} onClick={onContactClick}>
+            お問い合わせ
+          </button>
           {/* 静的ページへ丁寧に遷移させ、利用規約の全文をユーザーにしっかり案内します。 */}
           <Link href="/terms" className={styles.footerLink}>
             利用規約
@@ -20,6 +24,16 @@ export function UserFooter() {
           <Link href="/policy" className={styles.footerLink}>
             プライバシーポリシー
           </Link>
+          {/* X アカウントへの公式導線を設置し、外部でも最新情報を丁寧に届けます。 */}
+          <a
+            href="https://x.com/_yokonari"
+            target="_blank"
+            rel="noreferrer"
+            className={styles.footerLink}
+            aria-label="@_yokonari"
+          >
+            @_yokonari
+          </a>
         </div>
         <div className={styles.footerBadge}>
           <a href="https://youtube.com/" target="_blank" rel="noreferrer" aria-label="YouTube">

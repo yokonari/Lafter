@@ -6,9 +6,10 @@ import styles from "./userTheme.module.scss";
 type PlaylistCardProps = {
   playlist: PlaylistItem;
   onSelect: (playlist: PlaylistItem) => void;
+  onChannelSelect: (channelId: string, channelName: string) => void;
 };
 
-export function PlaylistCard({ playlist, onSelect }: PlaylistCardProps) {
+export function PlaylistCard({ playlist, onSelect, onChannelSelect }: PlaylistCardProps) {
   // プレイリストを動画カードと同等の挙動で示し、バッジで明示します。
   return (
     <motion.div
@@ -42,6 +43,19 @@ export function PlaylistCard({ playlist, onSelect }: PlaylistCardProps) {
       <div className={styles.cardBody}>
         <div className={styles.playlistBadge}>プレイリスト</div>
         <h3 className={styles.cardTitle}>{playlist.title}</h3>
+        {playlist.channelName && playlist.channelId && (
+          // チャンネル名から同名検索を素早く行えるようリンク化します。
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onChannelSelect(playlist.channelId!, playlist.channelName!);
+            }}
+            className={styles.cardChannel}
+          >
+            {playlist.channelName}
+          </button>
+        )}
       </div>
     </motion.div>
   );

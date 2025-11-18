@@ -2,6 +2,7 @@ export type VideoItem = {
   id: string;
   title: string;
   thumbnail: string;
+  channelId?: string;
   channelName?: string;
 };
 
@@ -10,18 +11,25 @@ export type PlaylistItem = {
   title: string;
   playlistId: string;
   thumbnail?: string;
+  channelId?: string;
+  channelName?: string;
+  topVideoId?: string;
 };
 
 type RawVideo = {
   id: string;
   title: string;
   published_at?: number;
+  channel_id?: string | null;
   channel_name?: string | null;
 };
 
 type RawPlaylist = {
   id: string;
   title: string;
+  channel_id?: string | null;
+  channel_name?: string | null;
+  top_video_id?: string | null;
 };
 
 
@@ -39,6 +47,7 @@ function mapRawVideo(video: RawVideo): VideoItem | null {
     id: videoId,
     title: video.title,
     thumbnail: buildThumbnailUrl(videoId),
+    channelId: video.channel_id ?? undefined,
     channelName: video.channel_name ?? undefined,
   };
 }
@@ -49,16 +58,21 @@ function mapRawPlaylist(playlist: RawPlaylist): PlaylistItem | null {
     return null;
   }
 
-  // プレイリストのサムネイルはAPIから取得できないため、ここでは未設定で扱います。
+  // プレイリストは top_video_id があるときのみサムネイルを作成します。
   return {
     id: playlistId,
     playlistId,
     title: playlist.title,
+    channelId: playlist.channel_id ?? undefined,
+    channelName: playlist.channel_name ?? undefined,
+    topVideoId: playlist.top_video_id ?? undefined,
+    thumbnail: playlist.top_video_id ? buildThumbnailUrl(playlist.top_video_id) : undefined,
   };
 }
 
 export type FetchVideoOptions = {
   query?: string;
+  channelId?: string;
   signal?: AbortSignal;
   mode?: "new" | "random";
   limit?: number;
@@ -78,6 +92,9 @@ export async function fetchVideoItems(
   const params = new URLSearchParams();
   if (options?.query) {
     params.set("q", options.query);
+  }
+  if (options?.channelId) {
+    params.set("channelId", options.channelId);
   }
   if (options?.mode) {
     params.set("mode", options.mode);

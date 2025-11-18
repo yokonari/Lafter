@@ -17,6 +17,7 @@ export function UserHeader({
   onReset,
 }: UserHeaderProps) {
   const searchAreaRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const HISTORY_KEY = "userSearchHistory";
@@ -67,6 +68,8 @@ export function UserHeader({
       persistHistory(nextHistory);
       setIsHistoryOpen(false);
       onSearch(trimmed);
+      // 実行後は入力をブラーしてソフトキーボードを丁寧に閉じます。
+      searchInputRef.current?.blur();
     }
   };
 
@@ -85,6 +88,24 @@ export function UserHeader({
     onQueryChange(word);
     setIsHistoryOpen(false);
     onSearch(word);
+  };
+
+  // クリアボタンで入力を空にし、再フォーカスさせます。
+  const handleClear = () => {
+    onQueryChange("");
+    setIsHistoryOpen(false);
+    searchInputRef.current?.focus();
+  };
+
+  // キーボード操作でもクリアできるよう、Enter/Space を丁寧にハンドリングします。
+  const handleClearKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    if (!query.trim()) return;
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onQueryChange("");
+      setIsHistoryOpen(false);
+      searchInputRef.current?.focus();
+    }
   };
 
   return (
@@ -109,7 +130,21 @@ export function UserHeader({
             placeholder="動画を検索..."
             aria-label="動画を検索"
             className={styles.searchInput}
+            ref={searchInputRef}
           />
+          {query && (
+            <button
+              type="button"
+              className={styles.searchClear}
+              onClick={handleClear}
+              onKeyDown={handleClearKeyDown}
+              aria-label="検索キーワードをクリア"
+            >
+              <span className="material-symbols-rounded" aria-hidden>
+                close
+              </span>
+            </button>
+          )}
           {isHistoryOpen && (
             <div className={styles.searchHistory} role="listbox">
               <div className={styles.searchHistoryList}>

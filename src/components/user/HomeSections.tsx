@@ -11,13 +11,15 @@ import styles from "./userTheme.module.scss";
 type HomeSectionsProps = {
   onVideoSelect: (video: VideoItem) => void;
   onPlaylistSelect: (playlist: PlaylistItem) => void;
-  onChannelSelect: (channelName: string) => void;
+  onChannelSelect: (channelId: string, channelName: string) => void;
+  onReportSelect: (video: VideoItem) => void;
 };
 
 export function HomeSections({
   onVideoSelect,
   onPlaylistSelect,
   onChannelSelect,
+  onReportSelect,
 }: HomeSectionsProps) {
   const [newVideos, setNewVideos] = useState<VideoItem[]>([]);
   const [newPlaylists, setNewPlaylists] = useState<PlaylistItem[]>([]);
@@ -36,7 +38,7 @@ export function HomeSections({
     fetchVideoItems(fetch, {
       mode: "new",
       limit: 10,
-      includePlaylists: false, // ホーム画面ではプレイリスト取得を省き、動画だけを軽量に取得します。
+      includePlaylists: false, // ホームではプレイリストを表示しないため取得を省きます。
       signal: controller.signal,
     })
       .then(({ videos, playlists }) => {
@@ -69,7 +71,7 @@ export function HomeSections({
     fetchVideoItems(fetch, {
       mode: "random",
       limit: 10,
-      includePlaylists: false, // ホーム画面ではプレイリスト取得を省きます。
+      includePlaylists: false, // ホームではプレイリストを表示しないため取得を省きます。
       signal: controller.signal,
     })
       .then(({ videos, playlists }) => {
@@ -113,19 +115,13 @@ export function HomeSections({
               <h2 className={styles.sectionHeading}>最近</h2>
             </div>
             <div className={styles.sectionGrid}>
-              {newPlaylists.map((playlist) => (
-                <PlaylistCard
-                  key={`new-playlist-${playlist.id}`}
-                  playlist={playlist}
-                  onSelect={onPlaylistSelect}
-                />
-              ))}
               {newVideos.map((video) => (
                 <VideoCard
                   key={`new-${video.id}`}
                   video={video}
                   onSelect={onVideoSelect}
                   onChannelSelect={onChannelSelect}
+                  onReportSelect={onReportSelect}
                 />
               ))}
             </div>
@@ -137,19 +133,13 @@ export function HomeSections({
               <h2 className={styles.sectionHeading}>ランダム</h2>
             </div>
             <div className={styles.sectionGrid}>
-              {randomPlaylists.map((playlist) => (
-                <PlaylistCard
-                  key={`random-playlist-${playlist.id}`}
-                  playlist={playlist}
-                  onSelect={onPlaylistSelect}
-                />
-              ))}
               {randomVideos.map((video) => (
                 <VideoCard
                   key={`random-${video.id}`}
                   video={video}
                   onSelect={onVideoSelect}
                   onChannelSelect={onChannelSelect}
+                  onReportSelect={onReportSelect}
                 />
               ))}
             </div>

@@ -21,6 +21,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const keywords = q ? q.split(/\s+/u).filter(Boolean) : [];
     const normalizedPatternsPerWord = keywords.map((word) => buildLikePatterns(word));
     const mode = c.req.query("mode");
+    const channelIdFilter = c.req.query("channelId");
     const offsetParam = Number(c.req.query("offset") ?? 0);
     const safeOffset = Number.isFinite(offsetParam) && offsetParam > 0 ? offsetParam : 0;
     const includePlaylistsParam = c.req.query("includePlaylists");
@@ -50,6 +51,10 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       eq(videos.status, 1),
       eq(channels.status, 1),
     ];
+    if (channelIdFilter) {
+      // チャンネル指定がある場合は最優先でそのチャンネルに絞ります。
+      videoConditions.push(eq(videos.channelId, channelIdFilter));
+    }
     if (normalizedPatternsPerWord.length) {
       // キーワードごとに (タイトルLIKE または チャンネルID一致) を作り、すべて AND で縛ります。
       const keywordConditions: SQL<boolean>[] = normalizedPatternsPerWord.map((patterns) => {
@@ -80,6 +85,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         id: videos.id,
         title: videos.title,
         publishedAt: videos.publishedAt,
+        channelId: channels.id,
         channelName: channels.name,
       })
       .from(videos)
@@ -103,7 +109,9 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       | Array<{
           id: string;
           title: string;
+          channelId: string | null;
           channelName: string | null;
+          topVideoId: string | null;
         }>
       | [] = [];
     if (shouldIncludePlaylists) {
@@ -139,7 +147,9 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         .select({
           id: playlists.id,
           title: playlists.name,
+          channelId: channels.id,
           channelName: channels.name,
+          topVideoId: playlists.topVideoId,
         })
         .from(playlists)
         .innerJoin(channels, eq(playlists.channelId, channels.id))
@@ -151,14 +161,20 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
 
     const videosPayload = videoRows.map((row) => ({
       id: row.id,
-      title: row.title,
+      // YouTube 由来のタイトルに含まれる &quot; などのエンティティを丁寧にデコードします。
+      title: decodeHtmlEntities(row.title),
+      channel_id: row.channelId,
       channel_name: row.channelName,
       published_at: toUnixTime(row.publishedAt),
     }));
 
     const playlistsPayload = playlistRows.map((row) => ({
       id: row.id,
-      title: row.title,
+      // プレイリスト名も同様にエンティティを整えます。
+      title: decodeHtmlEntities(row.title),
+      channel_id: row.channelId,
+      channel_name: row.channelName,
+      top_video_id: row.topVideoId,
     }));
 
     return c.json(
@@ -184,4 +200,14 @@ function toUnixTime(iso: string | null | undefined): number {
   if (!iso) return 0;
   const time = Date.parse(iso);
   return Number.isFinite(time) ? Math.floor(time / 1000) : 0;
+}
+
+function decodeHtmlEntities(value: string): string {
+  // 現状問題になっているダブルクォートやアポストロフィ、一般的な &amp; だけを安全にデコードします。
+  return value
+    .replace(/&quot;/g, '"')
+    .replace(/&#34;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&");
 }
