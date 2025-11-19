@@ -13,7 +13,7 @@ export function UserFooter({ onContactClick }: UserFooterProps) {
       {/* 上下24px（py-6）で静かな余白を設け、ヘッダーとバランスを丁寧に保ちます。 */}
       <div className={styles.footerInner}>
         <div className={styles.footerLinks}>
-          <button type="button" className={`${styles.footerLinkButton} ${styles.userButton}`} onClick={onContactClick}>
+          <button type="button" className={styles.footerLinkButton} onClick={onContactClick}>
             お問い合わせ
           </button>
           {/* 静的ページへ丁寧に遷移させ、利用規約の全文をユーザーにしっかり案内します。 */}

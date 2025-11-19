@@ -1,33 +1,34 @@
 /* ユーザー画面のダークトーンを１ファイルで丁寧に管理するテーマスタイルです。 */
 
-// カラーパレット（ダークトーンに合わせた控えめな彩度で統一）
-$user-bg: #020617;
-$user-surface: #0b1224;
-$user-surface-muted: rgba(11, 18, 36, 0.9);
-$user-surface-hover: #0f172a;
-$user-text: #e2e8f0;
-$user-text-muted: #94a3b8;
-$user-border: #1f2937;
-$user-accent: #fbbf24;
-$user-accent-strong: #f59e0b;
-$user-shadow: rgba(0, 0, 0, 0.2);
-$user-error-border: rgba(248, 113, 113, 0.5);
-$user-error-bg: rgba(69, 10, 10, 0.6);
-$user-error-text: #fecdd3;
-$user-card-overlay: rgba(2, 6, 23, 0.95);
+// カラーパレット（Material dark high contrast を基調にユーザー画面へ最適化）
+$user-bg: #141313; // --md-sys-color-background
+$user-surface: #201f1f; // surface container
+$user-surface-hover: #313030; // surface container high を目安にしたホバー色
+$user-text: #ffffff; // --md-sys-color-on-surface
+$user-text-muted: #dee3e5bb; // --md-sys-color-on-surface-variant をそのまま利用しつつ、透明度を30%下げて柔らかな補助テキストにします。
+$user-border: #484646; // リンクやボーダーも on-surface-variant 系で統一しつつ、透明度を50%下げて柔らかな縁取りにします。
+$user-accent: #f9bd22; // primary container
+$user-accent-strong: #f9bd22; // primary fixed dim
+$user-link: color-mix(in srgb, var(--md-sys-color-on-surface, rgb(255 255 255)) 70%, transparent); // テキストリンクはon-surface色を80%の透明度で重ね、未定義時は白で柔らかく見せます。
+$user-shadow: rgba(0, 0, 0, 0.25);
+$user-error-bg: #ffaea4; // error container を背景に薄めて利用
+$user-error-text: #220001; // on error container
+$user-card-overlay: rgb(23, 19, 10); // background に沿ったオーバーレイ
+$terms-policy-surface: #201f1f; // 規約・ポリシー共通のカード背景色を指定し、読み物エリアの統一感を生みます。
+$dialog-button-height: 40px; // 問い合わせ・報告ダイアログで共通利用するボタン高さを定数化し、視覚リズムを揃えます。
+$dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅のばらつきを丁寧に抑えます。
 
 .userLayout {
   --user-bg: #{$user-bg};
   --user-surface: #{$user-surface};
-  --user-surface-muted: #{$user-surface-muted};
   --user-surface-hover: #{$user-surface-hover};
   --user-text: #{$user-text};
   --user-text-muted: #{$user-text-muted};
   --user-border: #{$user-border};
   --user-accent: #{$user-accent};
   --user-accent-strong: #{$user-accent-strong};
+  --user-link: #{$user-link}; // テキストリンクはon-surface色の80%透明度で統一し、フォールバックも白系で確実に適用します。
   --user-shadow: #{$user-shadow};
-  --user-error-border: #{$user-error-border};
   --user-error-bg: #{$user-error-bg};
   --user-error-text: #{$user-error-text};
   --user-card-overlay: #{$user-card-overlay};
@@ -36,6 +37,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   flex-direction: column;
   background-color: var(--user-bg);
   color: var(--user-text);
+  line-height: 1.6;
 }
 
 .main {
@@ -52,10 +54,8 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   top: 0;
   z-index: 40;
   height: 3.5rem; // 56px
-  border-bottom: 1px solid var(--user-border);
   background-color: var(--user-card-overlay);
   backdrop-filter: blur(6px);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
 }
 
 .headerInner {
@@ -87,14 +87,9 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   color: var(--user-accent);
   font-size: 1.25rem;
   cursor: pointer;
-  transition: color 0.2s ease;
   justify-self: flex-start;
   grid-column: 1;
   justify-self: flex-start;
-
-  &:hover {
-    color: var(--user-accent-strong);
-  }
 }
 
 .brandLabel {
@@ -117,25 +112,31 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   width: 100%;
   height: 2.5rem; // サンプルに合わせ40px相当の高さに調整
   border-radius: 9999px;
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  background: var(--user-surface-muted);
+  border: 1px solid rgba(255, 255, 255, 0.4); // on-surface-variant（白系）に合わせます。
+  background: var(--user-surface);
   color: var(--user-text);
   font-size: 0.95rem;
   padding: 0 1rem 0 2.6rem; // 左にアイコン分のスペースを確保しつつ、右はコンパクトに。
   outline: none;
   transition:
     border-color 0.2s ease,
-    box-shadow 0.2s ease,
     background-color 0.2s ease;
+  background-color: var(--user-bg);
+  -webkit-appearance: none; // ブラウザ既定の装飾を外し、余計なクリアボタンが出ないようにします。
 
   &::placeholder {
-    color: var(--user-text-muted);
+    color: color-mix(in srgb, var(--user-link) 90%, transparent); // リンク色よりさらに10%薄く
   }
 
   &:focus {
-    border-color: var(--user-accent);
-    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
     background: var(--user-surface);
+  }
+
+  &::-webkit-search-decoration,
+  &::-webkit-search-cancel-button,
+  &::-webkit-search-results-button,
+  &::-webkit-search-results-decoration {
+    display: none; // WebKit 系で自動追加される検索用クリアボタン群を丁寧に非表示にします。
   }
 }
 
@@ -162,25 +163,13 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   justify-content: center;
   border: none;
   border-radius: 9999px;
-  background: var(--user-surface-muted);
-  color: var(--user-text-muted);
+  background: transparent;
+  color: var(--user-text-muted); // リンク色は on-surface-variant 系に合わせます。
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 
   .material-symbols-rounded {
     font-size: 18px;
     line-height: 1;
-  }
-
-  &:hover,
-  &:focus-visible {
-    background: var(--user-surface-hover);
-    color: var(--user-accent);
-  }
-
-  &:focus-visible {
-    outline: 2px solid rgba(251, 191, 36, 0.35);
-    outline-offset: 2px;
   }
 }
 
@@ -190,7 +179,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   left: 0;
   right: 0;
   z-index: 30;
-  border: 1px solid var(--user-border);
+  border: none; // 検索履歴の枠線を外し、背景色と一体感を持たせます。
   border-radius: 0.75rem;
   background: var(--user-surface);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
@@ -209,17 +198,14 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
   color: var(--user-text);
-  background: transparent;
   border: none;
   transition: background-color 0.2s ease, color 0.2s ease;
   font-size: 0.85rem; // 少し小さめにして履歴一覧をコンパクトに
-  line-height: 1.25;
 
   &:hover,
   &:focus-visible {
-    background: var(--user-surface-hover);
+    background: var(--user-surface);
     outline: none;
-    color: var(--user-accent);
   }
 }
 
@@ -247,7 +233,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 .statusText {
   margin-bottom: 1.5rem;
   font-size: 0.9rem;
-  color: var(--user-text-muted);
+  color: color-mix(in srgb, var(--user-text-muted) 70%, transparent);
 }
 
 .errorCard {
@@ -278,24 +264,36 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   color: var(--user-text);
 }
 
+.sectionHeadingButton {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+
+  &:hover .sectionHeading {
+    text-decoration: underline;
+  }
+}
+
 .sectionHeadingLink {
   border: none;
   background: none;
-  color: var(--user-accent);
+  color: rgb(255, 255, 255);
   font-size: 0.95rem;
   cursor: pointer;
-  padding: 0.15rem 0.35rem;
-  border-radius: 9999px;
-  transition: color 0.15s ease, background-color 0.15s ease;
+  padding: 0;
+  transition: color 0.15s ease;
 
   &:hover,
   &:focus-visible {
-    color: var(--user-accent-strong);
-    background: rgba(251, 191, 36, 0.1);
+    color: var(--user-accent);
+    background: none;
   }
 
   &:focus-visible {
-    outline: 2px solid rgba(251, 191, 36, 0.35);
+    outline: 2px solid var(--user-accent);
     outline-offset: 2px;
   }
 }
@@ -363,26 +361,37 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 .userButton {
   display: inline-flex;
   align-items: center;
-  border-radius: 9999px;
-  border: 1px solid rgba(148, 163, 184, 0.6);
-  background: rgba(11, 18, 36, 0.6);
-  color: var(--user-text);
-  padding: 0.65rem 1.5rem;
+  border: none;
+  background: none;
+  color: var(--user-link);
+  padding: 0;
   font-size: 0.95rem;
-  transition:
-    border-color 0.2s ease,
-    color 0.2s ease,
-    background-color 0.2s ease;
+  cursor: pointer;
+  transition: color 0.2s ease;
 
   &:hover {
-    border-color: var(--user-accent);
     color: var(--user-accent);
-    background: rgba(15, 23, 42, 0.8);
+    background: none;
   }
 }
 
 .loadMoreButton {
-  @extend .userButton;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: transparent;
+  color: var(--user-text);
+  border-radius: 9999px;
+  padding: 0 1rem;
+  height: 40px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+
+  &:hover {
+    background: rgba(251, 191, 36, 0.1);
+  }
 }
 
 /* ------- カード ------- */
@@ -391,7 +400,6 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   overflow: visible; // メニューをカード外にも表示できるよう可視化します。
   border-radius: 0.75rem;
   background: var(--user-bg);
-  box-shadow: 0 10px 24px var(--user-shadow);
   outline: none;
   transition: box-shadow 0.2s ease;
   position: relative; // メニューの重なり順を安定させます。
@@ -436,7 +444,6 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   color: var(--user-text);
   font-size: 0.875rem;
   font-weight: 400;
-  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -516,19 +523,20 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 
 .cardChannel {
   margin-top: 0.3rem;
-  color: var(--user-text-muted);
+  color: var(--user-link); // チャンネル名などのテキストリンクはon-surface系の柔らかなリンク色で示します。
   font-size: 0.8rem; // タイトルより小さいサイズで控えめに
   text-decoration: none;
-  display: block;
+  cursor: pointer;
+  display: inline-block;
   transition: color 0.2s ease, text-decoration-color 0.2s ease;
-  width: 100%;
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
 
   &:hover {
-    color: var(--user-accent);
+    text-decoration: underline;
   }
 }
 
@@ -549,8 +557,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 /* ------- フッター ------- */
 .footer {
   margin-top: 4rem;
-  border-top: 1px solid var(--user-border);
-  background: var(--user-card-overlay);
+  background: var(--user-bg);
   color: var(--user-text-muted);
 }
 
@@ -571,12 +578,12 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 }
 
 .footerLink {
-  color: inherit;
+  color: var(--user-link);
   text-decoration: none;
   transition: color 0.2s ease;
 
   &:hover {
-    color: var(--user-accent);
+    text-decoration: underline;
   }
 }
 
@@ -584,13 +591,13 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   border: none;
   background: none;
   padding: 0;
-  color: inherit;
+  color: var(--user-link);
   font: inherit;
   cursor: pointer;
   transition: color 0.2s ease;
 
   &:hover {
-    color: var(--user-accent);
+    text-decoration: underline;
   }
 }
 
@@ -719,6 +726,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -783,11 +791,6 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   cursor: pointer;
   transition: color 0.15s ease;
 
-  &:hover,
-  &:focus-visible {
-    color: var(--user-accent);
-  }
-
   &:focus-visible {
     outline: 2px solid rgba(251, 191, 36, 0.35);
     outline-offset: 2px;
@@ -825,9 +828,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 
   &:focus {
     outline: none;
-    border-color: var(--user-accent);
     box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
-    background: var(--user-surface);
   }
 }
 
@@ -847,7 +848,6 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   padding: 10px 12px;
   border-radius: 12px;
   font-size: 0.9rem;
-  line-height: 1.5;
 }
 
 .contactSuccess {
@@ -882,7 +882,6 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 .reportText {
   margin: 0 0 8px;
   font-size: 0.95rem;
-  line-height: 1.5;
 }
 
 .reportDetails {
@@ -938,15 +937,26 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 .contactCancel,
 .contactSubmit {
   @extend .userButton;
-  padding: 10px 14px;
+  padding: 0 $dialog-button-padding-x;
+  height: $dialog-button-height;
   border-color: rgba(148, 163, 184, 0.6);
+}
+
+.contactCancel {
+  color: var(--user-text-muted); // キャンセル操作は補助的なため、落ち着いた文字色で常に一定のトーンを保ちます。
+
+  &:hover,
+  &:focus-visible {
+    color: var(--user-text-muted); // 利用規約やポリシー関連のダイアログでもホバー時の色変化を抑え、ニュートラルさを崩しません。
+    background: none;
+  }
 }
 
 .contactSubmit {
   background: var(--user-accent-strong);
   border-color: transparent;
   color: #0f172a;
-  box-shadow: 0 10px 30px rgba(245, 158, 11, 0.3);
+  border-radius: 9999px; // 問い合わせ・報告共通の送信ボタンを丸みのあるシルエットに整え、柔らかな印象にします。
 
   &:disabled {
     background: #4b5563;
@@ -960,4 +970,107 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
     background: #fbbf24;
     color: #0f172a;
   }
+}
+
+/* ------- 利用規約・ポリシー ------- */
+.termsLayout,
+.policyLayout {
+  // 規約とポリシーの全体レイアウトを同じ配色でまとめ、閲覧体験のバラつきを丁寧に抑えます。
+  --user-bg: #{$user-bg};
+  --user-surface: #{$user-surface};
+  --user-text: #{$user-text};
+  --user-text-muted: #{$user-text-muted};
+  --user-border: #{$user-border};
+  --user-accent: #{$user-accent};
+
+  min-height: 100vh;
+  background: $user-bg !important;
+  color: $user-text !important;
+  padding: 72px 1rem 48px;
+}
+
+.termsBackWrap,
+.policyBackWrap {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.termsBackLink,
+.policyBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  color: $user-text-muted;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: $user-text;
+  }
+}
+
+.termsArticle,
+.policyArticle {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 24px;
+  background: $terms-policy-surface; // 指定色の rgb(36 31 21) でカードコンテナを統一します。
+  border-radius: 16px;
+  line-height: 1.7;
+}
+
+.termsHeading1,
+.policyHeading1 {
+  font-size: 1.25rem;
+  font-weight: 400;
+  margin: 0 0 16px;
+  color: $user-text;
+}
+
+.termsHeading2,
+.policyHeading2 {
+  font-size: 1.25rem;
+  font-weight: 400;
+  margin: 28px 0 14px;
+  color: $user-text;
+}
+
+.termsHeading3,
+.policyHeading3 {
+  font-size: 1.1rem;
+  font-weight: 400;
+  margin: 20px 0 10px;
+  color: $user-text;
+}
+
+.termsParagraph,
+.policyParagraph {
+  margin: 0 0 12px;
+  color: $user-text-muted;
+}
+
+.termsList,
+.policyList {
+  padding-left: 1.5rem;
+  margin: 0 0 12px;
+  color: $user-text-muted;
+  display: grid;
+  gap: 4px;
+}
+
+.termsListItem,
+.policyListItem {
+  margin: 0;
+}
+
+.termsStrong,
+.policyStrong {
+  font-weight: 700;
+  color: $user-accent;
+}
+
+.termsLink,
+.policyLink {
+  color: $user-accent;
+  text-decoration: underline;
 }

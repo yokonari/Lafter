@@ -138,7 +138,6 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
               type="text"
               autoComplete="name"
               className={styles.contactInput}
-              placeholder="山田 太郎"
             />
           </label>
 
@@ -150,7 +149,6 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
               type="email"
               autoComplete="email"
               className={styles.contactInput}
-              placeholder="you@example.com"
             />
             <span className={styles.contactHelper}>返信を希望される場合はメールアドレスをご記入ください。</span>
           </label>

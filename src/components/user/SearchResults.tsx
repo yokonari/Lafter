@@ -169,7 +169,7 @@ export function SearchResults({
             type="button"
             onClick={handleLoadMore}
             disabled={loadingMore}
-            className={styles.userButton}
+            className={styles.loadMoreButton}
           >
             もっと見る
           </button>

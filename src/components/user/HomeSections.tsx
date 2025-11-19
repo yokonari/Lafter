@@ -106,11 +106,17 @@ export function HomeSections({
           {/* 新着動画セクションはデータ取得完了後に表示します。 */}
           <section className={styles.section}>
             <div className={styles.sectionHeadingWrap}>
-              <h2 className={styles.sectionHeading}>最近</h2>
               <button
                 type="button"
                 onClick={onShowNewList}
-                className={styles.sectionHeadingLink}
+                className={styles.sectionHeadingButton}
+              >
+                <h2 className={styles.sectionHeading}>最近</h2>
+              </button>
+              <button
+                type="button"
+                onClick={onShowNewList}
+                className={styles.loadMoreButton}
               >
                 もっと見る
               </button>
@@ -133,11 +139,17 @@ export function HomeSections({
           {/* ランダム動画セクションもデータ取得後に表示します。 */}
           <section>
             <div className={styles.sectionHeadingWrap}>
-              <h2 className={styles.sectionHeading}>ランダム</h2>
               <button
                 type="button"
                 onClick={onShowRandomList}
-                className={styles.sectionHeadingLink}
+                className={styles.sectionHeadingButton}
+              >
+                <h2 className={styles.sectionHeading}>ランダム</h2>
+              </button>
+              <button
+                type="button"
+                onClick={onShowRandomList}
+                className={styles.loadMoreButton}
               >
                 もっと見る
               </button>
