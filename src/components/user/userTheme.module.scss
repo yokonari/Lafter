@@ -37,7 +37,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   flex-direction: column;
   background-color: var(--user-bg);
   color: var(--user-text);
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .main {
@@ -223,6 +223,11 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   margin: 0 auto;
   padding: 1rem 1rem;
   color: var(--user-text);
+
+  @media (max-width: 640px) {
+    padding-left: 0.5rem;
+    padding-right: 0.5rem; // トップ画面の左右余白も半分にし、モバイルでの可視領域を丁寧に確保します。
+  }
 }
 
 .searchContainer {
@@ -252,7 +257,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 }
 
 .sectionHeadingWrap {
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem; // セクションタイトルとカード間の余白を8pxに抑え、情報密度を高めます。
   display: flex;
   align-items: center;
   justify-content: space-between; // タイトルと「もっと見る」ボタンを左右に振り分けて視認性を高めます。
@@ -305,6 +310,11 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   column-gap: 1rem;
   row-gap: 1rem; // モバイルは16px相当でコンパクトに
 
+  @media (max-width: 640px) {
+    column-gap: 0.5rem;
+    row-gap: 0.5rem; // モバイルでは列間と行間を半分にし、カード間隔を詰めて視認域を広げます。
+  }
+
   @media (min-width: 768px) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     row-gap: 1.5rem;
@@ -320,6 +330,11 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   grid-template-columns: repeat(2, minmax(0, 1fr));
   column-gap: 1rem;
   row-gap: 1rem;
+
+  @media (max-width: 640px) {
+    column-gap: 0.5rem;
+    row-gap: 0.5rem; // 検索結果カードもモバイルでは余白を半分にし、一覧性を高めます。
+  }
 
   @media (min-width: 768px) {
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -573,7 +588,8 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 2rem;
+  column-gap: 2rem;
+  row-gap: 1rem; // 要素が折り返された際の行間を従来の半分に抑え、縦方向の詰まりを軽減します。
   font-size: 0.9rem;
   margin-bottom: 0;
 }
@@ -987,7 +1003,11 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   min-height: 100vh;
   background: $user-bg !important;
   color: $user-text !important;
-  padding: 72px 1rem 48px;
+  padding: 16px 1rem 48px; // 上側の余白を16pxに調整し、コンテンツを手前に引き寄せて情報到達を早めます。
+
+  @media (max-width: 640px) {
+    padding: 16px 0.5rem 48px; // モバイルでも同じ上余白を保ち、左右のみ半分へ調整します。
+  }
 }
 
 .termsBackWrap,
