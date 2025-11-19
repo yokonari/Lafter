@@ -204,8 +204,9 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 
   &:hover,
   &:focus-visible {
-    background: var(--user-surface);
+    background: var(--user-surface-hover);
     outline: none;
+    cursor: pointer;
   }
 }
 
@@ -379,7 +380,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--user-border);
   background: transparent;
   color: var(--user-text);
   border-radius: 9999px;
@@ -390,7 +391,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
 
   &:hover {
-    background: rgba(251, 191, 36, 0.1);
+    background: var(--user-surface-hover);
   }
 }
 
@@ -828,7 +829,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
+    box-shadow: 0 0 0 2px var(--user-surface-hover);
   }
 }
 
