@@ -116,7 +116,7 @@ export function HomeSections({
               <button
                 type="button"
                 onClick={onShowNewList}
-                className={styles.loadMoreButton}
+                className={styles.sectionMoreButton}
               >
                 もっと見る
               </button>
@@ -149,7 +149,7 @@ export function HomeSections({
               <button
                 type="button"
                 onClick={onShowRandomList}
-                className={styles.loadMoreButton}
+                className={styles.sectionMoreButton}
               >
                 もっと見る
               </button>

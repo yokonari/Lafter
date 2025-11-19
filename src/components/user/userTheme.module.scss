@@ -264,6 +264,29 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   gap: 0.75rem;
 }
 
+.sectionMoreButton {
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--user-accent); // プライマリーカラーでテキストボタンとして強調します。
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: color-mix(in srgb, var(--user-accent) 85%, white 15%);
+    text-decoration: underline;
+  }
+
+  &:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--user-accent) 70%, transparent);
+    outline-offset: 2px;
+  }
+}
+
 .sectionHeading {
   font-size: 1.25rem;
   font-weight: 400;
@@ -374,6 +397,39 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   justify-content: center;
 }
 
+.scrollTopButton {
+  position: fixed;
+  inset: auto 1.5rem 1.5rem auto; // 右下から24pxずつ浮かせ、他要素と干渉しないよう丁寧に配置します。
+  z-index: 50;
+  display: inline-flex;
+  width: 3rem;
+  height: 3rem;
+  border: none;
+  border-radius: 9999px;
+  background: var(--user-accent);
+  color: var(--user-bg);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+
+  &:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--user-accent) 70%, transparent);
+    outline-offset: 3px;
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  }
+}
+
+.scrollTopIcon {
+  font-size: 1.5rem;
+  font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; // Material Symbols の太さ・塗りを一定に保ちます。
+}
+
 .userButton {
   display: inline-flex;
   align-items: center;
@@ -391,14 +447,13 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   }
 }
 
-.loadMoreButton {
+.searchLoadMoreButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  // border: 1px solid var(--user-border);
+  border: 1px solid var(--user-border);
   background: transparent;
-  color: var(--user-accent);
-  // color: var(--user-text);
+  color: var(--user-accent); // 角丸ボタンでもラベルはプライマリーカラーで統一します。
   border-radius: 9999px;
   padding: 0 1rem;
   height: 40px;
@@ -408,6 +463,11 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 
   &:hover {
     background: var(--user-surface-hover);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
@@ -973,20 +1033,20 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 .contactSubmit {
   background: var(--user-accent);
   border-color: transparent;
-  color: #0f172a;
+  color: var(--user-bg);
   border-radius: 9999px; // 問い合わせ・報告共通の送信ボタンを丸みのあるシルエットに整え、柔らかな印象にします。
 
   &:disabled {
-    background: #4b5563;
-    color: #e5e7eb;
+    background: var(--user-surface-hover);
+    color: var(--user-text-muted);
     cursor: not-allowed;
     box-shadow: none;
   }
 
   &:not(:disabled):hover,
   &:not(:disabled):focus-visible {
-    background: #fbbf24;
-    color: #0f172a;
+    background: var(--user-accent);
+    color: var(--user-bg);
   }
 }
 
