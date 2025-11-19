@@ -8,7 +8,6 @@ import styles from "./userTheme.module.scss";
 type HomeSectionsProps = {
   onVideoSelect: (video: VideoItem) => void;
   onChannelSelect: (channelId: string) => void;
-  onReportSelect: (video: VideoItem) => void;
   onShowNewList: () => void;
   onShowRandomList: () => void;
 };
@@ -16,7 +15,6 @@ type HomeSectionsProps = {
 export function HomeSections({
   onVideoSelect,
   onChannelSelect,
-  onReportSelect,
   onShowNewList,
   onShowRandomList,
 }: HomeSectionsProps) {
@@ -33,6 +31,7 @@ export function HomeSections({
     setNewError(null);
 
     fetchVideoItems(fetch, {
+      // トップの「最近」は最新順でシンプルに並べます。
       mode: "new",
       limit: 10,
       includePlaylists: false, // ホームではプレイリストを表示しないため取得を省きます。
@@ -108,6 +107,13 @@ export function HomeSections({
           <section className={styles.section}>
             <div className={styles.sectionHeadingWrap}>
               <h2 className={styles.sectionHeading}>最近</h2>
+              <button
+                type="button"
+                onClick={onShowNewList}
+                className={styles.sectionHeadingLink}
+              >
+                もっと見る
+              </button>
             </div>
             <div className={styles.sectionGrid}>
               {newVideos.map((video) => (
@@ -116,18 +122,8 @@ export function HomeSections({
                   video={video}
                   onSelect={onVideoSelect}
                   onChannelSelect={onChannelSelect}
-                  onReportSelect={onReportSelect}
                 />
               ))}
-            </div>
-            <div className={styles.sectionFooterWrap}>
-              <button
-                type="button"
-                onClick={onShowNewList}
-                className={styles.sectionFooterAction}
-              >
-                もっと見る
-              </button>
             </div>
           </section>
 
@@ -138,6 +134,13 @@ export function HomeSections({
           <section>
             <div className={styles.sectionHeadingWrap}>
               <h2 className={styles.sectionHeading}>ランダム</h2>
+              <button
+                type="button"
+                onClick={onShowRandomList}
+                className={styles.sectionHeadingLink}
+              >
+                もっと見る
+              </button>
             </div>
             <div className={styles.sectionGrid}>
               {randomVideos.map((video) => (
@@ -146,18 +149,8 @@ export function HomeSections({
                   video={video}
                   onSelect={onVideoSelect}
                   onChannelSelect={onChannelSelect}
-                  onReportSelect={onReportSelect}
                 />
               ))}
-            </div>
-            <div className={styles.sectionFooterWrap}>
-              <button
-                type="button"
-                onClick={onShowRandomList}
-                className={styles.sectionFooterAction}
-              >
-                もっと見る
-              </button>
             </div>
           </section>
         </>

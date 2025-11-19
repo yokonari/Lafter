@@ -1,12 +1,14 @@
-import fs from "node:fs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 
-export default function TermsPage() {
-  // ビルド時に一度だけ利用規約の Markdown を静的に読み込み、内容を丁寧に保持します。
+export const runtime = "nodejs";
+
+export default async function TermsPage() {
+  // Node.js ランタイムで確実に読めるよう、ビルド時に同梱された Markdown をファイルから取得します。
   const filePath = path.join(process.cwd(), "src/content/terms.md");
-  const termsMarkdown = fs.readFileSync(filePath, "utf8");
+  const termsMarkdown = await readFile(filePath, "utf8");
 
   // ユーザー画面のダークトーンに揃え、読み物としてのまとまりと視認性を丁寧に整えます。
   const containerStyle: React.CSSProperties = {
@@ -38,8 +40,8 @@ export default function TermsPage() {
     h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h1
         style={{
-          fontSize: "2rem",
-          fontWeight: 700,
+          fontSize: "1.25rem",
+          fontWeight: 400, // 見出しは太字禁止のデザインルールに従います。
           margin: "0 0 16px",
           color: "#f8fafc",
         }}
@@ -49,8 +51,8 @@ export default function TermsPage() {
     h2: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h2
         style={{
-          fontSize: "1.5rem",
-          fontWeight: 700,
+          fontSize: "1.25rem",
+          fontWeight: 400, // 見出しは太字禁止のデザインルールに従います。
           margin: "28px 0 14px",
           color: "#f8fafc",
         }}
@@ -60,8 +62,8 @@ export default function TermsPage() {
     h3: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h3
         style={{
-          fontSize: "1.2rem",
-          fontWeight: 700,
+          fontSize: "1.1rem",
+          fontWeight: 400, // 見出しは太字禁止のデザインルールに従います。
           margin: "20px 0 10px",
           color: "#f8fafc",
         }}

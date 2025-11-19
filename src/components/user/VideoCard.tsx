@@ -7,10 +7,9 @@ type VideoCardProps = {
   video: VideoItem;
   onSelect: (video: VideoItem) => void;
   onChannelSelect: (channelId: string) => void;
-  onReportSelect: (video: VideoItem) => void;
 };
 
-export function VideoCard({ video, onSelect, onChannelSelect, onReportSelect }: VideoCardProps) {
+export function VideoCard({ video, onSelect, onChannelSelect }: VideoCardProps) {
 
   // サンプルと同じホバー挙動（scale + y offset）を motion で実装
   return (
@@ -60,19 +59,6 @@ export function VideoCard({ video, onSelect, onChannelSelect, onReportSelect }: 
             {video.channelName}
           </button>
         )}
-        <div className={styles.cardActionRow}>
-          <button
-            type="button"
-            onClick={(event) => {
-              // カード選択とは独立して報告モーダルを開きます。
-              event.stopPropagation();
-              onReportSelect(video);
-            }}
-            className={styles.cardReportButton}
-          >
-            報告
-          </button>
-        </div>
       </div>
     </motion.div>
   );

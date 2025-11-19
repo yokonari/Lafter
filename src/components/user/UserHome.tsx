@@ -169,13 +169,11 @@ export function UserHome() {
             onVideoSelect={handleVideoSelect}
             onPlaylistSelect={handlePlaylistSelect}
             onChannelSelect={handleChannelSelect}
-            onReportSelect={handleReportSelect}
           />
         ) : (
           <HomeSections
             onVideoSelect={handleVideoSelect}
             onChannelSelect={handleChannelSelect}
-            onReportSelect={handleReportSelect}
             onShowNewList={handleShowNewList}
             onShowRandomList={handleShowRandomList}
           />

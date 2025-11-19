@@ -11,7 +11,6 @@ type SearchResultsProps = {
   onVideoSelect: (video: VideoItem) => void;
   onPlaylistSelect: (playlist: PlaylistItem) => void;
   onChannelSelect: (channelId: string) => void;
-  onReportSelect: (video: VideoItem) => void;
 };
 
 export function SearchResults({
@@ -21,7 +20,6 @@ export function SearchResults({
   onVideoSelect,
   onPlaylistSelect,
   onChannelSelect,
-  onReportSelect,
 }: SearchResultsProps) {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistItem[]>([]);
@@ -110,10 +108,22 @@ export function SearchResults({
     }
   };
 
+  const buildTitle = () => {
+    if (mode === "new") return "最近";
+    if (mode === "random") return "ランダム";
+    if (channelId) return "チャンネル内の検索結果";
+    if (query) return `「${query}」の検索結果`;
+    return "検索結果";
+  };
+
   return (
     // 検索結果ページもダークトーンへ合わせ、各状態メッセージの色味を丁寧に調整します。
     <div className={styles.searchContainer}>
-      <div className={styles.searchHeader} />
+      <div className={styles.searchHeader}>
+        <p className={styles.searchTitle}>
+          {buildTitle()}
+        </p>
+      </div>
 
       {loading && (
         <>
@@ -148,7 +158,6 @@ export function SearchResults({
               video={video}
               onSelect={onVideoSelect}
               onChannelSelect={onChannelSelect}
-              onReportSelect={onReportSelect}
             />
           ))}
         </div>

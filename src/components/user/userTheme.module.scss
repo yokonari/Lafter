@@ -240,7 +240,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 
 .searchContainer {
   @extend .sectionContainer;
-  padding-top: 0;
+  padding-top: 1rem; // セクションと同じ上余白に揃えます。
   padding-bottom: 0;
 }
 
@@ -278,34 +278,24 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   color: var(--user-text);
 }
 
-.sectionFooterWrap {
-  margin: 0.5rem 0; // 上下とも8pxの余白にし、コンパクトに整えます。
-  display: flex;
-  justify-content: flex-end; // カード群の右下に「もっと見る」ボタンを寄せます。
-}
-
-.sectionFooterAction {
-  padding: 0.55rem 1.2rem;
-  border-radius: 9999px;
+.sectionHeadingLink {
   border: none;
-  background: var(--user-accent); // 単色のプライマリーカラーで明快に強調します。
-  color: var(--user-bg);
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  background: none;
+  color: var(--user-accent);
   font-size: 0.95rem;
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(251, 191, 36, 0.25);
-  transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  padding: 0.15rem 0.35rem;
+  border-radius: 9999px;
+  transition: color 0.15s ease, background-color 0.15s ease;
 
   &:hover,
   &:focus-visible {
-    background: var(--user-accent-strong);
-    transform: translateY(-1px);
-    box-shadow: 0 12px 34px rgba(251, 191, 36, 0.35);
+    color: var(--user-accent-strong);
+    background: rgba(251, 191, 36, 0.1);
   }
 
   &:focus-visible {
-    outline: 3px solid rgba(251, 191, 36, 0.45);
+    outline: 2px solid rgba(251, 191, 36, 0.35);
     outline-offset: 2px;
   }
 }
@@ -324,12 +314,6 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
   @media (min-width: 1024px) {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
-}
-
-.sectionDivider {
-  margin: 1.5rem 0;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.45); // わずかに暗くし、背景となじみつつ区切りを残します。
-  opacity: 0.8;
 }
 
 .searchGrid {
@@ -353,12 +337,15 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 }
 
 .searchHeader {
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem; // ホームセクションの見出しと同じ余白に揃えます。
+  display: flex;
+  align-items: center;
+  justify-content: space-between; // セクション見出しと同じ右寄せ配置が可能なようにレイアウト統一
 }
 
 .searchTitle {
-  font-size: 1.5rem;
-  font-weight: 700;
+  font-size: 1.25rem; // ホームセクション見出しと同じサイズ
+  font-weight: 400; // 見出しは太字にしないデザインルールに従います。
   color: var(--user-text);
 }
 
@@ -542,37 +529,6 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 
   &:hover {
     color: var(--user-accent);
-  }
-}
-
-.cardActionRow {
-  margin-top: 0.75rem;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.cardReportButton {
-  min-width: 72px;
-  padding: 0.35rem 0.75rem;
-  border-radius: 9999px;
-  border: 1px solid rgba(148, 163, 184, 0.5);
-  background: rgba(11, 18, 36, 0.75);
-  color: var(--user-text);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--user-surface-hover);
-    color: var(--user-accent);
-    border-color: rgba(251, 191, 36, 0.35);
-    transform: translateY(-1px);
-  }
-
-  &:focus-visible {
-    outline: 2px solid rgba(251, 191, 36, 0.35);
-    outline-offset: 2px;
   }
 }
 
@@ -807,7 +763,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 .contactTitle {
   margin: 0;
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: 400; // 見出しは太字を避けるルールに従い、程よい太さに留めます。
 }
 
 .contactClose {
@@ -939,7 +895,7 @@ $user-card-overlay: rgba(2, 6, 23, 0.95);
 .reportLabel {
   display: block;
   color: var(--user-text-muted);
-  font-weight: 500;
+  font-weight: 400; // 見出しやラベルも太字を避けるデザインルールに従います。
   font-size: 0.85rem;
 }
 

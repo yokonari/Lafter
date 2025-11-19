@@ -1,12 +1,14 @@
-import fs from "node:fs";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 
-export default function PolicyPage() {
-  // プライバシーポリシーの Markdown を静的に読み込み、文面を丁寧にそのまま表示します。
+export const runtime = "nodejs";
+
+export default async function PolicyPage() {
+  // Node.js ランタイムで確実に読めるよう、ビルド時に同梱された Markdown をファイルから取得します。
   const filePath = path.join(process.cwd(), "src/content/policy.md");
-  const policyMarkdown = fs.readFileSync(filePath, "utf8");
+  const policyMarkdown = await readFile(filePath, "utf8");
 
   // ユーザー画面のダークトーンを踏襲し、読みやすいタイポグラフィで丁寧に整えます。
   const containerStyle: React.CSSProperties = {
@@ -37,8 +39,8 @@ export default function PolicyPage() {
     h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h1
         style={{
-          fontSize: "2rem",
-          fontWeight: 700,
+          fontSize: "1.25rem",
+          fontWeight: 400, // 見出しは太字禁止のデザインルールに従います。
           margin: "0 0 16px",
           color: "#f8fafc",
         }}
@@ -48,8 +50,8 @@ export default function PolicyPage() {
     h2: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h2
         style={{
-          fontSize: "1.5rem",
-          fontWeight: 700,
+          fontSize: "1.25rem",
+          fontWeight: 400, // 見出しは太字禁止のデザインルールに従います。
           margin: "28px 0 14px",
           color: "#f8fafc",
         }}
@@ -59,8 +61,8 @@ export default function PolicyPage() {
     h3: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
       <h3
         style={{
-          fontSize: "1.2rem",
-          fontWeight: 700,
+          fontSize: "1.1rem",
+          fontWeight: 400, // 見出しは太字禁止のデザインルールに従います。
           margin: "20px 0 10px",
           color: "#f8fafc",
         }}
