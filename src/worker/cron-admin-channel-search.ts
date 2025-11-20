@@ -6,6 +6,8 @@ type CronEnv = Env & {
   API_SECRET?: string;
   CRON_CHANNEL_BATCH_LIMIT?: string | number;
   CRON_CHANNEL_DELAY_MS?: string | number;
+  DB?: D1Database;
+  lafter_db?: D1Database;
 };
 
 type ChannelRow = { id: string };
@@ -21,10 +23,12 @@ const scheduled: ExportedHandlerScheduledHandler = async (_event, env, ctx) => {
   ctx.waitUntil(runChannelSearchCron(env as CronEnv));
 };
 
-export default {
+const cronWorker = {
   fetch: app.fetch,
   scheduled,
 };
+
+export default cronWorker;
 
 async function runChannelSearchCron(env: CronEnv) {
   const base = resolveBaseUrl(env);
@@ -111,6 +115,11 @@ function resolveNumber(value: unknown, fallback: number): number {
   return fallback;
 }
 
+function resolveDb(env: CronEnv): D1Database | null {
+  // Wrangler 側のバインディング名ゆらぎ(DB/lafter_db)を丁寧に吸収し、安全に D1 インスタンスを返します。
+  return env.DB ?? env.lafter_db ?? null;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -122,8 +131,13 @@ async function shouldUseFullSearch(env: CronEnv, channelId: string): Promise<boo
 }
 
 async function countStatusOneVideos(env: CronEnv, channelId: string): Promise<number> {
+  const db = resolveDb(env);
+  if (!db) {
+    console.error("[cron] D1 バインディング(DB/lafter_db)が見つかりません", channelId);
+    return 0;
+  }
   try {
-    const row = await env.lafter_db
+    const row = await db
       .prepare("SELECT COUNT(*) as cnt FROM videos WHERE channel_id = ? AND status = 1")
       .bind(channelId)
       .first<{ cnt: number }>();
@@ -135,9 +149,14 @@ async function countStatusOneVideos(env: CronEnv, channelId: string): Promise<nu
 }
 
 async function fetchPendingChannels(env: CronEnv, limit: number): Promise<ChannelRow[]> {
+  const db = resolveDb(env);
+  if (!db) {
+    console.error("[cron] D1 バインディング(DB/lafter_db)が見つかりません");
+    return [];
+  }
   try {
     // lastCheckedAt が 24 時間以上前または未設定のチャンネルのみを丁寧に抽出します。
-    const rows = await env.lafter_db
+    const rows = await db
       .prepare(
         `
         SELECT id

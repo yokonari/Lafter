@@ -12,7 +12,6 @@ type ContactDialogProps = {
 
 // ユーザー画面に溶け込むシンプルな問い合わせモーダルです。閉じた時に状態を丁寧に初期化します。
 export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) {
-  const [submitted, setSubmitted] = useState(false);
   const [sending, setSending] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [messageDraft, setMessageDraft] = useState("");
@@ -36,7 +35,6 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
 
   useEffect(() => {
     if (open) {
-      setSubmitted(false);
       setSending(false);
       setErrorMessage(null);
       setMessageDraft("");
@@ -63,7 +61,6 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
       return;
     }
 
-    setSubmitted(false);
     setSending(true);
     setErrorMessage(null);
 
@@ -88,7 +85,6 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
         return;
       }
 
-      setSubmitted(true);
       form.reset();
       setMessageDraft("");
       onClose();
@@ -166,11 +162,6 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
               placeholder="ご質問やご要望をご入力ください"
             />
           </label>
-
-          {submitted && (
-            // 送信完了の通知は温かい色味でまとめ、ユーザーに安心感を丁寧に伝えます。
-            <p className={styles.contactSuccess}>送信が完了しました。</p>
-          )}
 
           {errorMessage && <p className={styles.contactError}>{errorMessage}</p>}
 

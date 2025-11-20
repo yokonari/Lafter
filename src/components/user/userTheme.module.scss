@@ -37,7 +37,6 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   flex-direction: column;
   background-color: var(--user-bg);
   color: var(--user-text);
-  line-height: 1.5;
 }
 
 .main {
@@ -411,7 +410,10 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  // 浮遊感を丁寧に演出するため、ソフトシャドウと薄い縁取りを重ねて奥行きを出します。
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.32),
+    0 0 0 1px color-mix(in srgb, var(--user-accent) 45%, transparent);
   transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 
   &:focus-visible {
@@ -519,7 +521,8 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 
 .cardTitle {
   color: var(--user-text);
-  font-size: 0.875rem;
+  // 画面幅に応じてタイトル文字サイズを丁寧に伸縮させ、PCではわずかに大きく表示します。
+  font-size: clamp(0.7rem, 0.7rem + 0.25vw, 0.85rem);
   font-weight: 400;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -528,80 +531,9 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   flex: 1 1 auto;
 }
 
-.cardMenuWrap {
-  position: relative;
-  flex: 0 0 auto;
-}
-
-.cardMenuOpen {
-  z-index: 40; // 隣接カードより前面に重ね、ホバー時も埋もれないようにします。
-}
-
-.cardMenuButton {
-  border: none;
-  background: transparent;
-  color: var(--user-text);
-  border-radius: 10px;
-  width: 32px;
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--user-surface-hover);
-    color: var(--user-accent);
-  }
-
-  &:focus-visible {
-    outline: 2px solid rgba(251, 191, 36, 0.35);
-    outline-offset: 2px;
-  }
-}
-
-.cardMenu {
-  position: absolute;
-  right: 0;
-  top: 36px;
-  min-width: 180px;
-  border: 1px solid var(--user-border);
-  border-radius: 12px;
-  background: var(--user-surface);
-  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.4);
-  padding: 6px;
-  z-index: 10;
-  max-height: 240px;
-  overflow-y: auto;
-  transform: translateX(4px);
-}
-
-.cardMenuItem {
-  width: 100%;
-  text-align: left;
-  padding: 10px 12px;
-  border: none;
-  background: transparent;
-  color: var(--user-text);
-  border-radius: 10px;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
-
-  &:hover,
-  &:focus-visible {
-    background: var(--user-surface-hover);
-    color: var(--user-accent);
-    outline: none;
-  }
-}
-
 .cardChannel {
-  margin-top: 0.3rem;
   color: var(--user-link); // チャンネル名などのテキストリンクはon-surface系の柔らかなリンク色で示します。
-  font-size: 0.8rem; // タイトルより小さいサイズで控えめに
+  font-size: clamp(0.6rem, 0.6rem + 0.25vw, 0.7rem);
   text-decoration: none;
   cursor: pointer;
   display: inline-block;
@@ -624,9 +556,9 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   padding: 0.1rem 0.5rem;
   margin-bottom: 0.25rem;
   border-radius: 9999px;
-  background: rgba(251, 191, 36, 0.15);
+  background: var(--user-surface-hover);
   color: var(--user-accent);
-  font-size: 0.7rem;
+  font-size: clamp(0.5rem, 0.5rem + 0.25vw, 0.6rem);
   font-weight: 600;
   letter-spacing: 0.01em;
 }
@@ -651,7 +583,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   justify-content: center;
   column-gap: 2rem;
   row-gap: 1rem; // 要素が折り返された際の行間を従来の半分に抑え、縦方向の詰まりを軽減します。
-  font-size: 0.9rem;
+  font-size: clamp(0.7rem, 0.7rem + 0.25vw, 0.8rem);
   margin-bottom: 0;
 }
 
@@ -920,26 +852,6 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   color: var(--user-text-muted);
 }
 
-.contactSuccess,
-.contactError {
-  margin: 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-}
-
-.contactSuccess {
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  color: #bbf7d0;
-}
-
-.contactError {
-  background: rgba(248, 113, 113, 0.12);
-  border: 1px solid rgba(248, 113, 113, 0.35);
-  color: var(--user-error-text);
-}
-
 .contactActions {
   display: flex;
   justify-content: flex-end;
@@ -1094,11 +1006,10 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 .termsArticle,
 .policyArticle {
   max-width: 800px;
-  margin: 0 auto;
-  padding: 24px;
+  margin: 16px auto;
+  padding: 16px;
   background: $terms-policy-surface; // 指定色の rgb(36 31 21) でカードコンテナを統一します。
   border-radius: 16px;
-  line-height: 1.7;
 }
 
 .termsHeading1,
@@ -1138,6 +1049,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   color: $user-text-muted;
   display: grid;
   gap: 4px;
+  list-style: revert; // ブラウザ既定の丸や番号を丁寧に復元して表示します。
 }
 
 .termsListItem,
