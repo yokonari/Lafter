@@ -73,7 +73,7 @@ export async function POST(request: Request) {
         .update(channels)
         .set({
           status: nextStatus,
-          lastChecked: checkedAt,
+          lastCheckedAt: checkedAt,
         })
         .where(eq(channels.id, channel.id));
       results.push({

@@ -571,7 +571,8 @@ async function insertChannel(
   await db.insert(channels).values({
     id: input.id,
     name: input.name,
-    lastChecked: new Date().toISOString(),
+    // チャンネルの最終確認時刻を新しいカラムへ丁寧に保持します。
+    lastCheckedAt: new Date().toISOString(),
   });
 }
 
@@ -612,7 +613,8 @@ async function insertPlaylist(
     channelId: input.channelId,
     name: input.title,
     topVideoId: input.topVideoId ?? null,
-    lastChecked: new Date().toISOString(),
+    // プレイリストの最終確認日時を新しいカラムへ丁寧に記録します。
+    lastCheckedAt: new Date().toISOString(),
   });
 }
 

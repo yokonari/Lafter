@@ -126,15 +126,16 @@ export function registerPostAdminPlaylistsCheck(app: Hono<AdminEnv>) {
                             .set({
                                 name: newTitle,
                                 topVideoId: newTopVideoId,
-                                lastChecked: new Date().toISOString(),
+                                // 定期チェック時刻を新しいカラムへ丁寧に記録します。
+                                lastCheckedAt: new Date().toISOString(),
                             })
                             .where(eq(playlists.id, item.id));
                         updatedCount++;
                     } else {
-                        // 変更がない場合も lastChecked だけ更新
+                        // 変更がない場合も lastCheckedAt だけ更新
                         await db
                             .update(playlists)
-                            .set({ lastChecked: new Date().toISOString() })
+                            .set({ lastCheckedAt: new Date().toISOString() })
                             .where(eq(playlists.id, item.id));
                     }
                 }

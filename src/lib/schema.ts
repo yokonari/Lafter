@@ -16,8 +16,7 @@ export const channels = sqliteTable(
     id: text("id").primaryKey(),
     name: text("name").notNull(),
     status: integer("status").notNull().default(0),
-    searchCount: integer("search_count").notNull().default(0),
-    lastChecked: text("last_checked"),
+    lastCheckedAt: text("last_checked_at"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
@@ -65,7 +64,7 @@ export const playlists = sqliteTable(
     name: text("name").notNull(),
     status: integer("status").notNull().default(0),
     topVideoId: text("top_video_id"), // プレイリストの代表動画IDを任意で保持し、null も許容します。
-    lastChecked: text("last_checked"),
+    lastCheckedAt: text("last_checked_at"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
@@ -80,10 +79,6 @@ export const searchLogs = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     keyword: text("keyword").notNull(),
-    channelId: text("channel_id").references(() => channels.id, {
-      onDelete: "set null",
-      onUpdate: "cascade",
-    }),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
