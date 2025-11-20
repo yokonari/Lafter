@@ -271,6 +271,40 @@ function AdminPlaylistsPageContent() {
     }
   };
 
+  const [checking, setChecking] = useState(false);
+
+  const handleCheckExistence = async () => {
+    if (!confirm("プレイリストの存在確認を行いますか？\n（時間がかかる場合があります）")) {
+      return;
+    }
+    setChecking(true);
+    try {
+      const response = await fetch("/api/admin/playlists/check", {
+        method: "POST",
+      });
+      const data = (await response.json()) as {
+        message?: string;
+        total?: number;
+        checked?: number;
+        updated?: number;
+        deleted?: number;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.message || "存在確認に失敗しました。");
+      }
+
+      toast.success(
+        `確認完了: 全${data.total ?? 0}件中、更新${data.updated ?? 0}件、削除${data.deleted ?? 0}件`
+      );
+      await loadPlaylists(currentPage, playlistStatusFilter);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "エラーが発生しました。");
+    } finally {
+      setChecking(false);
+    }
+  };
+
   return (
     <AdminTabsLayout activeTab="playlists">
       {errorMessage ? (
@@ -279,27 +313,37 @@ function AdminPlaylistsPageContent() {
         </p>
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handlePendingFilterClick}
+                className={`${styles.filterButton} ${isPendingFilter ? styles.buttonActiveAmber : ""}`}
+              >
+                未判定
+              </button>
+              <button
+                type="button"
+                onClick={handleOkFilterClick}
+                className={`${styles.filterButton} ${isOkFilter ? styles.buttonActiveBlue : ""}`}
+              >
+                OK
+              </button>
+              <button
+                type="button"
+                onClick={handleNgFilterClick}
+                className={`${styles.filterButton} ${isNgFilter ? styles.buttonActiveRed : ""}`}
+              >
+                NG
+              </button>
+            </div>
             <button
               type="button"
-              onClick={handlePendingFilterClick}
-              className={`${styles.filterButton} ${isPendingFilter ? styles.buttonActiveAmber : ""}`}
+              onClick={handleCheckExistence}
+              disabled={checking || loading}
+              className={styles.filterButton}
             >
-              未判定
-            </button>
-            <button
-              type="button"
-              onClick={handleOkFilterClick}
-              className={`${styles.filterButton} ${isOkFilter ? styles.buttonActiveBlue : ""}`}
-            >
-              OK
-            </button>
-            <button
-              type="button"
-              onClick={handleNgFilterClick}
-              className={`${styles.filterButton} ${isNgFilter ? styles.buttonActiveRed : ""}`}
-            >
-              NG
+              {checking ? "確認中..." : "存在確認"}
             </button>
           </div>
           {loading ? (
@@ -338,72 +382,72 @@ function AdminPlaylistsPageContent() {
                             checked={entry.selected}
                             onChange={(event) =>
                               setSelections((prev) => ({
-                            ...prev,
-                            [playlist.id]: { ...entry, selected: event.target.checked },
-                          }))
-                        }
-                      />
-                      <span className="flex flex-col">
-                        <a
-                          href={playlist.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className={styles.cardLink}
-                        >
-                          {playlist.title}
-                        </a>
-                        <span className={styles.cardMeta}>{playlist.channel_name ?? "不明"}</span>
-                      </span>
-                    </label>
-                  </div>
-                  {/* タイトル直下にフォームを置き、チャンネル画面と同じ操作フローに寄せます。 */}
-                  <div className="space-y-2">
-                    {/* プレイリストもラジオボタンで OK/NG を即決できるよう統一します。 */}
-                    <fieldset className={styles.radioGroup}>
-                      <legend className="sr-only">ステータス</legend>
-                      <div className={styles.radioOptions}>
-                        {PLAYLIST_STATUS_OPTIONS.map((option) => {
-                          const inputId = `playlist-status-${playlist.id}-${option.value}`;
-                          const isChecked = entry.status === option.value;
-                          const activeClass =
-                            isChecked && option.value === "1"
-                              ? styles.radioOptionOkActive
-                              : isChecked && option.value === "2"
-                                ? styles.radioOptionNgActive
-                                : "";
-                          return (
-                            <label
-                              key={option.value}
-                              htmlFor={inputId}
-                              className={`${styles.radioOption} ${activeClass}`}
+                                ...prev,
+                                [playlist.id]: { ...entry, selected: event.target.checked },
+                              }))
+                            }
+                          />
+                          <span className="flex flex-col">
+                            <a
+                              href={playlist.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={styles.cardLink}
                             >
-                              <input
-                                type="radio"
-                                id={inputId}
-                                name={`playlist-status-${playlist.id}`}
-                                className={styles.radioInput}
-                                value={option.value}
-                                checked={isChecked}
-                                onChange={(event) =>
-                                  setSelections((prev) => ({
-                                    ...prev,
-                                    [playlist.id]: {
-                                      ...entry,
-                                      status: event.target.value,
-                                    },
-                                  }))
-                                }
-                              />
-                              <span>{option.label}</span>
-                            </label>
-                          );
-                        })}
+                              {playlist.title}
+                            </a>
+                            <span className={styles.cardMeta}>{playlist.channel_name ?? "不明"}</span>
+                          </span>
+                        </label>
                       </div>
-                    </fieldset>
-                  </div>
-                </div>
-              </article>
-            );
+                      {/* タイトル直下にフォームを置き、チャンネル画面と同じ操作フローに寄せます。 */}
+                      <div className="space-y-2">
+                        {/* プレイリストもラジオボタンで OK/NG を即決できるよう統一します。 */}
+                        <fieldset className={styles.radioGroup}>
+                          <legend className="sr-only">ステータス</legend>
+                          <div className={styles.radioOptions}>
+                            {PLAYLIST_STATUS_OPTIONS.map((option) => {
+                              const inputId = `playlist-status-${playlist.id}-${option.value}`;
+                              const isChecked = entry.status === option.value;
+                              const activeClass =
+                                isChecked && option.value === "1"
+                                  ? styles.radioOptionOkActive
+                                  : isChecked && option.value === "2"
+                                    ? styles.radioOptionNgActive
+                                    : "";
+                              return (
+                                <label
+                                  key={option.value}
+                                  htmlFor={inputId}
+                                  className={`${styles.radioOption} ${activeClass}`}
+                                >
+                                  <input
+                                    type="radio"
+                                    id={inputId}
+                                    name={`playlist-status-${playlist.id}`}
+                                    className={styles.radioInput}
+                                    value={option.value}
+                                    checked={isChecked}
+                                    onChange={(event) =>
+                                      setSelections((prev) => ({
+                                        ...prev,
+                                        [playlist.id]: {
+                                          ...entry,
+                                          status: event.target.value,
+                                        },
+                                      }))
+                                    }
+                                  />
+                                  <span>{option.label}</span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </fieldset>
+                      </div>
+                    </div>
+                  </article>
+                );
               })}
             </div>
           )}
