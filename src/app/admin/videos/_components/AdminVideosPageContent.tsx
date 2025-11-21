@@ -733,7 +733,7 @@ export default function AdminVideosPageContent() {
                                 disabled={autoCategorizing || loading}
                                 aria-label="自動分類の対象件数を選択"
                             >
-                                {[30, 50, 100, 200, 300, 400, 500].map((option) => (
+                                {[0, 30, 50, 100, 200, 300, 400, 500].map((option) => (
                                     <option key={option} value={option}>
                                         {option} 件
                                     </option>
