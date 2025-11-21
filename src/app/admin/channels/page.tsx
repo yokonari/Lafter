@@ -1,7 +1,12 @@
 import { headers } from "next/headers";
+import type { Metadata } from "next";
 import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { ChannelAdminSection } from "./ChannelAdminSection";
 import styles from "../adminTheme.module.scss";
+
+export const metadata: Metadata = {
+  title: "Lafter チャンネル管理",
+};
 
 type AdminChannel = {
   id: string;
@@ -69,10 +74,10 @@ async function fetchAdminChannels(
         : `チャンネル一覧の取得に失敗しました。(HTTP ${response.status})`;
     const message =
       payload &&
-      typeof payload === "object" &&
-      payload !== null &&
-      "message" in payload &&
-      typeof (payload as { message?: string }).message === "string"
+        typeof payload === "object" &&
+        payload !== null &&
+        "message" in payload &&
+        typeof (payload as { message?: string }).message === "string"
         ? (payload as { message?: string }).message
         : defaultMessage;
     throw new Error(message);

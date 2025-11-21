@@ -994,7 +994,6 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 16px;
   color: $user-text-muted;
   transition: color 0.2s ease;
 
@@ -1006,7 +1005,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 .termsArticle,
 .policyArticle {
   max-width: 800px;
-  margin: 16px auto;
+  margin: 8px auto;
   padding: 16px;
   background: $terms-policy-surface; // 指定色の rgb(36 31 21) でカードコンテナを統一します。
   border-radius: 16px;

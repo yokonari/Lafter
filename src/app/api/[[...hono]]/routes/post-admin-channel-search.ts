@@ -2,7 +2,9 @@ import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
-import { NEGATIVE_KEYWORDS } from "@/lib/video-keywords";
+import { NEGATIVE_KEYWORDS, POSITIVE_KEYWORDS } from "@/lib/video-keywords";
+
+
 import { createDatabase, type AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
@@ -136,8 +138,7 @@ export function registerPostAdminChannelSearch(app: Hono<AdminEnv>) {
           }
           logSqlError(error);
           summary.errors.push(
-            `video ${item.videoId}: ${
-              (error as Error)?.message ?? "動画情報の保存に失敗しました。"
+            `video ${item.videoId}: ${(error as Error)?.message ?? "動画情報の保存に失敗しました。"
             }`,
           );
         }
@@ -149,24 +150,32 @@ export function registerPostAdminChannelSearch(app: Hono<AdminEnv>) {
         if (shouldSkipChannel(resolvedTitle ?? "")) continue;
 
         try {
-          const exists = await playlistExists(db, item.playlistId);
-          if (exists) continue;
-          await ensureChannel(db, ensuredChannels, item.channelId, resolvedTitle);
-          await insertPlaylist(db, {
-            id: item.playlistId,
-            title: item.title,
-            channelId: item.channelId,
-            topVideoId: item.topVideoId ?? null,
-          });
-          summary.playlistsInserted += 1;
+          const existing = await getPlaylist(db, item.playlistId);
+          if (!existing) {
+            await ensureChannel(db, ensuredChannels, item.channelId, resolvedTitle);
+            await insertPlaylist(db, {
+              id: item.playlistId,
+              title: item.title,
+              channelId: item.channelId,
+              topVideoId: item.topVideoId ?? null,
+            });
+            summary.playlistsInserted += 1;
+          } else {
+            // 名前かトップ動画が変わっていたら更新します
+            if (existing.name !== item.title || existing.topVideoId !== item.topVideoId) {
+              await updatePlaylist(db, item.playlistId, {
+                name: item.title,
+                topVideoId: item.topVideoId ?? null,
+              });
+            }
+          }
         } catch (error) {
           if (isUniqueConstraintError(error)) {
             continue;
           }
           logSqlError(error);
           summary.errors.push(
-            `playlist ${item.playlistId}: ${
-              (error as Error)?.message ?? "再生リスト情報の保存に失敗しました。"
+            `playlist ${item.playlistId}: ${(error as Error)?.message ?? "再生リスト情報の保存に失敗しました。"
             }`,
           );
         }
@@ -205,6 +214,7 @@ async function searchChannelItems(
     url.searchParams.set("part", "snippet");
     url.searchParams.set("type", "video,playlist");
     url.searchParams.set("channelId", channelId);
+    url.searchParams.set("q", "ネタ");
     url.searchParams.set("maxResults", String(MAX_RESULTS_PER_PAGE));
     url.searchParams.set("order", "date");
     url.searchParams.set("safeSearch", "none");
@@ -302,11 +312,12 @@ async function ensureChannel(
   }
   if (ensured.has(channelId)) return;
 
-  const exists = await channelExists(db, channelId);
-  if (!exists && !channelTitle) {
-    throw new Error("チャンネル名を取得できませんでした。");
-  }
-  if (!exists) {
+  const existing = await getChannel(db, channelId);
+
+  if (!existing) {
+    if (!channelTitle) {
+      throw new Error("チャンネル名を取得できませんでした。");
+    }
     try {
       await insertChannel(db, {
         id: channelId,
@@ -317,17 +328,32 @@ async function ensureChannel(
         throw error;
       }
     }
+  } else {
+    // 名前が変わっていなくても、最終確認時刻は必ず更新します
+    await updateChannel(db, channelId, {
+      name: (channelTitle && existing.name !== channelTitle) ? channelTitle : existing.name
+    });
   }
   ensured.add(channelId);
 }
 
-async function channelExists(db: DatabaseClient, channelId: string): Promise<boolean> {
+async function getChannel(db: DatabaseClient, channelId: string) {
   const rows = await db
-    .select({ id: channels.id })
+    .select()
     .from(channels)
     .where(eq(channels.id, channelId))
     .limit(1);
-  return rows.length > 0;
+  return rows[0];
+}
+
+async function updateChannel(db: DatabaseClient, id: string, input: { name: string }) {
+  await db
+    .update(channels)
+    .set({
+      name: input.name,
+      lastCheckedAt: new Date().toISOString(),
+    })
+    .where(eq(channels.id, id));
 }
 
 async function insertChannel(
@@ -373,13 +399,28 @@ async function insertVideo(
   });
 }
 
-async function playlistExists(db: DatabaseClient, playlistId: string): Promise<boolean> {
+async function getPlaylist(db: DatabaseClient, playlistId: string) {
   const rows = await db
-    .select({ id: playlists.id })
+    .select()
     .from(playlists)
     .where(eq(playlists.id, playlistId))
     .limit(1);
-  return rows.length > 0;
+  return rows[0];
+}
+
+async function updatePlaylist(
+  db: DatabaseClient,
+  id: string,
+  input: { name: string; topVideoId: string | null }
+) {
+  await db
+    .update(playlists)
+    .set({
+      name: input.name,
+      topVideoId: input.topVideoId,
+      lastCheckedAt: new Date().toISOString(),
+    })
+    .where(eq(playlists.id, id));
 }
 
 async function insertPlaylist(
@@ -401,6 +442,10 @@ function shouldSkipVideo(title: string): boolean {
   const hasNegative = NEGATIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
   // NGワードが含まれている場合は、OKワードの有無に関係なく即座に除外します。
   if (hasNegative) {
+    const hasPositive = POSITIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
+    if (hasPositive) {
+      return false;
+    }
     return true;
   }
   return false;

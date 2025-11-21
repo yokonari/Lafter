@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { videos, channels } from "@/lib/schema";
 import { createDatabase } from "../context";
@@ -15,11 +15,11 @@ const AUTO_CATEGORIZATION_RULES: Array<{
   keywords?: string[];
   titleRegex?: RegExp;
 }> = [
-  { key: "manzai", keywords: ["漫才"] },
-  { key: "conte", keywords: ["コント"] },
-  { key: "neta", keywords: ["ネタ"] },
-  { key: "variety", keywords: ["ものまね", "モノマネ", "歌", "あるある"] },
-];
+    { key: "manzai", keywords: ["漫才", "漫談"] },
+    { key: "conte", keywords: ["コント"] },
+    { key: "neta", keywords: ["ネタ"] },
+    { key: "variety", keywords: ["ものまね", "モノマネ", "歌", "あるある"] },
+  ];
 
 type AutoCategorizeRequest = {
   limit?: number;
@@ -43,7 +43,7 @@ export function registerPostAdminVideosAutoCategorize(app: Hono<AdminEnv>) {
 
     const limit = normalizeLimit(body.limit);
 
-    const rows = await db
+    const query = db
       .select({
         id: videos.id,
         title: videos.title,
@@ -51,14 +51,20 @@ export function registerPostAdminVideosAutoCategorize(app: Hono<AdminEnv>) {
       })
       .from(videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
-      .where(and(eq(videos.status, 0), eq(channels.status, 1)))
-      .limit(limit);
+      .where(and(eq(videos.status, 0), eq(channels.status, 1)));
+
+    if (limit > 0) {
+      query.limit(limit);
+    }
+
+    const rows = await query;
 
     if (rows.length === 0) {
       return c.json({ scanned: 0, updated: 0, results: [] });
     }
 
     const updates: Array<{ id: string; appliedRule: string; previousStatus: number; nextStatus: number }> = [];
+    const idsToUpdate: string[] = [];
 
     for (const row of rows) {
       const classification = classifyTitle(row.title ?? "");
@@ -69,7 +75,7 @@ export function registerPostAdminVideosAutoCategorize(app: Hono<AdminEnv>) {
       const shouldUpdate = row.currentStatus !== nextStatus;
       if (!shouldUpdate) continue;
 
-      await db.update(videos).set({ status: nextStatus }).where(eq(videos.id, row.id));
+      idsToUpdate.push(row.id);
 
       updates.push({
         id: row.id,
@@ -77,6 +83,10 @@ export function registerPostAdminVideosAutoCategorize(app: Hono<AdminEnv>) {
         previousStatus: row.currentStatus,
         nextStatus,
       });
+    }
+
+    if (idsToUpdate.length > 0) {
+      await db.update(videos).set({ status: AUTO_STATUS_OK }).where(inArray(videos.id, idsToUpdate));
     }
 
     return c.json({ scanned: rows.length, updated: updates.length, results: updates.slice(0, 200) });
@@ -104,7 +114,7 @@ function normalizeLimit(rawLimit: number | undefined): number {
     return DEFAULT_LIMIT;
   }
   const limit = Math.trunc(rawLimit);
-  if (limit <= 0) return DEFAULT_LIMIT;
-  if (limit > MAX_LIMIT) return MAX_LIMIT;
+  // 0以下の場合は制限なしとみなす
+  if (limit <= 0) return 0;
   return limit;
 }

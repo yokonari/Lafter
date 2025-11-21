@@ -51,7 +51,7 @@ export function VideoDialog({ video, onClose, onReport }: VideoDialogProps) {
         </div>
         {!isLoaded && (
           <div className={styles.dialogSpinnerWrap} aria-label="動画を読み込んでいます">
-            <div className={styles.dialogSpinner} />
+            {/* <div className={styles.dialogSpinner} /> */}
           </div>
         )}
         <div className={styles.dialogFrameWrap}>
