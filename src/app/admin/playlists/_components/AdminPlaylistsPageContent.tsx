@@ -198,15 +198,30 @@ export default function AdminPlaylistsPageContent() {
     };
 
     const handleSubmit = async () => {
-        const items = Object.entries(selections)
-            .filter(([, entry]) => entry.selected)
-            .map(([id, entry]) => ({
-                id,
-                status: Number(entry.status),
-            }));
+        const playlistMap = new Map(playlists.map((p) => [p.id, p]));
+        const selectedEntries = Object.entries(selections).filter(([, entry]) => entry.selected);
+
+        const items = selectedEntries
+            .map(([id, entry]) => {
+                const original = playlistMap.get(id);
+                const currentStatus = Number(entry.status);
+                if (original && original.status === currentStatus) {
+                    return null;
+                }
+                return {
+                    id,
+                    status: currentStatus,
+                };
+            })
+            .filter((item) => item !== null);
 
         if (items.length === 0) {
-            toast.error("更新対象の行を選択してください。");
+            const hasSelections = selectedEntries.length > 0;
+            if (hasSelections) {
+                toast.info("変更が必要な項目はありません。");
+            } else {
+                toast.error("更新対象の行を選択してください。");
+            }
             return;
         }
 
