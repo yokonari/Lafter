@@ -1,5 +1,6 @@
 'use client';
 
+import { Loader2 } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import styles from "./userTheme.module.scss";
@@ -126,6 +127,7 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
 
         <form className={styles.contactForm} onSubmit={handleSubmit}>
           {/* 名前とメールアドレスは任意項目です。autoComplete でさりげなく入力を補助します。 */}
+          {/* 名前とメールアドレスは任意項目です。autoComplete でさりげなく入力を補助します。 */}
           <label htmlFor={nameId} className={styles.contactLabel}>
             お名前（任意）
             <input
@@ -150,7 +152,7 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
           </label>
 
           <label htmlFor={messageId} className={styles.contactLabel}>
-            お問い合わせ内容
+            お問い合わせ内容 <span className={styles.contactRequired}>*必須</span>
             <textarea
               id={messageId}
               name="message"
@@ -170,7 +172,14 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
               キャンセル
             </button>
             <button type="submit" disabled={sending || messageDraft.trim().length === 0} className={styles.contactSubmit}>
-              {sending ? "送信中…" : "送信"}
+              {sending ? (
+                <>
+                  <Loader2 size={16} className={styles.reportSubmitSpinner} aria-hidden="true" />
+                  送信中…
+                </>
+              ) : (
+                "送信"
+              )}
             </button>
           </div>
         </form>

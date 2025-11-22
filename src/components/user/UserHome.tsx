@@ -14,6 +14,7 @@ import { PlaylistDialog } from "./PlaylistDialog";
 import { ContactDialog } from "./ContactDialog";
 import { ReportDialog } from "./ReportDialog";
 import { ScrollTopButton } from "./ScrollTopButton";
+import { UsageDialog } from "./UsageDialog";
 import styles from "./userTheme.module.scss";
 
 export function UserHome() {
@@ -27,8 +28,9 @@ export function UserHome() {
   const [isSearching, setIsSearching] = useState(false);
   const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
   const [dialogPlaylist, setDialogPlaylist] = useState<PlaylistItem | null>(null);
-  const [isContactOpen, setIsContactOpen] = useState(false);
   const [reportVideo, setReportVideo] = useState<VideoItem | null>(null);
+  const [isContactOpen, setIsContactOpen] = useState(false);
+  const [isUsageOpen, setIsUsageOpen] = useState(false);
 
   // URL パラメーターを置換し、検索条件を共有するためのヘルパーです。
   const updateUrl = useCallback(
@@ -156,6 +158,7 @@ export function UserHome() {
         onQueryChange={setSearchInput}
         onSearch={handleSearch}
         onReset={handleReset}
+        onUsageOpen={() => setIsUsageOpen(true)}
       />
 
       {/* メインも暗めの背景に切り替え、上部ヘッダーとの境界を自然に馴染ませます。 */}
@@ -184,7 +187,10 @@ export function UserHome() {
       {/* スクロール可能なときにのみ表示し、ワンクリックでトップへ戻れる固定ボタンです。 */}
       <ScrollTopButton />
 
-      <UserFooter onContactClick={() => setIsContactOpen(true)} />
+      <UserFooter
+        onContactClick={() => setIsContactOpen(true)}
+        onUsageClick={() => setIsUsageOpen(true)}
+      />
 
       <VideoDialog
         video={dialogVideo}
@@ -208,6 +214,7 @@ export function UserHome() {
         onClose={() => setIsContactOpen(false)}
         onSuccess={handleContactSuccess}
       />
+      <UsageDialog open={isUsageOpen} onClose={() => setIsUsageOpen(false)} />
       <ReportDialog open={Boolean(reportVideo)} video={reportVideo} onClose={handleReportClose} onSuccess={handleReportSuccess} />
       <ToastContainer position="top-center" theme="dark" />
     </div>

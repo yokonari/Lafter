@@ -1,5 +1,6 @@
 'use client';
 
+import { BadgeQuestionMark } from "lucide-react";
 import { ChangeEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import styles from "./userTheme.module.scss";
 
@@ -8,6 +9,7 @@ type UserHeaderProps = {
   onQueryChange: (value: string) => void;
   onSearch: (value: string) => void;
   onReset: () => void;
+  onUsageOpen: () => void;
 };
 
 export function UserHeader({
@@ -15,6 +17,7 @@ export function UserHeader({
   onQueryChange,
   onSearch,
   onReset,
+  onUsageOpen,
 }: UserHeaderProps) {
   const searchAreaRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
@@ -186,7 +189,17 @@ export function UserHeader({
             </div>
           )}
         </div>
-        <span className={styles.headerSpacer} aria-hidden />
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.usageButton}
+            onClick={onUsageOpen}
+            aria-label="使いかたを開く"
+          >
+            <BadgeQuestionMark  size={24} aria-hidden="true" />
+          </button>
+          <span className={styles.headerSpacer} aria-hidden />
+        </div>
       </div>
     </header>
   );

@@ -18,7 +18,7 @@ const REASON_LABELS: Record<ReportReasonKey, string> = {
   not_funny: "ネタ動画ではない",
   not_official_video: "公式動画ではない",
   // 再生不能な動画の報告も確実にラベルを付けて受付します。
-  cannot_play: "再生できない動画",
+  cannot_play: "再生できない",
 };
 
 function json(status: number, body: Record<string, unknown>) {

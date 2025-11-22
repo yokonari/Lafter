@@ -1,5 +1,6 @@
 'use client';
 
+import { Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReportReasonKey } from "@/lib/reportReasons";
 import { REPORT_REASONS } from "@/lib/reportReasons";
@@ -97,27 +98,36 @@ export function ReportDialog({ open, video, onClose, onSuccess }: ReportDialogPr
           </button>
         </div>
 
-        <div className={styles.contactForm}>
+        <div className={styles.reportBody}>
           <fieldset className={styles.reportRadioGroup}>
             <div className={styles.reportRadioOptions}>
               {REPORT_REASONS.map((reason) => (
-                <label key={reason.key} className={styles.reportRadio}>
-                  <input
-                    type="radio"
-                    name="report-reason"
-                    value={reason.key}
-                    checked={selectedReason === reason.key}
-                    onChange={() => setSelectedReason(reason.key)}
-                  />
-                  <span>{reason.label}</span>
+                <label
+                  key={reason.key}
+                  className={`${styles.reportRadio} ${selectedReason === reason.key ? styles.reportRadioActive : ""}`}
+                >
+                  <div className={styles.reportRadioControl}>
+                    <input
+                      type="radio"
+                      name="report-reason"
+                      value={reason.key}
+                      checked={selectedReason === reason.key}
+                      onChange={() => setSelectedReason(reason.key)}
+                      aria-describedby="report-desc"
+                    />
+                    <div className={styles.reportRadioDot} aria-hidden="true" />
+                  </div>
+                  <span className={`${styles.reportRadioLabel} ${selectedReason === reason.key ? styles.reportRadioLabelActive : ""}`}>
+                    {reason.label}
+                  </span>
                 </label>
               ))}
             </div>
           </fieldset>
 
           <div className={styles.reportSummary}>
-            <p className={styles.reportText}>
-              この動画を「{reasonLabel}」として報告してよろしいですか？
+            <p id="report-desc" className={styles.reportText}>
+              この動画を「<span className={styles.reportHighlight}>{reasonLabel}</span>」として報告してよろしいですか？
             </p>
             <div className={styles.reportDetails}>
               <div>
@@ -146,7 +156,14 @@ export function ReportDialog({ open, video, onClose, onSuccess }: ReportDialogPr
             disabled={sending}
             className={styles.contactSubmit}
           >
-            {sending ? "送信中…" : "送信"}
+            {sending ? (
+              <>
+                <Loader2 size={16} className={styles.reportSubmitSpinner} aria-hidden="true" />
+                送信中…
+              </>
+            ) : (
+              "送信"
+            )}
           </button>
         </div>
       </div>

@@ -18,6 +18,7 @@ $user-card-overlay: rgb(23, 19, 10); // background に沿ったオーバーレ�
 $terms-policy-surface: #201f1f; // 規約・ポリシー共通のカード背景色を指定し、読み物エリアの統一感を生みます。
 $dialog-button-height: 40px; // 問い合わせ・報告ダイアログで共通利用するボタン高さを定数化し、視覚リズムを揃えます。
 $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅のばらつきを丁寧に抑えます。
+$dialog-max-width: 420px; // 問い合わせ・報告・使い方ダイアログの最大幅を揃えます。
 $title-font-size: 1.2rem;
 $title-font-weight: 400;
 
@@ -73,7 +74,7 @@ $title-font-weight: 400;
   display: grid;
   align-items: center;
   grid-template-columns: 1fr minmax(0, 40rem) 1fr;
-  gap: 1rem;
+  gap: 0.5rem;
 }
 
 .headerSpacer {
@@ -81,6 +82,24 @@ $title-font-weight: 400;
   justify-self: flex-end;
   width: 100%;
   height: 0;
+}
+
+.headerActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.usageButton {
+  border: none;
+  background: none;
+  color: var(--user-text-secondary);
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--user-text);
+  }
 }
 
 .brandButton {
@@ -284,7 +303,7 @@ $title-font-weight: 400;
 }
 
 .section {
-  margin-bottom: 1.5rem; // 24px: セクション間隔を半分に調整
+  margin-bottom: 2rem; // 24px: セクション間隔を半分に調整
 }
 
 .sectionHeadingWrap {
@@ -310,7 +329,7 @@ $title-font-weight: 400;
 
 .sectionHeading {
   font-size: $title-font-size;
-  font-weight: 700;
+  font-weight: $title-font-weight;
   color: var(--user-text);
 }
 
@@ -482,6 +501,7 @@ $title-font-weight: 400;
   background: var(--user-accent); // プライマリー操作用の共通ボタン色を定義します。
   border-color: transparent;
   color: var(--user-bg);
+  font-weight: 500;
   border-radius: 9999px;
   transition: background-color 0.2s ease, color 0.2s ease;
   cursor: pointer;
@@ -617,28 +637,32 @@ $title-font-weight: 400;
   max-width: 86.4rem; // 管理画面と同じ幅に揃えます。
   width: 100%;
   margin: 0 auto;
-  padding: 1rem; // 上下左右を均等に16pxとし、ヘッダーと同じリズムで整えます。
+  padding: 1rem 1rem 0 1rem; // 上下左右を均等に16pxとし、ヘッダーと同じリズムで整えます。
   display: flex;
+  flex-direction: column; // YouTube バッジは常に改行し、リンク列と縦に並べます。
   align-items: center;
   justify-content: center;
-  gap: 1.25rem; // リンクとロゴを横一列で程よく離します。
 }
 
 .footerLinks {
   display: flex;
   align-items: center;
-  flex-wrap: nowrap; // 1行に収め、視線移動を水平に揃えます。
+  flex-wrap: wrap; // 画面幅が狭い場合は丁寧に折り返します。
   justify-content: center;
   column-gap: 1.25rem;
+  row-gap: 0.75rem;
   font-size: clamp(0.7rem, 0.7rem + 0.25vw, 0.8rem);
   margin-bottom: 0;
-  white-space: nowrap; // モバイルでも折り返さず一列を維持します。
+  white-space: normal; // 折り返しを許容し、はみ出しを防ぎます。
 }
 
 .footerLink {
   color: var(--user-link);
   text-decoration: none;
   transition: color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem; // アイコンとテキストの間隔を丁寧に確保します。
 
   &:hover {
     // 下線をなくし、ホバーで読みやすい明度に切り替えます。
@@ -687,6 +711,7 @@ $title-font-weight: 400;
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px); // 問い合わせモーダルと同じぼかし量に揃え、奥行き感を統一します。
   padding: 1.5rem 0;
 
   @media (min-width: 640px) {
@@ -806,18 +831,23 @@ $title-font-weight: 400;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 1rem;
   background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px); // サンプルに近づけるためブラーを強めます。
 }
 
 .contactDialog {
-  width: min(100%, 420px);
+  width: min(100%, $dialog-max-width);
   background: var(--user-surface);
   border-radius: 18px;
   padding: 24px;
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.55);
   color: var(--user-text);
+}
+
+.reportBody {
+  padding: 0.5rem; // サンプルと同様に内側余白を付け、フォーム全体を落ち着かせます。
+  background: transparent;
 }
 
 .contactHeader {
@@ -866,7 +896,10 @@ $title-font-weight: 400;
 .contactForm {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px; // ラベル間を少し広げ、サンプルの余白感に寄せます。
+  padding: 0.5rem; // サンプルと同様に内側余白を付け、フォーム全体を落ち着かせます。
+  background: transparent;
+  overflow-y: auto;
 }
 
 .contactLabel {
@@ -874,17 +907,18 @@ $title-font-weight: 400;
   flex-direction: column;
   gap: 6px;
   font-size: 0.95rem;
-  color: var(--user-text);
+  color: $user-text-secondary;
+  font-weight: 600;
 }
 
 .contactInput,
 .contactTextarea {
   width: 100%;
-  border-radius: 12px;
+  border-radius: 0.75rem;
   border: 1px solid var(--user-border);
-  background: var(--user-surface-muted);
+  background: var(--user-surface-hover);
   color: var(--user-text);
-  padding: 12px;
+  padding: 0.65rem 0.75rem;
   font-size: 0.95rem;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 
@@ -894,18 +928,26 @@ $title-font-weight: 400;
 
   &:focus {
     outline: none;
-    box-shadow: 0 0 0 2px var(--user-surface-hover);
+    border-color: var(--user-accent);
+    box-shadow: 0 0 0 1px var(--user-accent);
   }
 }
 
 .contactTextarea {
   resize: vertical;
   min-height: 120px;
+  padding-bottom: 0.85rem;
 }
 
 .contactHelper {
   font-size: 0.8rem;
   color: var(--user-text-muted);
+}
+
+.contactRequired {
+  color: #ef4444; // 既存の色定義に合わせた注意色を使用します。
+  font-size: 0.8rem;
+  margin-left: 0.2rem;
 }
 
 .contactActions {
@@ -917,7 +959,7 @@ $title-font-weight: 400;
 }
 
 .reportSummary {
-  margin: 8px 0 12px;
+  margin: 24px 0 12px; // ラジオ群と警告の間に16pxの余白を設けます。
   padding: 0;
   border-radius: 0;
   border: none;
@@ -928,6 +970,7 @@ $title-font-weight: 400;
 .reportText {
   margin: 0 0 8px;
   font-size: 0.95rem;
+  line-height: 1.6;
 }
 
 .reportDetails {
@@ -963,20 +1006,81 @@ $title-font-weight: 400;
 }
 
 .reportRadio {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0;
-  border-radius: 0;
-  border: none;
-  background: transparent;
+  gap: 12px;
+  padding: 0.8rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--user-border);
+  background: color-mix(in srgb, var(--user-surface) 80%, transparent);
   color: var(--user-text);
   cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
 
-  input {
-    accent-color: var(--user-accent);
-    width: 18px;
-    height: 18px;
+.reportRadioActive {
+  background: color-mix(in srgb, var(--user-accent) 12%, var(--user-bg));
+  border-color: color-mix(in srgb, var(--user-accent) 50%, var(--user-border));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--user-accent) 45%, transparent);
+}
+
+.reportRadioControl {
+  position: relative;
+  width: 18px;
+  height: 18px;
+}
+
+.reportRadioControl input {
+  appearance: none;
+  width: 100%;
+  height: 100%;
+  border-radius: 9999px;
+  border: 1px solid var(--user-border);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.reportRadioControl input:checked {
+  border-color: var(--user-accent);
+  background: var(--user-accent);
+}
+
+.reportRadioDot {
+  position: absolute;
+  inset: 3px;
+  border-radius: 9999px;
+  background: var(--user-surface);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.reportRadioControl input:checked + .reportRadioDot {
+  opacity: 1;
+}
+
+.reportRadioLabel {
+  font-size: 0.95rem;
+  color: var(--user-text);
+}
+
+.reportRadioLabelActive {
+  color: var(--user-accent);
+  font-weight: 600;
+}
+
+.reportHighlight {
+  color: var(--user-text);
+  font-weight: 600;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
   }
 }
 
@@ -1001,6 +1105,65 @@ $title-font-weight: 400;
   @extend .primaryButton; // 共通のプライマリーボタンスタイルを利用し、問い合わせ送信と報告送信で統一感を持たせます。
 }
 
+/* ------- 使いかたダイアログ ------- */
+.usageDialog {
+  @extend .contactDialog; // 問い合わせと同じサイズ・角丸・影を共有します。
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.usageBody {
+  padding: 0.5rem; // 問い合わせフォームと同じ内側余白に揃えます。
+  background: var(--user-surface);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.usageItem {
+  display: flex;
+  gap: 0.9rem;
+  align-items: flex-start;
+}
+
+.usageIconWrap {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  background: var(--user-surface-hover);
+  border: 1px solid var(--user-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.usageIcon {
+  color: var(--user-accent);
+}
+
+.usageItemTitle {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--user-text);
+}
+
+.usageItemDesc {
+  margin: 0;
+  color: var(--user-text-secondary);
+}
+
+.usageActions {
+  @extend .contactActions; // ボタン行の配置を問い合わせと揃えます。
+}
+
+.usageActionButton {
+  @extend .primaryButton;
+  padding: 0.55rem 1.25rem;
+}
 /* ------- 利用規約・ポリシー ------- */
 .termsLayout,
 .policyLayout {
