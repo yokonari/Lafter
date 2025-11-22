@@ -22,6 +22,22 @@ export function UserHeader({
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const HISTORY_KEY = "userSearchHistory";
 
+  // 検索ワードを API へ丁寧に記録し、失敗時は UI を止めずにログへ残します。
+  const logSearchKeyword = async (keyword: string) => {
+    try {
+      const res = await fetch("/api/search-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyword }),
+      });
+      if (!res.ok) {
+        console.warn("検索ログ送信に失敗しました", res.status);
+      }
+    } catch (error) {
+      console.error("検索ログ送信中に例外が発生しました", error);
+    }
+  };
+
   // ローカルストレージから検索履歴を丁寧に読み込みます。
   useEffect(() => {
     const stored = typeof window !== "undefined" ? window.localStorage.getItem(HISTORY_KEY) : null;
@@ -60,13 +76,15 @@ export function UserHeader({
   };
 
   // Enter 押下と検索ボタンで同じロジックを共有する
-  const triggerSearch = () => {
+  const triggerSearch = async () => {
     const trimmed = query.trim();
     if (trimmed) {
       // 新しい検索語を履歴へ保存し、重複は先頭へ丁寧に寄せます。
       const nextHistory = [trimmed, ...history.filter((item) => item !== trimmed)].slice(0, 10);
       persistHistory(nextHistory);
       setIsHistoryOpen(false);
+      // サーバー側へ検索ログも送信し、分析に活用できるよう丁寧に記録します。
+      void logSearchKeyword(trimmed);
       onSearch(trimmed);
       // 実行後は入力をブラーしてソフトキーボードを丁寧に閉じます。
       searchInputRef.current?.blur();
@@ -75,7 +93,7 @@ export function UserHeader({
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
-      triggerSearch();
+      void triggerSearch();
     }
   };
 
@@ -87,6 +105,8 @@ export function UserHeader({
   const handleHistorySelect = (word: string) => {
     onQueryChange(word);
     setIsHistoryOpen(false);
+    // 履歴クリックによる検索も漏れなくログ送信します。
+    void logSearchKeyword(word);
     onSearch(word);
   };
 
