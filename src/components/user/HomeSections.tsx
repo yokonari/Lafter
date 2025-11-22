@@ -1,5 +1,6 @@
 'use client';
 
+import { ChevronRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
@@ -111,6 +112,8 @@ export function HomeSections({
                 onClick={onShowNewList}
                 className={styles.sectionHeadingButton}
               >
+                {/* タイトル左にアクセントバーを置き、視線を自然に誘導します。 */}
+                <span className={styles.sectionHeadingBar} aria-hidden="true" />
                 <h2 className={styles.sectionHeading}>最近</h2>
               </button>
               <button
@@ -119,6 +122,7 @@ export function HomeSections({
                 className={styles.sectionMoreButton}
               >
                 もっと見る
+                <ChevronRight size={16} aria-hidden="true" />
               </button>
             </div>
             <div className={styles.sectionGrid}>
@@ -144,6 +148,8 @@ export function HomeSections({
                 onClick={onShowRandomList}
                 className={styles.sectionHeadingButton}
               >
+                {/* タイトル左にアクセントバーを置き、視線を自然に誘導します。 */}
+                <span className={styles.sectionHeadingBar} aria-hidden="true" />
                 <h2 className={styles.sectionHeading}>ランダム</h2>
               </button>
               <button
@@ -152,6 +158,7 @@ export function HomeSections({
                 className={styles.sectionMoreButton}
               >
                 もっと見る
+                <ChevronRight size={16} aria-hidden="true" />
               </button>
             </div>
             <div className={styles.sectionGrid}>

@@ -11,6 +11,7 @@ type SearchResultsProps = {
   onVideoSelect: (video: VideoItem) => void;
   onPlaylistSelect: (playlist: PlaylistItem) => void;
   onChannelSelect: (channelId: string) => void;
+  onBackToTop: () => void;
 };
 
 export function SearchResults({
@@ -20,6 +21,7 @@ export function SearchResults({
   onVideoSelect,
   onPlaylistSelect,
   onChannelSelect,
+  onBackToTop,
 }: SearchResultsProps) {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistItem[]>([]);
@@ -132,6 +134,20 @@ export function SearchResults({
     // 検索結果ページもダークトーンへ合わせ、各状態メッセージの色味を丁寧に調整します。
     <div className={styles.searchContainer}>
       <div className={styles.searchHeader}>
+        {/* 一覧画面の冒頭にトップへ戻る導線を設け、ホームへの遷移を丁寧に補助します。 */}
+        <button
+          type="button"
+          className={styles.searchBackLink}
+          onClick={() => {
+            onBackToTop();
+            if (typeof window !== "undefined") {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          }}
+        >
+          <span className="material-symbols-rounded" aria-hidden="true" style={{ fontSize: "16px" }}>arrow_back</span>
+          <span>トップへ戻る</span>
+        </button>
         <p className={styles.searchTitle}>
           {buildTitle()}
         </p>

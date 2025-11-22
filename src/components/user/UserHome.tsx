@@ -169,6 +169,7 @@ export function UserHome() {
             onVideoSelect={handleVideoSelect}
             onPlaylistSelect={handlePlaylistSelect}
             onChannelSelect={handleChannelSelect}
+            onBackToTop={handleReset}
           />
         ) : (
           <HomeSections

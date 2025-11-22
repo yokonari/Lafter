@@ -5,8 +5,9 @@ $user-bg: #141313; // --md-sys-color-background
 $user-surface: #201f1f; // surface container
 $user-surface-hover: #313030; // surface container high を目安にしたホバー色
 $user-text: #ffffff; // --md-sys-color-on-surface
-$user-text-muted: #dee3e5bb; // --md-sys-color-on-surface-variant をそのまま利用しつつ、透明度を30%下げて柔らかな補助テキストにします。
-$user-border: #484646; // リンクやボーダーも on-surface-variant 系で統一しつつ、透明度を50%下げて柔らかな縁取りにします。
+$user-text-muted: #737373; // --md-sys-color-on-surface-variant をそのまま利用しつつ、透明度を30%下げて柔らかな補助テキストにします。
+$user-text-secondary: #dee3e5bb; // --md-sys-color-on-surface-variant をそのまま利用しつつ、透明度を30%下げて柔らかな補助テキストにします。
+$user-border: #48464667; // リンクやボーダーも on-surface-variant 系で統一しつつ、透明度を50%下げて柔らかな縁取りにします。
 $user-accent: #e5bd69; // primary container
 $user-accent-strong: #f9bd22; // primary fixed dim
 $user-link: color-mix(in srgb, var(--md-sys-color-on-surface, rgb(255 255 255)) 70%, transparent); // テキストリンクはon-surface色を80%の透明度で重ね、未定義時は白で柔らかく見せます。
@@ -26,6 +27,7 @@ $title-font-weight: 400;
   --user-surface-hover: #{$user-surface-hover};
   --user-text: #{$user-text};
   --user-text-muted: #{$user-text-muted};
+  --user-text-secondary: #{$user-text-secondary};
   --user-border: #{$user-border};
   --user-accent: #{$user-accent};
   --user-accent-strong: #{$user-accent-strong};
@@ -39,6 +41,8 @@ $title-font-weight: 400;
   flex-direction: column;
   background-color: var(--user-bg);
   color: var(--user-text);
+  font-size: var(--user-text-size);
+  font-weight: var(--user-text-weight);
 }
 
 .main {
@@ -57,6 +61,7 @@ $title-font-weight: 400;
   height: 3.5rem; // 56px
   background-color: var(--user-card-overlay);
   backdrop-filter: blur(6px);
+  border-bottom: 1px solid $user-border; // サンプルと同じ深さの区切り線でヘッダーを丁寧に分けます。
 }
 
 .headerInner {
@@ -113,20 +118,19 @@ $title-font-weight: 400;
   width: 100%;
   height: 2.5rem; // サンプルに合わせ40px相当の高さに調整
   border-radius: 9999px;
-  border: 1px solid rgba(255, 255, 255, 0.4); // on-surface-variant（白系）に合わせます。
-  background: var(--user-surface);
-  color: var(--user-text);
+  border: 1px solid $user-border; // サンプルの枠線色に合わせ、輪郭を落ち着かせます。
+  color: $user-text-muted;
   font-size: 0.95rem;
   padding: 0 1rem 0 2.6rem; // 左にアイコン分のスペースを確保しつつ、右はコンパクトに。
   outline: none;
   transition:
     border-color 0.2s ease,
     background-color 0.2s ease;
-  background-color: var(--user-bg);
+  background-color: $user-surface;
   -webkit-appearance: none; // ブラウザ既定の装飾を外し、余計なクリアボタンが出ないようにします。
 
   &::placeholder {
-    color: color-mix(in srgb, var(--user-link) 90%, transparent); // リンク色よりさらに10%薄く
+    color: $user-text-muted; // サンプルの placeholder と同系の控えめな明度に揃えます。
   }
 
   &:focus {
@@ -146,7 +150,7 @@ $title-font-weight: 400;
   left: 0.5rem; // 左方向に約8px寄せて配置します。
   top: 50%;
   transform: translateY(-50%); // 中央揃え
-  color: var(--user-text-muted);
+  color: $user-text-muted; // サンプルのアイコン色に合わせて落ち着いたグレーにします。
   height: 1.125rem; // 約18px
   width: 1.125rem;
   pointer-events: none;
@@ -237,10 +241,36 @@ $title-font-weight: 400;
   padding-bottom: 0;
 }
 
+.searchHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  margin-bottom: 0.75rem;
+}
+
+.searchBackLink {
+  border: none;
+  background: none;
+  padding: 0 0 4px 0;
+  color: $user-text-secondary;
+  font-size: clamp(0.6rem, 0.6rem + 0.25vw, 0.7rem); // チャンネル名と同じ文字サイズに揃えます。
+  cursor: pointer;
+  transition: color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px; // 規約画面の戻るリンクと同じ感覚でアイコンとの距離を揃えます。
+
+  &:hover,
+  &:focus-visible {
+    color: var(--user-text);
+  }
+}
+
 .statusText {
   margin-bottom: 1.5rem;
   font-size: 0.9rem;
-  color: color-mix(in srgb, var(--user-text-muted) 70%, transparent);
+  color: var(--user-text-secondary);
 }
 
 .errorCard {
@@ -258,16 +288,17 @@ $title-font-weight: 400;
 }
 
 .sectionHeadingWrap {
-  margin-bottom: 0.5rem; // セクションタイトルとカード間の余白を8pxに抑え、情報密度を高めます。
+  margin-bottom: 0.75rem; // タイトル下に少し余白を広げ、アイコン付きラベルとの間隔を丁寧に確保します。
   display: flex;
   align-items: center;
   justify-content: space-between; // タイトルと「もっと見る」ボタンを左右に振り分けて視認性を高めます。
-  gap: 0.75rem;
+  gap: 1rem;
 }
 
 .sectionMoreButton {
   display: inline-flex;
   align-items: center;
+  gap: 0.3rem; // 矢印アイコンとの距離をコンパクトに保ちます。
   border: none;
   background: none;
   padding: 0;
@@ -275,22 +306,11 @@ $title-font-weight: 400;
   font-size: 0.95rem;
   cursor: pointer;
   transition: color 0.2s ease;
-
-  &:hover,
-  &:focus-visible {
-    color: color-mix(in srgb, var(--user-accent) 85%, white 15%);
-    text-decoration: underline;
-  }
-
-  &:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--user-accent) 70%, transparent);
-    outline-offset: 2px;
-  }
 }
 
 .sectionHeading {
   font-size: $title-font-size;
-  font-weight: $title-font-weight;
+  font-weight: 700;
   color: var(--user-text);
 }
 
@@ -301,16 +321,30 @@ $title-font-weight: 400;
   cursor: pointer;
   text-align: left;
   color: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem; // サンプルの gap-2 相当でタイトルとバーの間隔を確保します。
+  transition: color 0.2s ease;
 
   &:hover .sectionHeading {
-    text-decoration: underline;
+    // 下線は排除し、色の変化で強調します。
+    color: var(--user-accent);
   }
+}
+
+.sectionHeadingBar {
+  width: 0.375rem; // 約6px
+  height: 2rem; // 見出しを縦に貫く高さで存在感を出します。
+  border-radius: 0.25rem;
+  background: var(--user-accent);
+  margin-right: 0.5rem; // サンプルの mr-2 相当でタイトルとの距離を揃えます。
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35); // 立体感をわずかに足します。
 }
 
 .sectionHeadingLink {
   border: none;
   background: none;
-  color: rgb(255, 255, 255);
+  color: var(--user-text);
   font-size: 0.95rem;
   cursor: pointer;
   padding: 0;
@@ -372,13 +406,6 @@ $title-font-weight: 400;
   @media (min-width: 1280px) {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
-}
-
-.searchHeader {
-  margin-bottom: 1rem; // ホームセクションの見出しと同じ余白に揃えます。
-  display: flex;
-  align-items: center;
-  justify-content: space-between; // セクション見出しと同じ右寄せ配置が可能なようにレイアウト統一
 }
 
 .searchTitle {
@@ -451,33 +478,38 @@ $title-font-weight: 400;
   }
 }
 
-.searchLoadMoreButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--user-border);
-  background: transparent;
-  color: var(--user-accent); // 角丸ボタンでもラベルはプライマリーカラーで統一します。
+.primaryButton {
+  background: var(--user-accent); // プライマリー操作用の共通ボタン色を定義します。
+  border-color: transparent;
+  color: var(--user-bg);
   border-radius: 9999px;
-  padding: 0 1rem;
-  height: 40px;
-  font-size: 0.95rem;
+  transition: background-color 0.2s ease, color 0.2s ease;
   cursor: pointer;
-  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
-
-  &:hover {
-    background: var(--user-surface-hover);
-  }
 
   &:disabled {
-    opacity: 0.5;
+    background: var(--user-surface-hover);
+    color: var(--user-text-muted);
     cursor: not-allowed;
+    box-shadow: none;
   }
+
+  &:not(:disabled):hover,
+  &:not(:disabled):focus-visible {
+    background: var(--user-accent);
+    color: var(--user-bg);
+  }
+}
+
+.searchLoadMoreButton {
+  @extend .primaryButton; // プライマリーボタン定義をそのまま適用し、色・丸み・ホバー挙動を統一します。
+  padding: 0 3rem;
+  height: 40px;
+  font-size: 0.95rem;
 }
 
 /* ------- カード ------- */
 .videoCard {
-  cursor: pointer;
+  cursor: default; // カード全体は押下不可のため、通常カーソルにします。
   overflow: visible; // メニューをカード外にも表示できるよう可視化します。
   border-radius: 0.75rem;
   background: var(--user-bg);
@@ -498,6 +530,7 @@ $title-font-weight: 400;
   border-radius: 0.75rem;
   aspect-ratio: 16 / 9;
   background: var(--user-surface);
+  cursor: pointer; // 押下可能なサムネイルであることを明確にします。
 }
 
 .thumbnailImage {
@@ -531,6 +564,12 @@ $title-font-weight: 400;
   -webkit-box-orient: vertical;
   overflow: hidden;
   flex: 1 1 auto;
+  cursor: pointer; // タイトルも押下できることを示します。
+}
+
+.cardTitleActive {
+  // タイトル自身のホバー時のみプライマリ色で丁寧に強調します。
+  color: var(--user-accent);
 }
 
 .cardChannel {
@@ -547,7 +586,8 @@ $title-font-weight: 400;
   text-align: left;
 
   &:hover {
-    text-decoration: underline;
+    // 下線を排除し、ホバー時は明るい文字色で優しく強調します。
+    color: var(--user-text);
   }
 }
 
@@ -570,23 +610,29 @@ $title-font-weight: 400;
   margin-top: 4rem;
   background: var(--user-bg);
   color: var(--user-text-muted);
+  border-top: 1px solid $user-border; // ヘッダーと同じ深さの区切り線でフッターも丁寧に分けます。
 }
 
 .footerInner {
   max-width: 86.4rem; // 管理画面と同じ幅に揃えます。
   width: 100%;
   margin: 0 auto;
-  padding: 1rem 1rem 0; // 上16px、下0
+  padding: 1rem; // 上下左右を均等に16pxとし、ヘッダーと同じリズムで整えます。
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem; // リンクとロゴを横一列で程よく離します。
 }
 
 .footerLinks {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  flex-wrap: nowrap; // 1行に収め、視線移動を水平に揃えます。
   justify-content: center;
-  column-gap: 2rem;
-  row-gap: 1rem; // 要素が折り返された際の行間を従来の半分に抑え、縦方向の詰まりを軽減します。
+  column-gap: 1.25rem;
   font-size: clamp(0.7rem, 0.7rem + 0.25vw, 0.8rem);
   margin-bottom: 0;
+  white-space: nowrap; // モバイルでも折り返さず一列を維持します。
 }
 
 .footerLink {
@@ -595,7 +641,8 @@ $title-font-weight: 400;
   transition: color 0.2s ease;
 
   &:hover {
-    text-decoration: underline;
+    // 下線をなくし、ホバーで読みやすい明度に切り替えます。
+    color: var(--user-text);
   }
 }
 
@@ -609,14 +656,17 @@ $title-font-weight: 400;
   transition: color 0.2s ease;
 
   &:hover {
-    text-decoration: underline;
+    // 下線をなくし、ホバーで読みやすい明度に切り替えます。
+    color: var(--user-text);
   }
 }
 
 .footerBadge {
   margin-top: 0;
   display: flex;
+  align-items: center; // リンクとロゴの縦位置をそろえます。
   justify-content: center;
+  flex-shrink: 0; // ロゴが潰れないよう幅を保持します。
 
   a {
     display: inline-flex;
@@ -674,7 +724,7 @@ $title-font-weight: 400;
   border: none;
   background: transparent;
   padding: 0; // 余白をなくし、必要なボタンだけ個別にサイズ調整します。
-  color: #e2e8f0;
+  color: var(--user-text);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -683,6 +733,10 @@ $title-font-weight: 400;
   .material-symbols-rounded {
     font-size: 20px;
     line-height: 1;
+  }
+
+  &:hover {
+    color: var(--user-accent);
   }
 }
 
@@ -931,7 +985,6 @@ $title-font-weight: 400;
   @extend .userButton;
   padding: 0 $dialog-button-padding-x;
   height: $dialog-button-height;
-  border-color: rgba(148, 163, 184, 0.6);
 }
 
 .contactCancel {
@@ -945,23 +998,7 @@ $title-font-weight: 400;
 }
 
 .contactSubmit {
-  background: var(--user-accent);
-  border-color: transparent;
-  color: var(--user-bg);
-  border-radius: 9999px; // 問い合わせ・報告共通の送信ボタンを丸みのあるシルエットに整え、柔らかな印象にします。
-
-  &:disabled {
-    background: var(--user-surface-hover);
-    color: var(--user-text-muted);
-    cursor: not-allowed;
-    box-shadow: none;
-  }
-
-  &:not(:disabled):hover,
-  &:not(:disabled):focus-visible {
-    background: var(--user-accent);
-    color: var(--user-bg);
-  }
+  @extend .primaryButton; // 共通のプライマリーボタンスタイルを利用し、問い合わせ送信と報告送信で統一感を持たせます。
 }
 
 /* ------- 利用規約・ポリシー ------- */
@@ -997,7 +1034,7 @@ $title-font-weight: 400;
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: $user-text-muted;
+  color: $user-text-secondary;
   transition: color 0.2s ease;
 
   &:hover {
@@ -1081,14 +1118,14 @@ $title-font-weight: 400;
 .termsParagraph,
 .policyParagraph {
   margin: 0 0 12px;
-  color: $user-text-muted;
+  color: $user-text-secondary; // 読み物本文は muted よりわずかに明るいセカンダリ色で可読性を丁寧に高めます。
 }
 
 .termsList,
 .policyList {
   padding-left: 1.5rem;
   margin: 0 0 12px;
-  color: $user-text-muted;
+  color: $user-text-secondary; // リストも本文と同じセカンダリ色で統一し、視認性を揃えます。
   display: grid;
   gap: 4px;
   list-style: revert; // ブラウザ既定の丸や番号を丁寧に復元して表示します。
@@ -1108,5 +1145,5 @@ $title-font-weight: 400;
 .termsLink,
 .policyLink {
   color: $user-accent;
-  text-decoration: underline;
+  text-decoration: none;
 }
