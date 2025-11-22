@@ -1,0 +1,1 @@
+ALTER TABLE `search_logs` ADD `count` integer DEFAULT 1 NOT NULL;

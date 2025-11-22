@@ -79,6 +79,8 @@ export const searchLogs = sqliteTable(
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
     keyword: text("keyword").notNull(),
+    // 同一ワードの集計にも使えるよう、件数カラムを丁寧に追加します。
+    count: integer("count").notNull().default(1),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
