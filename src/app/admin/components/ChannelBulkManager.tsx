@@ -72,20 +72,37 @@ export function ChannelBulkManager({
   };
 
   const handleSubmit = async () => {
-      const items = Object.entries(selections)
+    const channelMap = new Map(channels.map((c) => [c.id, c]));
+
+    const items = Object.entries(selections)
       .filter(([, entry]) => entry.selected)
       .map(([id, entry]) => {
+        const original = channelMap.get(id);
+        const currentStatusStr = entry.status.trim();
+        const originalStatusStr =
+          original?.status !== null && original?.status !== undefined
+            ? String(original.status)
+            : "";
+
+        if (currentStatusStr === originalStatusStr) {
+          return null;
+        }
+
         const payload: Record<string, unknown> = { id };
-        const statusValue = entry.status.trim();
-        if (statusValue !== "") {
-          payload.channel_status = Number(statusValue);
+        if (currentStatusStr !== "") {
+          payload.channel_status = Number(currentStatusStr);
         }
         return payload;
       })
-      .filter((payload) => Object.keys(payload).length > 1);
+      .filter((payload) => payload !== null && Object.keys(payload).length > 1);
 
     if (items.length === 0) {
-      toast.error("更新対象の行を選択してください。");
+      const hasSelections = Object.values(selections).some((s) => s.selected);
+      if (hasSelections) {
+        toast.info("変更が必要な項目はありません。");
+      } else {
+        toast.error("更新対象の行を選択してください。");
+      }
       return;
     }
 

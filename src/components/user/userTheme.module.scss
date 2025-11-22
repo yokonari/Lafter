@@ -17,6 +17,8 @@ $user-card-overlay: rgb(23, 19, 10); // background に沿ったオーバーレ�
 $terms-policy-surface: #201f1f; // 規約・ポリシー共通のカード背景色を指定し、読み物エリアの統一感を生みます。
 $dialog-button-height: 40px; // 問い合わせ・報告ダイアログで共通利用するボタン高さを定数化し、視覚リズムを揃えます。
 $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅のばらつきを丁寧に抑えます。
+$title-font-size: 1.2rem;
+$title-font-weight: 400;
 
 .userLayout {
   --user-bg: #{$user-bg};
@@ -287,8 +289,8 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 }
 
 .sectionHeading {
-  font-size: 1.25rem;
-  font-weight: 400;
+  font-size: $title-font-size;
+  font-weight: $title-font-weight;
   color: var(--user-text);
 }
 
@@ -380,8 +382,8 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 }
 
 .searchTitle {
-  font-size: 1.25rem; // ホームセクション見出しと同じサイズ
-  font-weight: 400; // 見出しは太字にしないデザインルールに従います。
+  font-size: $title-font-size; // ホームセクション見出しと同じサイズ
+  font-weight: $title-font-weight; // 見出しは太字にしないデザインルールに従います。
   color: var(--user-text);
 }
 
@@ -522,8 +524,8 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 .cardTitle {
   color: var(--user-text);
   // 画面幅に応じてタイトル文字サイズを丁寧に伸縮させ、PCではわずかに大きく表示します。
-  font-size: clamp(0.7rem, 0.7rem + 0.25vw, 0.85rem);
-  font-weight: 400;
+  font-size: clamp(0.7rem, 0.7rem + 0.25vw, 0.8rem);
+  font-weight: $title-font-weight;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -780,8 +782,8 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 
 .contactTitle {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 400; // 見出しは太字を避けるルールに従い、程よい太さに留めます。
+  font-size: $title-font-size;
+  font-weight: $title-font-weight; // 見出しは太字を避けるルールに従い、程よい太さに留めます。
 }
 
 .contactClose {
@@ -884,7 +886,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 .reportLabel {
   display: block;
   color: var(--user-text-muted);
-  font-weight: 400; // 見出しやラベルも太字を避けるデザインルールに従います。
+  font-weight: $title-font-weight; // 見出しやラベルも太字を避けるデザインルールに従います。
   font-size: 0.85rem;
 }
 
@@ -976,15 +978,16 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   min-height: 100vh;
   background: $user-bg !important;
   color: $user-text !important;
-  padding: 16px 1rem 48px; // 上側の余白を16pxに調整し、コンテンツを手前に引き寄せて情報到達を早めます。
+  padding: 16px 1rem; // 上側の余白を16pxに調整し、コンテンツを手前に引き寄せて情報到達を早めます。
 
   @media (max-width: 640px) {
-    padding: 16px 0.5rem 48px; // モバイルでも同じ上余白を保ち、左右のみ半分へ調整します。
+    padding: 16px 0.5rem; // モバイルでも同じ上余白を保ち、左右のみ半分へ調整します。
   }
 }
 
 .termsBackWrap,
 .policyBackWrap {
+  width: 100%;
   max-width: 800px;
   margin: 0 auto;
 }
@@ -1002,7 +1005,47 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
   }
 }
 
-.termsArticle,
+.termsCard {
+  flex: 1;
+  background: $terms-policy-surface;
+  border-radius: 16px;
+  max-width: 800px;
+  width: 100%;
+  margin: 8px auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 4px 16px 16px; // 右側に少し余白を残してスクロールバーを内側に配置します。
+}
+
+.termsScrollArea {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 12px; // スクロールバーとコンテンツの間に余白を作ります。
+
+  // Firefoxでのスクロールバー調整
+  scrollbar-width: thin;
+  scrollbar-color: var(--user-border) transparent;
+
+  // Webkit系でのスクロールバー調整
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: var(--user-border);
+    border-radius: 9999px;
+  }
+}
+
+.termsArticle {
+  padding: 0;
+}
+
 .policyArticle {
   max-width: 800px;
   margin: 8px auto;
@@ -1014,7 +1057,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 .termsHeading1,
 .policyHeading1 {
   font-size: 1.25rem;
-  font-weight: 400;
+  font-weight: $title-font-weight;
   margin: 0 0 16px;
   color: $user-text;
 }
@@ -1022,7 +1065,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 .termsHeading2,
 .policyHeading2 {
   font-size: 1.25rem;
-  font-weight: 400;
+  font-weight: $title-font-weight;
   margin: 28px 0 14px;
   color: $user-text;
 }
@@ -1030,7 +1073,7 @@ $dialog-button-padding-x: 16px; // 左右余白も定数化し、ボタン幅の
 .termsHeading3,
 .policyHeading3 {
   font-size: 1.1rem;
-  font-weight: 400;
+  font-weight: $title-font-weight;
   margin: 20px 0 10px;
   color: $user-text;
 }

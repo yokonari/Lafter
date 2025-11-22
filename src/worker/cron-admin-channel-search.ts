@@ -59,7 +59,16 @@ async function runChannelSearchCron(env: CronEnv) {
     try {
       const res = await fetch(url, {
         method: "POST",
-        headers: { [ADMIN_SECRET_HEADER]: secret },
+        headers: {
+          [ADMIN_SECRET_HEADER]: secret,
+          // 本体にもチャンネルIDを積極的に含め、クエリが落ちても確実に伝搬させます。
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          // query だけに頼らず channelId を確実に渡すため冗長に指定します。
+          channelId: ch.id,
+          isFullSearch,
+        }),
       });
       if (!res.ok) {
         console.error("[cron] search 呼び出しに失敗しました", ch.id, res.status);

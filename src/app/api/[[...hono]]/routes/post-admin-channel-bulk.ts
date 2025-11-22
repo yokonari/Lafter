@@ -70,19 +70,6 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
         return fail(`${path}.id に該当するチャンネルが存在しません。`);
       }
 
-      if (channelStatusInput === 2) {
-        // ステータスを NG(2) にした際は、紐づく動画や再生リストも丁寧に NG へそろえます。
-        await db
-          .update(videos)
-          .set({ status: 2 })
-          .where(eq(videos.channelId, channelId));
-
-        await db
-          .update(playlists)
-          .set({ status: 2 })
-          .where(eq(playlists.channelId, channelId));
-      }
-
       processed += 1;
     }
 

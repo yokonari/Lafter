@@ -23,6 +23,7 @@ export function SearchResults({
 }: SearchResultsProps) {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistItem[]>([]);
+  const [fetchedChannelName, setFetchedChannelName] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +39,7 @@ export function SearchResults({
       setError(null);
       setVideos([]);
       setPlaylists([]);
+      setFetchedChannelName(undefined);
       setHasMore(false);
       // 新しい検索を開始したら、結果表示の先頭がすぐ見えるよう必ずページ最上部へスクロールします。
       if (typeof window !== "undefined") {
@@ -57,6 +59,14 @@ export function SearchResults({
         if (canceled) return;
         setVideos(fetchedVideos);
         setPlaylists(fetchedPlaylists);
+
+        if (channelId) {
+          const name = fetchedVideos.find((v) => v.channelName)?.channelName || fetchedPlaylists.find((p) => p.channelName)?.channelName;
+          if (name) {
+            setFetchedChannelName(name);
+          }
+        }
+
         // GET /videos の上限(20件)を超えた動画がある場合のみ「もっと見る」を出すよう動画件数のみで判定します。
         setHasMore(fetchedVideos.length === PAGE_SIZE);
       } catch (err) {
@@ -111,7 +121,9 @@ export function SearchResults({
   const buildTitle = () => {
     if (mode === "new") return "最近";
     if (mode === "random") return "ランダム";
-    if (channelId) return "チャンネル内の検索結果";
+    if (channelId) {
+      return fetchedChannelName ? `「${fetchedChannelName}」の検索結果` : "チャンネル内の検索結果";
+    }
     if (query) return `「${query}」の検索結果`;
     return "検索結果";
   };

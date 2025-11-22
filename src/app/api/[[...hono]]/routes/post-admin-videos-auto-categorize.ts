@@ -7,7 +7,7 @@ import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
 const DEFAULT_LIMIT = 500;
-const MAX_LIMIT = 2000;
+
 const AUTO_STATUS_OK = 3;
 
 const AUTO_CATEGORIZATION_RULES: Array<{

@@ -586,15 +586,30 @@ export default function AdminVideosPageContent() {
         // 選択済みの行だけを丁寧にリクエスト形式へ整えます。
         const selectedEntries = Object.entries(selections).filter(([, entry]) => entry.selected);
 
-        if (selectedEntries.length === 0) {
-            toast.error("更新対象の行を選択してください。");
+        const items = selectedEntries
+            .map(([id, entry]) => {
+                const currentStatus = Number(entry.videoStatus);
+                // 現在のリストは videoStatusFilter で絞り込まれているため、
+                // これを元のステータスとみなして差分判定を行います。
+                if (currentStatus === videoStatusFilter) {
+                    return null;
+                }
+                return {
+                    id,
+                    video_status: currentStatus,
+                };
+            })
+            .filter((item) => item !== null);
+
+        if (items.length === 0) {
+            const hasSelections = selectedEntries.length > 0;
+            if (hasSelections) {
+                toast.info("変更が必要な項目はありません。");
+            } else {
+                toast.error("更新対象の行を選択してください。");
+            }
             return;
         }
-
-        const items = selectedEntries.map(([id, entry]) => ({
-            id,
-            video_status: Number(entry.videoStatus),
-        }));
 
         setSubmitting(true);
         try {
@@ -735,7 +750,7 @@ export default function AdminVideosPageContent() {
                             >
                                 {[0, 30, 50, 100, 200, 300, 400, 500].map((option) => (
                                     <option key={option} value={option}>
-                                        {option} 件
+                                        {option === 0 ? "上限なし" : `${option} 件`}
                                     </option>
                                 ))}
                             </select>
