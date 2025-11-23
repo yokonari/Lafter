@@ -75,7 +75,19 @@ async function runChannelSearchCron(env: CronEnv) {
         console.error("[cron] search 呼び出しに失敗しました", ch.id, res.status);
         shouldStop = true;
       } else {
-        console.log("[cron] search 実行済み", ch.id);
+        // 応答内容も把握できるよう、概要を日本語でこまめに記録します。
+        try {
+          const summary = (await res.json()) as Record<string, unknown>;
+          console.log(
+            "[cron] search 実行済み",
+            ch.id,
+            `動画=${summary?.videosInserted ?? "?"}件`,
+            `再生リスト=${summary?.playlistsInserted ?? "?"}件`,
+            `取得=${summary?.fetched ?? "?"}件`,
+          );
+        } catch {
+          console.log("[cron] search 実行済み (応答JSONのパースに失敗しました)", ch.id);
+        }
       }
     } catch (error) {
       console.error("[cron] search 呼び出しで例外が発生しました", ch.id, error);

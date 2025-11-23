@@ -456,7 +456,8 @@ export default function AdminVideosPageContent() {
     const runAutoCategorization = useCallback(async () => {
         setAutoCategorizing(true);
         try {
-            const response = await fetch("/api/admin/videos/auto-categorize", {
+            // 管理セッション不要の共通エンドポイントに切り替え、ワーカーと同じ経路で自動分類します。
+            const response = await fetch("/api/videos/auto-categorize", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

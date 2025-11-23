@@ -12,9 +12,12 @@ type ClassifyRequestBody = {
   titles?: unknown;
   useLLM?: unknown;
   mode?: unknown;
+  channelId?: unknown;
+  exhaustive?: unknown;
 };
 
 const MAX_TITLES = 50; // 過負荷を避けるため、1リクエストあたり/1回のDBバッチ取得件数を丁寧に制限します。
+const MAX_LOOPS = 20; // 無限ループを防止しつつ、最大で 50 * 20 = 1000 件までまとめて判定します。
 
 type LLMResultPayload = {
   title: string;
@@ -43,6 +46,8 @@ export async function POST(request: Request) {
 
   const useLLM = shouldUseLLM(body);
   const titles = extractTitles(body);
+  const channelId = extractChannelId(body);
+  const exhaustive = shouldLoopExhaustively(body);
 
   // しきい値と併せて推論結果を整形し、分かりやすく返却いたします。
   if (useLLM) {
@@ -55,64 +60,87 @@ export async function POST(request: Request) {
     }
     // Cloudflare D1 から status=0 の動画だけを取得し、LLM 判定キューを作成します。
     const db = createDatabase(env);
-    // status=0 かつ所属チャンネルが有効(status=1)な動画のみをキューに乗せ、不要なLLMリクエストを避けます。
-    const pendingVideos = await db
-      .select({ id: videos.id, title: videos.title })
-      .from(videos)
-      .innerJoin(channels, eq(videos.channelId, channels.id))
-      .where(and(eq(videos.status, 0), eq(channels.status, 1)))
-      .orderBy(asc(videos.createdAt))
-      .limit(MAX_TITLES);
-
-    if (pendingVideos.length === 0) {
-      return Response.json({
-        mode: "llm",
-        count: 0,
-        results: [],
-        message: "status=0 の動画が存在しません。",
-      });
+    // status=0 かつ所属チャンネルが有効(status=1)な動画のみをキューに乗せ、不要なLLMリクエストを避けます。チャンネル指定があればその範囲だけに絞ります。
+    let baseCondition = and(eq(videos.status, 0), eq(channels.status, 1));
+    if (channelId) {
+      baseCondition = and(baseCondition, eq(videos.channelId, channelId));
     }
 
     const llmResults: LLMResultPayload[] = [];
     let processed = 0;
-    for (const video of pendingVideos) {
-      try {
-        const classification = await classifyTitleWithLLM(client, video.title);
-        const nextStatus = resolveStatusFromLabel(classification.label);
-        const checkedAt = new Date().toISOString();
-        await db
-          .update(videos)
-          .set({
-            status: nextStatus,
-            lastCheckedAt: checkedAt,
-          })
-          .where(eq(videos.id, video.id));
-        // confidence/reason は API 応答では不要なため、label のみを動画IDと共に返します。
-        llmResults.push({
-          title: classification.title,
-          label: classification.label,
-          videoId: video.id,
-          nextStatus,
-        });
-      } catch (error) {
-        console.error("[api/classify] LLM 判定中にエラーが発生しました。", error);
-        llmResults.push({
-          title: video.title,
-          label: "false",
-          videoId: video.id,
-          nextStatus: 0,
-        });
+    let loopCount = 0;
+    // 50件ずつ丁寧に繰り返し、exhaustive=true の場合は残件がなくなるまで続けます。
+    while (true) {
+      const pendingVideos = await db
+        .select({ id: videos.id, title: videos.title })
+        .from(videos)
+        .innerJoin(channels, eq(videos.channelId, channels.id))
+        .where(baseCondition)
+        .orderBy(asc(videos.createdAt))
+        .limit(MAX_TITLES);
+
+      if (pendingVideos.length === 0) {
+        if (loopCount === 0) {
+          return Response.json({
+            mode: "llm",
+            count: 0,
+            results: [],
+            message: "status=0 の動画が存在しません。",
+          });
+        }
+        break;
       }
-      processed += 1;
-      // LLM 判定の進捗を 10 件ごとに丁寧にログへ出し、ロングバッチでも状況を把握しやすくします。
-      if (processed % 10 === 0 || processed === pendingVideos.length) {
-        console.log(`[api/classify] LLM判定 ${processed}/${pendingVideos.length} 件完了`);
+
+      for (const video of pendingVideos) {
+        try {
+          const classification = await classifyTitleWithLLM(client, video.title);
+          const nextStatus = resolveStatusFromLabel(classification.label);
+          const checkedAt = new Date().toISOString();
+          await db
+            .update(videos)
+            .set({
+              status: nextStatus,
+              lastCheckedAt: checkedAt,
+            })
+            .where(eq(videos.id, video.id));
+          // confidence/reason は API 応答では不要なため、label のみを動画IDと共に返します。
+          llmResults.push({
+            title: classification.title,
+            label: classification.label,
+            videoId: video.id,
+            nextStatus,
+          });
+        } catch (error) {
+          console.error("[api/classify] LLM 判定中にエラーが発生しました。", error);
+          llmResults.push({
+            title: video.title,
+            label: "false",
+            videoId: video.id,
+            nextStatus: 0,
+          });
+        }
+        processed += 1;
+        // LLM 判定の進捗を 10 件ごとに丁寧にログへ出し、ロングバッチでも状況を把握しやすくします。
+        if (processed % 10 === 0 || processed === llmResults.length) {
+          console.log(`[api/classify] LLM判定 ${processed} 件処理済み (loop ${loopCount + 1})`);
+        }
+      }
+
+      loopCount += 1;
+      if (!exhaustive || loopCount >= MAX_LOOPS) {
+        break;
       }
     }
+
     return Response.json({
       mode: "llm",
       count: llmResults.length,
       results: llmResults,
+      meta: {
+        channelId,
+        loops: loopCount,
+        exhaustive,
+      },
     });
   }
 
@@ -171,6 +199,22 @@ function shouldUseLLM(body: ClassifyRequestBody): boolean {
   }
   if (typeof flag.mode === "string") {
     return flag.mode.toLowerCase() === "llm";
+  }
+  return false;
+}
+
+function extractChannelId(body: ClassifyRequestBody): string | undefined {
+  if (typeof body.channelId !== "string") return undefined;
+  const trimmed = body.channelId.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function shouldLoopExhaustively(body: ClassifyRequestBody): boolean {
+  const flag = (body as Record<string, unknown>)?.exhaustive;
+  if (typeof flag === "boolean") return flag;
+  if (typeof flag === "string") {
+    const normalized = flag.trim().toLowerCase();
+    return normalized === "true" || normalized === "1" || normalized === "yes";
   }
   return false;
 }

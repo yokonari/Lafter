@@ -3,9 +3,9 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
 import { NEGATIVE_KEYWORDS, POSITIVE_KEYWORDS } from "@/lib/video-keywords";
-
-
+import { ADMIN_SECRET_HEADER } from "@/lib/api-secret";
 import { createDatabase, type AppDatabase } from "../context";
+import { autoCategorizeVideos } from "./post-videos-auto-categorize";
 
 type TransactionClient = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 type DatabaseClient = AppDatabase | TransactionClient;
@@ -94,6 +94,8 @@ export function registerPostChannelSearch<
       return c.json({ message: "channelId を指定してください。" }, 400);
     }
     const fullSearchFlag = isFullSearch ?? false;
+    // チャンネル検索の開始を丁寧にログへ残し、実行条件を把握しやすくします。
+    console.log(`[channel-search] チャンネル ${channelId} の検索を開始します (fullSearch=${fullSearchFlag})`);
 
     try {
       // チャンネルに紐づく動画・再生リストを指定件数ずつ丁寧に収集します。
@@ -102,6 +104,10 @@ export function registerPostChannelSearch<
       });
       const videoItems = searchItems.filter((i) => i.idKind === "youtube#video");
       const playlistItems = searchItems.filter((i) => i.idKind === "youtube#playlist");
+      // 取得件数をこまめに記録し、API 側の挙動を追跡しやすくします。
+      console.log(
+        `[channel-search] 取得結果 チャンネル=${channelId} 動画=${videoItems.length}件 再生リスト=${playlistItems.length}件 合計=${searchItems.length}件`,
+      );
 
       const ensuredChannels = new Set<string>();
       const summary = {
@@ -110,6 +116,8 @@ export function registerPostChannelSearch<
         fetched: searchItems.length,
         videosInserted: 0,
         playlistsInserted: 0,
+        // サーチAPIで取得した動画タイトルをすべて返し、結果の確認をしやすくします。
+        videoTitles: videoItems.map((v) => v.title),
         errors: [] as string[],
       };
 
@@ -118,6 +126,16 @@ export function registerPostChannelSearch<
         videoItems[0]?.channelTitle ||
         playlistItems[0]?.channelTitle ||
         channelId;
+
+      // 検索APIを呼んだ時点でチャンネルの最終確認時刻を必ず更新し、存在しない場合は作成します。
+      try {
+        await ensureChannel(db, ensuredChannels, channelId, channelTitleFallback);
+      } catch (error) {
+        summary.errors.push(
+          `channel ${channelId}: ${(error as Error)?.message ?? "チャンネル情報の更新に失敗しました。"
+          }`,
+        );
+      }
 
       for (const item of videoItems) {
         if (!item.videoId || !item.channelId) continue;
@@ -136,6 +154,9 @@ export function registerPostChannelSearch<
             publishedAt: item.publishedAt,
           });
           summary.videosInserted += 1;
+          // 動画登録の成功をこまめに記録し、進捗を追いやすくします。
+          console.log(`[channel-search] 動画登録 success id=${item.videoId} channel=${item.channelId}`);
+          
         } catch (error) {
           if (isUniqueConstraintError(error)) {
             continue;
@@ -164,6 +185,7 @@ export function registerPostChannelSearch<
               topVideoId: item.topVideoId ?? null,
             });
             summary.playlistsInserted += 1;
+            console.log(`[channel-search] 再生リスト登録 success id=${item.playlistId} channel=${item.channelId}`);
           } else {
             // 名前かトップ動画が変わっていたら更新します
             if (existing.name !== item.title || existing.topVideoId !== item.topVideoId) {
@@ -183,6 +205,19 @@ export function registerPostChannelSearch<
             }`,
           );
         }
+      }
+
+      // 保存直後に該当チャンネルの動画だけを丁寧に自動分類し、分類漏れを防ぎます。
+      try {
+        await autoCategorizeVideos(db, { limit: 0, channelId });
+        // 自動分類完了後は LLM 判定も続けて起動し、残ったステータス未確定動画を精査します。
+        await triggerLlmClassification(c.req.url, channelId, env);
+        console.log(`[channel-search] 自動分類とLLM判定を完了しました channel=${channelId}`);
+      } catch (error) {
+        summary.errors.push(
+          `auto-categorize: ${(error as Error)?.message ?? "自動分類の実行に失敗しました。"
+          }`,
+        );
       }
 
       return c.json(summary, 200);
@@ -222,7 +257,6 @@ async function searchChannelItems(
     url.searchParams.set("channelId", channelId);
     url.searchParams.set("q", "ネタ");
     url.searchParams.set("maxResults", String(MAX_RESULTS_PER_PAGE));
-    url.searchParams.set("order", "date");
     url.searchParams.set("safeSearch", "none");
     url.searchParams.set("regionCode", "JP");
     url.searchParams.set("relevanceLanguage", "ja");
@@ -290,6 +324,47 @@ function extractVideoIdFromThumbnailUrl(url?: string): string | null {
   }
   const match = url.match(/\/vi\/([^/]+)\//);
   return match ? match[1] : null;
+}
+
+function resolveSecret(env: CloudflareEnv): string | null {
+  // API_SECRET は環境変数を優先し、設定漏れがあれば null を返して呼び出し側で丁寧に処理します。
+  const candidates = [env.API_SECRET, process.env.API_SECRET];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+  return null;
+}
+
+async function triggerLlmClassification(requestUrl: string, channelId: string, env: CloudflareEnv): Promise<void> {
+  // 元リクエストのオリジンから /api/classify を組み立て、同じシークレット付きで LLM 判定を呼び出します。
+  const baseUrl = new URL(requestUrl);
+  const classifyUrl = new URL("/api/classify", `${baseUrl.protocol}//${baseUrl.host}`).toString();
+  const secret = resolveSecret(env);
+  if (!secret) {
+    console.error("[channel-search] API_SECRET が設定されていないため LLM 判定をスキップします。", channelId);
+    return;
+  }
+
+  try {
+    const res = await fetch(classifyUrl, {
+      method: "POST",
+      headers: {
+        [ADMIN_SECRET_HEADER]: secret,
+        "content-type": "application/json",
+      },
+      // LLM 判定モードを明示し、対象チャンネルの status=0 を 50 件ずつ残りがなくなるまで精査します。
+      body: JSON.stringify({ useLLM: true, channelId, exhaustive: true }),
+    });
+    if (!res.ok) {
+      console.error("[channel-search] LLM 判定の呼び出しに失敗しました。", channelId, res.status);
+      return;
+    }
+    console.log("[channel-search] LLM 判定の呼び出しが成功しました。", channelId);
+  } catch (error) {
+    console.error("[channel-search] LLM 判定呼び出しで例外が発生しました。", channelId, error);
+  }
 }
 
 // UNIQUE 制約違反かどうかを丁寧に判定し、重複挿入時の握り潰し判定に活用いたします。
