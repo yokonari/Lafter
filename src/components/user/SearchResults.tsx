@@ -32,6 +32,7 @@ export function SearchResults({
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const PAGE_SIZE = 20;
+  const FETCH_LIMIT = PAGE_SIZE + 1;
 
   useEffect(() => {
     let canceled = false;
@@ -56,12 +57,17 @@ export function SearchResults({
           // 「最近」「ランダム」モードではプレイリストを除外し、動画のみに絞り込みます。
           includePlaylists: mode ? false : undefined,
           signal: controller.signal,
-          limit: PAGE_SIZE,
+          // 21件目が存在するかを確かめるため、表示上限より1件多めに取得します。
+          limit: FETCH_LIMIT,
           offset: 0,
         });
         if (canceled) return;
-        setVideos(fetchedVideos);
-        setPlaylists(fetchedPlaylists);
+        const moreVideosExist = fetchedVideos.length > PAGE_SIZE;
+        // ボタン表示用に21件目の有無だけ確認し、表示は20件にそろえます。
+        const nextVideos = moreVideosExist ? fetchedVideos.slice(0, PAGE_SIZE) : fetchedVideos;
+        const nextPlaylists = fetchedPlaylists.length > PAGE_SIZE ? fetchedPlaylists.slice(0, PAGE_SIZE) : fetchedPlaylists;
+        setVideos(nextVideos);
+        setPlaylists(nextPlaylists);
 
         if (channelId) {
           const name = fetchedVideos.find((v) => v.channelName)?.channelName || fetchedPlaylists.find((p) => p.channelName)?.channelName;
@@ -70,8 +76,8 @@ export function SearchResults({
           }
         }
 
-        // GET /videos の上限(20件)を超えた動画がある場合のみ「もっと見る」を出すよう動画件数のみで判定します。
-        setHasMore(fetchedVideos.length === PAGE_SIZE);
+        // 21件目がある場合のみ「もっと見る」を表示し、20件ぴったりのときはボタンを隠します。
+        setHasMore(moreVideosExist);
       } catch (err) {
         if (canceled) return;
         setError(err instanceof Error ? err.message : String(err));
@@ -107,13 +113,18 @@ export function SearchResults({
         mode,
         // 初回と同様にモード指定時はプレイリストを取得しないようにします。
         includePlaylists: mode ? false : undefined,
-        limit: PAGE_SIZE,
+        // 続きの取得でも21件目があるかを判別するため1件多めに要求します。
+        limit: FETCH_LIMIT,
         offset: Math.max(videos.length, playlists.length),
       });
-      setVideos((prev) => [...prev, ...fetchedVideos]);
-      setPlaylists((prev) => [...prev, ...fetchedPlaylists]);
+      const moreVideosExist = fetchedVideos.length > PAGE_SIZE;
+      // 追加入荷も21件目の存在を確認しつつ、画面には20件ずつ丁寧に積み上げます。
+      const nextVideos = moreVideosExist ? fetchedVideos.slice(0, PAGE_SIZE) : fetchedVideos;
+      const nextPlaylists = fetchedPlaylists.length > PAGE_SIZE ? fetchedPlaylists.slice(0, PAGE_SIZE) : fetchedPlaylists;
+      setVideos((prev) => [...prev, ...nextVideos]);
+      setPlaylists((prev) => [...prev, ...nextPlaylists]);
       // 続きの読み込みも動画件数だけで上限超過を確認し、不要な「もっと見る」表示を防ぎます。
-      setHasMore(fetchedVideos.length === PAGE_SIZE);
+      setHasMore(moreVideosExist);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
