@@ -28,23 +28,27 @@ export function UsageDialog({ open, onClose }: UsageDialogProps) {
     {
       icon: <Search size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "ネタ動画を探す",
-      description: "画面上部の検索バーにキーワードを入力し、Enterキーで検索できます。YouTube上のネタ動画やプレイリストを横断的に探せます。",
+      description:
+        "キーワード検索で、YouTubeのネタ動画を探せます。",
     },
     {
       icon: <PlaySquare size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "ネタ動画を観る",
-      description: "気になったサムネイルをクリックすると、画面遷移せずにその場でプレイヤーが立ち上がります。",
+      description:
+        "気になったサムネイルを押すと、その場でプレイヤーが開きます。",
     },
     {
       icon: <Flag size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "報告する",
-      description: "ネタ以外の動画・非公式の動画など、不適切なコンテンツを見つけた場合は、プレイヤー内の旗アイコンから報告できます。",
+      description:
+        "ネタ以外・非公式の動画などを見つけたら、プレイヤー内の旗アイコンから報告できます。",
     },
     {
       icon: <Lightbulb size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "新しい発見",
-      description: "「最近」や「ランダム」セクションで、普段見ない新しいネタ動画との出会いを楽しめます。",
-    },
+      description:
+        "「最近」や「ランダム」で、普段見ないネタ動画にも出会えます。",
+    }
   ], []);
 
   if (!open) return null;

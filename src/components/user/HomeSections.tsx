@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
@@ -122,7 +122,7 @@ export function HomeSections({
                 className={styles.sectionMoreButton}
               >
                 もっと見る
-                <ChevronRight size={16} aria-hidden="true" />
+                <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
             <div className={styles.sectionGrid}>
@@ -158,7 +158,7 @@ export function HomeSections({
                 className={styles.sectionMoreButton}
               >
                 もっと見る
-                <ChevronRight size={16} aria-hidden="true" />
+                <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
             <div className={styles.sectionGrid}>

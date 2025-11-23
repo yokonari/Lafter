@@ -1,14 +1,13 @@
 import type { PlaylistItem } from "@/lib/videoService";
-import { Flag, X } from "lucide-react";
+import { X } from "lucide-react";
 import styles from "./userTheme.module.scss";
 
 type PlaylistDialogProps = {
   playlist: PlaylistItem | null;
   onClose: () => void;
-  onReport?: (videoId: string, playlistTitle: string) => void;
 };
 
-export function PlaylistDialog({ playlist, onClose, onReport }: PlaylistDialogProps) {
+export function PlaylistDialog({ playlist, onClose }: PlaylistDialogProps) {
   if (!playlist) {
     return null;
   }
@@ -17,19 +16,6 @@ export function PlaylistDialog({ playlist, onClose, onReport }: PlaylistDialogPr
     <div className={styles.dialogOverlay} onClick={onClose}>
       <div className={styles.dialogContainer} onClick={(event) => event.stopPropagation()}>
         <div className={styles.dialogActions}>
-          <button
-            type="button"
-            className={styles.dialogFlag}
-            aria-label="この動画を報告する"
-          onClick={(event) => {
-            event.stopPropagation();
-            if (playlist?.playlistId) {
-              onReport?.(playlist.playlistId, playlist.title);
-            }
-          }}
-        >
-            <Flag aria-hidden="true" className={styles.dialogIcon} size={20} />
-          </button>
           <button
             type="button"
             className={styles.dialogClose}

@@ -45,7 +45,11 @@ type SearchItem = {
 const SEARCH_BASE_URL = "https://www.googleapis.com/youtube/v3/search";
 const MAX_RESULTS_PER_PAGE = 50;
 
-export function registerPostChannelSearch(app: Hono<any>) {
+export function registerPostChannelSearch<
+  E extends import("hono").Env,
+  S extends import("hono").Schema,
+  B extends string,
+>(app: Hono<E, S, B>) {
   // セッション不要で API シークレットのみ検証する一般ルートとして登録します。
   const handler = async (c: Context) => {
     const { env } = getCloudflareContext();

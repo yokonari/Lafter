@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
@@ -29,10 +30,26 @@ export function registerPostSearchLogs(app: Hono<AdminEnv>) {
             return fail("キーワードは必須です。", 400);
         }
 
+        const normalizedKeyword = keyword.trim();
+
         try {
-            await db.insert(searchLogs).values({
-                keyword: keyword.trim(),
-            });
+            const existingLogs = await db
+                .select()
+                .from(searchLogs)
+                .where(eq(searchLogs.keyword, normalizedKeyword))
+                .limit(1);
+
+            if (existingLogs.length > 0) {
+                await db
+                    .update(searchLogs)
+                    .set({ count: existingLogs[0].count + 1 })
+                    .where(eq(searchLogs.id, existingLogs[0].id));
+            } else {
+                await db.insert(searchLogs).values({
+                    keyword: normalizedKeyword,
+                });
+            }
+
             return c.json({ message: "検索ログを保存しました。" }, 200);
         } catch (error) {
             console.error("Failed to save search log:", error);

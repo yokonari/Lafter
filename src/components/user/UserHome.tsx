@@ -199,14 +199,6 @@ export function UserHome() {
       <PlaylistDialog
         playlist={dialogPlaylist}
         onClose={() => setDialogPlaylist(null)}
-        onReport={(videoId, playlistTitle) => {
-          // プレイリスト報告も動画同様に扱えるよう、動画IDとタイトルを渡して報告ダイアログを開きます。
-          setReportVideo({
-            id: videoId,
-            title: playlistTitle,
-            thumbnail: "",
-          });
-        }}
       />
       <ContactDialog
         open={isContactOpen}

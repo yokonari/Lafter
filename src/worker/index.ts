@@ -1,4 +1,4 @@
-// @ts-expect-error OpenNext ビルド時に .open-next/worker が生成され、フェッチ処理を委譲します。
+// OpenNext ビルド時に .open-next/worker が生成され、フェッチ処理を委譲します。
 import nextWorker from "../../.open-next/worker";
 import cronWorker from "./cron-channel-search";
 

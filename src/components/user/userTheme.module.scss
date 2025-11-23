@@ -447,39 +447,50 @@ $title-font-weight: 400;
 
 .scrollTopButton {
   position: fixed;
-  inset: auto 1.5rem 1.5rem auto; // 右下から24pxずつ浮かせ、他要素と干渉しないよう丁寧に配置します。
-  z-index: 50;
-  display: inline-flex;
-  width: 3rem;
-  height: 3rem;
-  border: none;
-  border-radius: 9999px;
-  background: var(--user-accent);
-  color: var(--user-bg);
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 40;
+  display: flex;
   align-items: center;
   justify-content: center;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 9999px;
+  background-color: var(--user-accent);
+  color: #0f0f0f; // text-dark-900
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); // shadow-lg
+  transition: all 0.3s ease;
   cursor: pointer;
-  // 浮遊感を丁寧に演出するため、ソフトシャドウと薄い縁取りを重ねて奥行きを出します。
-  box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.32),
-    0 0 0 1px color-mix(in srgb, var(--user-accent) 45%, transparent);
-  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  opacity: 0;
+  transform: translateY(2.5rem); // translate-y-10
+  pointer-events: none;
 
-  &:focus-visible {
-    outline: 2px solid color-mix(in srgb, var(--user-accent) 70%, transparent);
-    outline-offset: 3px;
+  @media (min-width: 768px) {
+    bottom: 2rem;
+    right: 2rem;
   }
 
-  &:active {
+  &:hover {
+    background-color: color-mix(in srgb, var(--user-accent) 90%, transparent); // hover:bg-primary/90
+    box-shadow: 0 10px 15px -3px color-mix(in srgb, var(--user-accent) 20%, transparent), 0 4px 6px -2px color-mix(in srgb, var(--user-accent) 20%, transparent); // hover:shadow-primary/20 (approx)
+
+    .scrollTopIcon {
+      transform: translateY(-0.125rem); // -translate-y-0.5
+    }
+  }
+
+  &.visible {
+    opacity: 1;
     transform: translateY(0);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    pointer-events: auto;
   }
 }
 
 .scrollTopIcon {
-  width: 1.5rem;
+  width: 1.5rem; // size 24
   height: 1.5rem;
-  // Lucide アイコンのサイズを固定し、スクロールボタン内で均等に収まるよう丁寧に整えます。
+  stroke-width: 2.5;
+  transition: transform 0.2s ease;
 }
 
 .userButton {
@@ -1059,7 +1070,7 @@ $title-font-weight: 400;
   pointer-events: none;
 }
 
-.reportRadioControl input:checked + .reportRadioDot {
+.reportRadioControl input:checked+.reportRadioDot {
   opacity: 1;
 }
 
@@ -1082,6 +1093,7 @@ $title-font-weight: 400;
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }
@@ -1167,6 +1179,7 @@ $title-font-weight: 400;
   @extend .primaryButton;
   padding: 0.55rem 1.25rem;
 }
+
 /* ------- 利用規約・ポリシー ------- */
 .termsLayout,
 .policyLayout {
