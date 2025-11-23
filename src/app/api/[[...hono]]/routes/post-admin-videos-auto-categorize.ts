@@ -86,7 +86,11 @@ export function registerPostAdminVideosAutoCategorize(app: Hono<AdminEnv>) {
     }
 
     if (idsToUpdate.length > 0) {
-      await db.update(videos).set({ status: AUTO_STATUS_OK }).where(inArray(videos.id, idsToUpdate));
+      const chunkSize = 100;
+      for (let i = 0; i < idsToUpdate.length; i += chunkSize) {
+        const chunk = idsToUpdate.slice(i, i + chunkSize);
+        await db.update(videos).set({ status: AUTO_STATUS_OK }).where(inArray(videos.id, chunk));
+      }
     }
 
     return c.json({ scanned: rows.length, updated: updates.length, results: updates.slice(0, 200) });

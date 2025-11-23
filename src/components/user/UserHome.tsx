@@ -189,7 +189,6 @@ export function UserHome() {
 
       <UserFooter
         onContactClick={() => setIsContactOpen(true)}
-        onUsageClick={() => setIsUsageOpen(true)}
       />
 
       <VideoDialog

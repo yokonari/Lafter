@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import type { Hono, Context } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
@@ -6,7 +6,6 @@ import { NEGATIVE_KEYWORDS, POSITIVE_KEYWORDS } from "@/lib/video-keywords";
 
 
 import { createDatabase, type AppDatabase } from "../context";
-import type { AdminEnv } from "../types";
 
 type TransactionClient = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 type DatabaseClient = AppDatabase | TransactionClient;
@@ -46,8 +45,9 @@ type SearchItem = {
 const SEARCH_BASE_URL = "https://www.googleapis.com/youtube/v3/search";
 const MAX_RESULTS_PER_PAGE = 50;
 
-export function registerPostAdminChannelSearch(app: Hono<AdminEnv>) {
-  app.post("/admin/channels/search", async (c) => {
+export function registerPostChannelSearch(app: Hono<any>) {
+  // セッション不要で API シークレットのみ検証する一般ルートとして登録します。
+  const handler = async (c: Context) => {
     const { env } = getCloudflareContext();
     const apiKey =
       env.YOUTUBE_API_KEY ??
@@ -196,7 +196,9 @@ export function registerPostAdminChannelSearch(app: Hono<AdminEnv>) {
         500,
       );
     }
-  });
+  };
+
+  app.post("/channels/search", handler);
 }
 
 async function searchChannelItems(

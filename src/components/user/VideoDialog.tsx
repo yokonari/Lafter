@@ -1,3 +1,4 @@
+import { Flag, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { VideoItem } from "@/lib/videoService";
 import styles from "./userTheme.module.scss";
@@ -34,9 +35,7 @@ export function VideoDialog({ video, onClose, onReport }: VideoDialogProps) {
               }
             }}
           >
-            <span className="material-symbols-rounded" aria-hidden>
-              flag_2
-            </span>
+            <Flag aria-hidden="true" className={styles.dialogIcon} size={20} />
           </button>
           <button
             type="button"
@@ -44,9 +43,7 @@ export function VideoDialog({ video, onClose, onReport }: VideoDialogProps) {
             aria-label="閉じる"
             onClick={onClose}
           >
-            <span className="material-symbols-rounded" aria-hidden>
-              close
-            </span>
+            <X aria-hidden="true" className={styles.dialogIcon} size={20} />
           </button>
         </div>
         {!isLoaded && (

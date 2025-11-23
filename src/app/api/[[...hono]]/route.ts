@@ -10,7 +10,7 @@ import { registerPostAdminPlaylistBulk } from "./routes/post-admin-playlist-bulk
 import { registerPostAdminChannelBulk } from "./routes/post-admin-channel-bulk";
 import { registerPostAdminVideosAutoCategorize } from "./routes/post-admin-videos-auto-categorize";
 import { registerPostAdminPlaylistsCheck } from "./routes/post-admin-playlists-check";
-import { registerPostAdminChannelSearch } from "./routes/post-admin-channel-search";
+import { registerPostChannelSearch } from "./routes/post-channel-search";
 import { registerPostSearchLogs } from "./routes/post-search-logs";
 import { authMiddleware } from "@/lib/middleware/auth";
 import { apiSecretMiddleware } from "@/lib/middleware/api-secret";
@@ -35,7 +35,7 @@ registerGetAdminChannels(app);
 registerPostAdminChannelBulk(app);
 registerPostAdminVideosAutoCategorize(app);
 registerPostAdminPlaylistsCheck(app);
-registerPostAdminChannelSearch(app);
+registerPostChannelSearch(app);
 registerPostSearchLogs(app);
 
 export const GET = handle(app);

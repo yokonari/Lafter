@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ListFooter } from "./ListFooter";
 import { toast } from "react-toastify";
 import styles from "../adminTheme.module.scss";
@@ -251,119 +252,22 @@ export function ChannelBulkManager({
         </div>
       )}
 
-      <div className="lg:hidden">
-        <ListFooter
-          paging={{
-            currentPage,
-            hasPrev,
-            hasNext,
-            prevHref,
-            nextHref,
-          }}
-          headerContent={
-            <div className={`flex flex-1 flex-wrap items-center justify-between gap-3 ${styles.headerText}`}>
-              <div className="flex flex-wrap items-center gap-3 text-sm">
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    className={styles.checkbox}
-                    checked={selectedCount > 0 && selectedCount === channels.length}
-                    onChange={(event) => handleToggleAll(event.target.checked)}
-                    aria-label="全て選択"
-                  />
-                  全て選択
-                </label>
-                <span className={styles.metaText}>
-                  選択中: {selectedCount} / {channels.length}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={submitting}
-                className={styles.primaryButton}
-              >
-                {submitting ? "送信中…" : "更新"}
-              </button>
-            </div>
-          }
-        />
-      </div>
-
-      <div className="hidden lg:block">
-        {/* 大画面では更新ボタンとページングを同列にまとめ、一覧操作の文脈を崩さずに表示します。 */}
-        <div className={styles.desktopFooterCard}>
-          <div className="flex flex-wrap items-center justify-between gap-6">
-            <div className={`flex flex-wrap items-center gap-3 text-sm ${styles.headerText}`}>
-              <label className="inline-flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  className={styles.checkbox}
-                  checked={selectedCount > 0 && selectedCount === channels.length}
-                  onChange={(event) => handleToggleAll(event.target.checked)}
-                  aria-label="全て選択"
-                />
-                全て選択
-              </label>
-              <span className={styles.metaText}>選択中: {selectedCount} / {channels.length}</span>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-4">
-              {/* ページ情報も同列に表示し、前後遷移を即座に実行できます。 */}
-              <div className={styles.pagerSection}>
-                <span>ページ {currentPage}</span>
-                <div className={styles.pagerControls}>
-                  {hasPrev ? (
-                    <Link
-                      href={prevHref}
-                      prefetch={false}
-                      className={styles.pagerControl}
-                      aria-label="前のページ"
-                    >
-                      <span className="material-symbols-rounded" aria-hidden="true">
-                        arrow_back
-                      </span>
-                    </Link>
-                  ) : (
-                    <span className={styles.pagerControlDisabled}>
-                      <span className="material-symbols-rounded" aria-hidden="true">
-                        arrow_back
-                      </span>
-                      <span className="sr-only">前のページ</span>
-                    </span>
-                  )}
-                  {hasNext ? (
-                    <Link
-                      href={nextHref}
-                      prefetch={false}
-                      className={styles.pagerControl}
-                      aria-label="次のページ"
-                    >
-                      <span className="material-symbols-rounded" aria-hidden="true">
-                        arrow_forward
-                      </span>
-                    </Link>
-                  ) : (
-                    <span className={styles.pagerControlDisabled}>
-                      <span className="material-symbols-rounded" aria-hidden="true">
-                        arrow_forward
-                      </span>
-                      <span className="sr-only">次のページ</span>
-                    </span>
-                  )}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleSubmit}
-                disabled={submitting}
-                className={styles.primaryButton}
-              >
-                {submitting ? "送信中…" : "更新"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <ListFooter
+        paging={{
+          currentPage,
+          hasPrev,
+          hasNext,
+          prevHref,
+          nextHref,
+        }}
+        bulkControl={{
+          selectedCount,
+          totalCount: channels.length,
+          onToggleAll: handleToggleAll,
+          onSubmit: handleSubmit,
+          submitting,
+        }}
+      />
     </div>
   );
 }

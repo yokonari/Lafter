@@ -1,5 +1,6 @@
 'use client';
 
+import { ArrowUp } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import styles from "./userTheme.module.scss";
 
@@ -33,9 +34,7 @@ export function ScrollTopButton() {
       className={styles.scrollTopButton}
       aria-label="ページ上部へ移動"
     >
-      <span className={`material-symbols-rounded ${styles.scrollTopIcon}`} aria-hidden="true">
-        arrow_upward
-      </span>
+      <ArrowUp aria-hidden="true" className={styles.scrollTopIcon} size={24} />
     </button>
   );
 }

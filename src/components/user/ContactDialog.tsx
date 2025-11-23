@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import styles from "./userTheme.module.scss";
@@ -119,9 +119,7 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
             </h2>
           </div>
           <button type="button" onClick={handleClose} className={styles.contactClose} aria-label="ダイアログを閉じる">
-            <span className="material-symbols-rounded" aria-hidden="true">
-              close
-            </span>
+            <X aria-hidden="true" className={styles.dialogIcon} size={20} />
           </button>
         </div>
 

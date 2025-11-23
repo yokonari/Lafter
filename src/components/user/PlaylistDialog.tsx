@@ -1,4 +1,5 @@
 import type { PlaylistItem } from "@/lib/videoService";
+import { Flag, X } from "lucide-react";
 import styles from "./userTheme.module.scss";
 
 type PlaylistDialogProps = {
@@ -20,16 +21,14 @@ export function PlaylistDialog({ playlist, onClose, onReport }: PlaylistDialogPr
             type="button"
             className={styles.dialogFlag}
             aria-label="この動画を報告する"
-            onClick={(event) => {
-              event.stopPropagation();
-              if (playlist?.playlistId) {
-                onReport?.(playlist.playlistId, playlist.title);
-              }
-            }}
-          >
-            <span className="material-symbols-rounded" aria-hidden>
-              flag_2
-            </span>
+          onClick={(event) => {
+            event.stopPropagation();
+            if (playlist?.playlistId) {
+              onReport?.(playlist.playlistId, playlist.title);
+            }
+          }}
+        >
+            <Flag aria-hidden="true" className={styles.dialogIcon} size={20} />
           </button>
           <button
             type="button"
@@ -37,9 +36,7 @@ export function PlaylistDialog({ playlist, onClose, onReport }: PlaylistDialogPr
             aria-label="閉じる"
             onClick={onClose}
           >
-            <span className="material-symbols-rounded" aria-hidden>
-              close
-            </span>
+            <X aria-hidden="true" className={styles.dialogIcon} size={20} />
           </button>
         </div>
         <div className={styles.dialogFrameWrap}>

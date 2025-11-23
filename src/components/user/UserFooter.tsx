@@ -5,19 +5,15 @@ import styles from "./userTheme.module.scss";
 
 type UserFooterProps = {
   onContactClick: () => void;
-  onUsageClick: () => void;
 };
 
-export function UserFooter({ onContactClick, onUsageClick }: UserFooterProps) {
+export function UserFooter({ onContactClick }: UserFooterProps) {
   return (
     // ヘッダーと統一した落ち着いたダークトーンで、フッターでも一体感を丁寧に演出します。
     <footer className={styles.footer}>
       {/* 上下24px（py-6）で静かな余白を設け、ヘッダーとバランスを丁寧に保ちます。 */}
       <div className={styles.footerInner}>
         <div className={styles.footerLinks}>
-          <button type="button" className={styles.footerLinkButton} onClick={onUsageClick}>
-            使いかた
-          </button>
           <button type="button" className={styles.footerLinkButton} onClick={onContactClick}>
             お問い合わせ
           </button>

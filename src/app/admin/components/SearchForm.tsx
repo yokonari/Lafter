@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { X } from "lucide-react";
 import styles from "../adminTheme.module.scss";
 
 type SearchResultMeta = { hasNext: boolean };
@@ -83,10 +84,10 @@ export function SearchForm<T>({
               type="button"
               onClick={handleReset}
               disabled={loading}
-              className={`${styles.clearButton} material-symbols-rounded`}
+              className={styles.clearButton}
               aria-label="検索欄をクリア"
             >
-              close
+              <X aria-hidden="true" size={18} />
             </button>
           ) : null}
         </div>

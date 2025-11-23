@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReportReasonKey } from "@/lib/reportReasons";
 import { REPORT_REASONS } from "@/lib/reportReasons";
@@ -92,9 +92,7 @@ export function ReportDialog({ open, video, onClose, onSuccess }: ReportDialogPr
             </h2>
           </div>
           <button type="button" onClick={onClose} className={styles.contactClose} aria-label="ダイアログを閉じる">
-            <span className="material-symbols-rounded" aria-hidden="true">
-              close
-            </span>
+            <X aria-hidden="true" className={styles.dialogIcon} size={20} />
           </button>
         </div>
 

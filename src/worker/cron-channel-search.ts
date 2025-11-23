@@ -53,9 +53,10 @@ async function runChannelSearchCron(env: CronEnv) {
     if (!ch?.id) continue;
     // チャンネル内の動画(status=1)が50件以上ある場合のみ全ページ検索を行い、それ以外は1ページだけに抑えます。
     const isFullSearch = await shouldUseFullSearch(env, ch.id);
-    const url = `${base}/admin/channels/search?channelId=${encodeURIComponent(
+    const url = `${base}/channels/search?channelId=${encodeURIComponent(
       ch.id,
     )}&isFullSearch=${isFullSearch ? "true" : "false"}`;
+    console.log("[cron] search 実行", ch.id, isFullSearch, url, secret);
     try {
       const res = await fetch(url, {
         method: "POST",

@@ -1,6 +1,7 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import styles from "./userTheme.module.scss";
 
 interface MarkdownPageLayoutProps {
@@ -42,13 +43,7 @@ export default function MarkdownPageLayout({ markdownContent }: MarkdownPageLayo
         <main className={styles.termsLayout} style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
             <div className={styles.termsBackWrap}>
                 <Link href="/" className={styles.termsBackLink}>
-                    <span
-                        className="material-symbols-rounded"
-                        aria-hidden="true"
-                        style={{ fontSize: "20px", lineHeight: 1, verticalAlign: "middle" }}
-                    >
-                        arrow_back
-                    </span>
+                    <ArrowLeft aria-hidden="true" size={20} className={styles.termsBackIcon} />
                     <span>トップへ戻る</span>
                 </Link>
             </div>

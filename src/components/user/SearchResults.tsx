@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchVideoItems, type VideoItem, type PlaylistItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
@@ -145,7 +146,7 @@ export function SearchResults({
             }
           }}
         >
-          <span className="material-symbols-rounded" aria-hidden="true" style={{ fontSize: "16px" }}>arrow_back</span>
+          <ArrowLeft aria-hidden="true" size={16} />
           <span>トップへ戻る</span>
         </button>
         <p className={styles.searchTitle}>

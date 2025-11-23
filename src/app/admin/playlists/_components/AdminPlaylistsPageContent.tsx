@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AdminTabsLayout } from "../../components/AdminTabsLayout";
 import { ListFooter } from "../../components/ListFooter";
 import { toast } from "react-toastify";
@@ -450,121 +451,23 @@ export default function AdminPlaylistsPageContent() {
                             })}
                         </div>
                     )}
-                    <div className="lg:hidden">
-                        <ListFooter
-                            paging={{
-                                currentPage,
-                                hasPrev,
-                                hasNext,
-                                onPrev: hasPrev ? () => goToPage(currentPage - 1) : undefined,
-                                onNext: hasNext ? () => goToPage(currentPage + 1) : undefined,
-                            }}
-                            headerContent={
-                                <div className={`flex flex-1 flex-wrap items-center justify-between gap-3 ${styles.headerText}`}>
-                                    <div className="flex flex-wrap items-center gap-3 text-sm">
-                                        <label className="inline-flex items-center gap-2">
-                                            <input
-                                                type="checkbox"
-                                                className={styles.checkboxControl}
-                                                checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
-                                                onChange={(event) => handleToggleAll(event.target.checked)}
-                                                aria-label="全て選択"
-                                                disabled={loading || playlists.length === 0}
-                                            />
-                                            全て選択
-                                        </label>
-                                        <span className={styles.metaText}>
-                                            選択中: {selectedCount} / {playlists.length}
-                                        </span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={handleSubmit}
-                                        disabled={loading || submitting || playlists.length === 0}
-                                        className={styles.primaryButton}
-                                    >
-                                        {submitting ? "送信中…" : "更新"}
-                                    </button>
-                                </div>
-                            }
-                        />
-                    </div>
-
-                    <div className="hidden lg:block">
-                        {/* 大画面ではチャンネル・動画一覧と同様に、更新ボタンとページングを横並びで見せます。 */}
-                        <div className={styles.desktopFooterCard}>
-                            <div className="flex flex-wrap items-center justify-between gap-6">
-                                <div className={`flex flex-wrap items-center gap-3 text-sm ${styles.headerText}`}>
-                                    <label className="inline-flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            className={styles.checkboxControl}
-                                            checked={selectedCount > 0 && selectedCount === Object.keys(selections).length}
-                                            onChange={(event) => handleToggleAll(event.target.checked)}
-                                            aria-label="全て選択"
-                                            disabled={loading || playlists.length === 0}
-                                        />
-                                        全て選択
-                                    </label>
-                                    <span className={styles.metaText}>選択中: {selectedCount} / {playlists.length}</span>
-                                </div>
-                                <div className="flex flex-wrap items-center justify-end gap-4">
-                                    {/* ページ情報と前後ボタンを併記し、操作のリズムを他画面と揃えます。 */}
-                                    <div className={styles.pagerSection}>
-                                        <span>ページ {currentPage}</span>
-                                        <div className={styles.pagerControls}>
-                                            {hasPrev ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => goToPage(currentPage - 1)}
-                                                    className={styles.pagerControl}
-                                                    aria-label="前のページ"
-                                                >
-                                                    <span className="material-symbols-rounded" aria-hidden="true">
-                                                        arrow_back
-                                                    </span>
-                                                </button>
-                                            ) : (
-                                                <span className={styles.pagerControlDisabled}>
-                                                    <span className="material-symbols-rounded" aria-hidden="true">
-                                                        arrow_back
-                                                    </span>
-                                                    <span className="sr-only">前のページ</span>
-                                                </span>
-                                            )}
-                                            {hasNext ? (
-                                                <button
-                                                    type="button"
-                                                    onClick={() => goToPage(currentPage + 1)}
-                                                    className={styles.pagerControl}
-                                                    aria-label="次のページ"
-                                                >
-                                                    <span className="material-symbols-rounded" aria-hidden="true">
-                                                        arrow_forward
-                                                    </span>
-                                                </button>
-                                            ) : (
-                                                <span className={styles.pagerControlDisabled}>
-                                                    <span className="material-symbols-rounded" aria-hidden="true">
-                                                        arrow_forward
-                                                    </span>
-                                                    <span className="sr-only">次のページ</span>
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={handleSubmit}
-                                        disabled={loading || submitting || playlists.length === 0}
-                                        className={styles.primaryButton}
-                                    >
-                                        {submitting ? "送信中…" : "更新"}
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <ListFooter
+                        paging={{
+                            currentPage,
+                            hasPrev,
+                            hasNext,
+                            onPrev: hasPrev ? () => goToPage(currentPage - 1) : undefined,
+                            onNext: hasNext ? () => goToPage(currentPage + 1) : undefined,
+                        }}
+                        bulkControl={{
+                            selectedCount,
+                            totalCount: playlists.length,
+                            onToggleAll: handleToggleAll,
+                            onSubmit: handleSubmit,
+                            submitting: loading || submitting,
+                            disabled: loading || playlists.length === 0,
+                        }}
+                    />
                 </div>
             )}
         </AdminTabsLayout>

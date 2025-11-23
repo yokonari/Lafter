@@ -166,7 +166,7 @@ $title-font-weight: 400;
 
 .searchIcon {
   position: absolute;
-  left: 0.5rem; // 左方向に約8px寄せて配置します。
+  left: 1rem; // 左方向に約8px寄せて配置します。
   top: 50%;
   transform: translateY(-50%); // 中央揃え
   color: $user-text-muted; // サンプルのアイコン色に合わせて落ち着いたグレーにします。
@@ -180,20 +180,21 @@ $title-font-weight: 400;
   right: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 28px;
+  height: 28px;
   border: none;
   border-radius: 9999px;
   background: transparent;
   color: var(--user-text-muted); // リンク色は on-surface-variant 系に合わせます。
   cursor: pointer;
 
-  .material-symbols-rounded {
-    font-size: 18px;
-    line-height: 1;
+  .searchClearIcon {
+    width: 18px;
+    height: 18px;
+    // 検索欄のクリアアイコンを等倍で揃え、上下左右のバランスを丁寧に保ちます。
   }
 }
 
@@ -476,8 +477,9 @@ $title-font-weight: 400;
 }
 
 .scrollTopIcon {
-  font-size: 1.5rem;
-  font-variation-settings: "FILL" 1, "wght" 500, "GRAD" 0, "opsz" 24; // Material Symbols の太さ・塗りを一定に保ちます。
+  width: 1.5rem;
+  height: 1.5rem;
+  // Lucide アイコンのサイズを固定し、スクロールボタン内で均等に収まるよう丁寧に整えます。
 }
 
 .userButton {
@@ -755,14 +757,15 @@ $title-font-weight: 400;
   align-items: center;
   justify-content: center;
 
-  .material-symbols-rounded {
-    font-size: 20px;
-    line-height: 1;
-  }
-
   &:hover {
     color: var(--user-accent);
   }
+}
+
+.dialogIcon {
+  width: 20px;
+  height: 20px;
+  // Lucide のアイコンサイズを統一し、ダイアログの右下ボタン群で上下中央にきちんと収まるよう整えます。
 }
 
 // 閉じるボタンのみ余白をなくし、アイコン位置をより正確に揃えます。
@@ -1203,6 +1206,12 @@ $title-font-weight: 400;
   &:hover {
     color: $user-text;
   }
+}
+
+.termsBackIcon {
+  width: 20px;
+  height: 20px;
+  // 戻る用のアイコンサイズを固定し、テキストとの高さを丁寧に揃えます。
 }
 
 .termsCard {

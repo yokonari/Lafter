@@ -1,6 +1,6 @@
 'use client';
 
-import { BadgeQuestionMark } from "lucide-react";
+import { CircleQuestionMark, Search, X } from "lucide-react";
 import { ChangeEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import styles from "./userTheme.module.scss";
 
@@ -141,9 +141,7 @@ export function UserHeader({
 
         <div className={styles.searchArea} ref={searchAreaRef}>
           {/* サンプルと同等の見た目になるよう入力フィールドをシンプルに整形 */}
-          <span className={styles.searchIcon} aria-hidden>
-            <SearchGlyph />
-          </span>
+          <Search aria-hidden className={styles.searchIcon} size={18} />
           <input
             type="search"
             value={query}
@@ -163,9 +161,7 @@ export function UserHeader({
               onKeyDown={handleClearKeyDown}
               aria-label="検索キーワードをクリア"
             >
-              <span className="material-symbols-rounded" aria-hidden>
-                close
-              </span>
+              <X aria-hidden="true" className={styles.searchClearIcon} size={18} />
             </button>
           )}
           {isHistoryOpen && (
@@ -196,22 +192,11 @@ export function UserHeader({
             onClick={onUsageOpen}
             aria-label="使いかたを開く"
           >
-            <BadgeQuestionMark  size={24} aria-hidden="true" />
+            <CircleQuestionMark   size={24} aria-hidden="true" />
           </button>
           <span className={styles.headerSpacer} aria-hidden />
         </div>
       </div>
     </header>
-  );
-}
-
-function SearchGlyph() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden className={styles.searchIcon}>
-      <path
-        fill="currentColor"
-        d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 10-.71.71l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
-      />
-    </svg>
   );
 }
