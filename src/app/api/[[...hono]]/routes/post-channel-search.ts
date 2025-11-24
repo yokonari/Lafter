@@ -3,7 +3,6 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
 import { NEGATIVE_KEYWORDS, POSITIVE_KEYWORDS } from "@/lib/video-keywords";
-import { ADMIN_SECRET_HEADER } from "@/lib/api-secret";
 import { createDatabase, type AppDatabase } from "../context";
 import { autoCategorizeVideos } from "./post-videos-auto-categorize";
 
@@ -208,9 +207,7 @@ export function registerPostChannelSearch<
       // 保存直後に該当チャンネルの動画だけを丁寧に自動分類し、分類漏れを防ぎます。
       try {
         await autoCategorizeVideos(db, { limit: 0, channelId });
-        // 自動分類完了後は LLM 判定も続けて起動し、残ったステータス未確定動画を精査します。
-        await triggerLlmClassification(c.req.url, channelId, env);
-        console.log(`[channel-search] 自動分類とLLM判定を完了しました channel=${channelId}`);
+        console.log(`[channel-search] 自動分類を完了しました channel=${channelId}`);
       } catch (error) {
         summary.errors.push(
           `auto-categorize: ${(error as Error)?.message ?? "自動分類の実行に失敗しました。"
@@ -324,46 +321,7 @@ function extractVideoIdFromThumbnailUrl(url?: string): string | null {
   return match ? match[1] : null;
 }
 
-function resolveSecret(env: CloudflareEnv): string | null {
-  // API_SECRET は環境変数を優先し、設定漏れがあれば null を返して呼び出し側で丁寧に処理します。
-  const candidates = [env.API_SECRET, process.env.API_SECRET];
-  for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) {
-      return candidate.trim();
-    }
-  }
-  return null;
-}
 
-async function triggerLlmClassification(requestUrl: string, channelId: string, env: CloudflareEnv): Promise<void> {
-  // 元リクエストのオリジンから /api/classify を組み立て、同じシークレット付きで LLM 判定を呼び出します。
-  const baseUrl = new URL(requestUrl);
-  const classifyUrl = new URL("/api/classify", `${baseUrl.protocol}//${baseUrl.host}`).toString();
-  const secret = resolveSecret(env);
-  if (!secret) {
-    console.error("[channel-search] API_SECRET が設定されていないため LLM 判定をスキップします。", channelId);
-    return;
-  }
-
-  try {
-    const res = await fetch(classifyUrl, {
-      method: "POST",
-      headers: {
-        [ADMIN_SECRET_HEADER]: secret,
-        "content-type": "application/json",
-      },
-      // LLM 判定モードを明示し、対象チャンネルの status=0 を 50 件ずつ残りがなくなるまで精査します。
-      body: JSON.stringify({ useLLM: true, channelId, exhaustive: true }),
-    });
-    if (!res.ok) {
-      console.error("[channel-search] LLM 判定の呼び出しに失敗しました。", channelId, res.status);
-      return;
-    }
-    console.log("[channel-search] LLM 判定の呼び出しが成功しました。", channelId);
-  } catch (error) {
-    console.error("[channel-search] LLM 判定呼び出しで例外が発生しました。", channelId, error);
-  }
-}
 
 // UNIQUE 制約違反かどうかを丁寧に判定し、重複挿入時の握り潰し判定に活用いたします。
 function isUniqueConstraintError(error: unknown): boolean {

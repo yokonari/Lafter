@@ -31,17 +31,16 @@
 		{
 			"binding": "LAFTER",
 			"id": "51b18dfbf52a46aa8f9993f67bca584c",
-
 			// Optional: preview_id used when running `wrangler dev` for local dev
 			"preview_id": "415ea1f076054575b235810913b518ac"
 		}
 	],
 	"triggers": {
 		"crons": [
-			"0 20 * * *"
+			"0 20 * * *",
+			"*/30 * * * *"
 		]
-	}
-
+	},
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
