@@ -10,7 +10,7 @@ type CronEnv = Env & {
   lafter_db?: D1Database;
 };
 
-type ChannelRow = { id: string };
+type ChannelRow = { id: string; lastCheckedAt: string | null };
 const DAILY_CHANNEL_LIMIT = 100;
 
 const app = new Hono();
@@ -51,12 +51,20 @@ async function runChannelSearchCron(env: CronEnv) {
   let shouldStop = false;
   for (const ch of channels) {
     if (!ch?.id) continue;
-    // チャンネル内の動画(status=1)が50件以上ある場合のみ全ページ検索を行い、それ以外は1ページだけに抑えます。
-    const isFullSearch = await shouldUseFullSearch(env, ch.id);
+    // lastCheckedAt が null かつ status=1 の動画が50件以上ある場合のみ全ページ検索を行います。
+    const isFullSearch = await shouldUseFullSearch(env, ch);
+
+    // 該当チャンネルの動画がテーブルに100件以上ある場合（ステータス問わず）、最新の動画の日付をpublishedAfterに設定します。
+    const totalVideos = await countAllVideos(env, ch.id);
+    let publishedAfter: string | undefined;
+    if (totalVideos >= 100) {
+      publishedAfter = await getLatestPublishedAt(env, ch.id);
+    }
+
     const url = `${base}/channels/search?channelId=${encodeURIComponent(
       ch.id,
     )}&isFullSearch=${isFullSearch ? "true" : "false"}`;
-    console.log("[cron] search 実行", ch.id, isFullSearch, url, secret);
+    console.log("[cron] search 実行", ch.id, isFullSearch, publishedAfter, url, secret);
     try {
       const res = await fetch(url, {
         method: "POST",
@@ -69,6 +77,7 @@ async function runChannelSearchCron(env: CronEnv) {
           // query だけに頼らず channelId を確実に渡すため冗長に指定します。
           channelId: ch.id,
           isFullSearch,
+          publishedAfter,
         }),
       });
       if (!res.ok) {
@@ -146,16 +155,18 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function shouldUseFullSearch(env: CronEnv, channelId: string): Promise<boolean> {
-  // D1 を直接参照し、当該チャンネルの status=1 動画件数を丁寧に確認します。
-  const count = await countStatusOneVideos(env, channelId);
+async function shouldUseFullSearch(env: CronEnv, channel: ChannelRow): Promise<boolean> {
+  // lastCheckedAt が null (未チェック) かつ status=1 の動画が50件以上ある場合のみ全件検索を行います。
+  if (channel.lastCheckedAt !== null) {
+    return false;
+  }
+  const count = await countStatusOneVideos(env, channel.id);
   return count >= 50;
 }
 
 async function countStatusOneVideos(env: CronEnv, channelId: string): Promise<number> {
   const db = resolveDb(env);
   if (!db) {
-    console.error("[cron] D1 バインディング(DB/lafter_db)が見つかりません", channelId);
     return 0;
   }
   try {
@@ -181,7 +192,7 @@ async function fetchPendingChannels(env: CronEnv, limit: number): Promise<Channe
     const rows = await db
       .prepare(
         `
-        SELECT id
+        SELECT id, last_checked_at as lastCheckedAt
         FROM channels
         WHERE status = 1
           AND (
@@ -201,6 +212,40 @@ async function fetchPendingChannels(env: CronEnv, limit: number): Promise<Channe
   } catch (error) {
     console.error("[cron] チャンネル取得に失敗しました", error);
     return [];
+  }
+}
+
+async function countAllVideos(env: CronEnv, channelId: string): Promise<number> {
+  const db = resolveDb(env);
+  if (!db) {
+    return 0;
+  }
+  try {
+    const row = await db
+      .prepare("SELECT COUNT(*) as cnt FROM videos WHERE channel_id = ?")
+      .bind(channelId)
+      .first<{ cnt: number }>();
+    return typeof row?.cnt === "number" && Number.isFinite(row.cnt) ? row.cnt : 0;
+  } catch (error) {
+    console.error("[cron] 全動画件数の取得に失敗しました", channelId, error);
+    return 0;
+  }
+}
+
+async function getLatestPublishedAt(env: CronEnv, channelId: string): Promise<string | undefined> {
+  const db = resolveDb(env);
+  if (!db) {
+    return undefined;
+  }
+  try {
+    const row = await db
+      .prepare("SELECT published_at FROM videos WHERE channel_id = ? ORDER BY published_at DESC LIMIT 1")
+      .bind(channelId)
+      .first<{ published_at: string }>();
+    return row?.published_at || undefined;
+  } catch (error) {
+    console.error("[cron] 最新動画日時の取得に失敗しました", channelId, error);
+    return undefined;
   }
 }
 

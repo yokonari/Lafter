@@ -69,6 +69,7 @@ export function registerPostChannelSearch<
     // チャンネルIDの受け取りはクエリ・JSON双方に配慮し、柔軟に対応いたします。
     let channelId = (c.req.query("channelId") ?? "").trim();
     let isFullSearch = parseBooleanInput(c.req.query("isFullSearch"));
+    let publishedAfter = (c.req.query("publishedAfter") ?? "").trim();
 
     let requestJsonBody: unknown = null;
     const contentType = c.req.header("content-type") ?? "";
@@ -80,12 +81,15 @@ export function registerPostChannelSearch<
       }
     }
     if (requestJsonBody && typeof requestJsonBody === "object") {
-      const body = requestJsonBody as { channelId?: unknown; isFullSearch?: unknown };
+      const body = requestJsonBody as { channelId?: unknown; isFullSearch?: unknown; publishedAfter?: unknown };
       if (!channelId && typeof body.channelId === "string") {
         channelId = body.channelId.trim();
       }
       if (isFullSearch === null) {
         isFullSearch = parseBooleanInput(body.isFullSearch);
+      }
+      if (!publishedAfter && typeof body.publishedAfter === "string") {
+        publishedAfter = body.publishedAfter.trim();
       }
     }
 
@@ -94,12 +98,13 @@ export function registerPostChannelSearch<
     }
     const fullSearchFlag = isFullSearch ?? false;
     // チャンネル検索の開始を丁寧にログへ残し、実行条件を把握しやすくします。
-    console.log(`[channel-search] チャンネル ${channelId} の検索を開始します (fullSearch=${fullSearchFlag})`);
+    console.log(`[channel-search] チャンネル ${channelId} の検索を開始します (fullSearch=${fullSearchFlag}, publishedAfter=${publishedAfter || "なし"})`);
 
     try {
       // チャンネルに紐づく動画・再生リストを指定件数ずつ丁寧に収集します。
       const searchItems = await searchChannelItems(channelId, apiKey, {
         isFullSearch: fullSearchFlag,
+        publishedAfter: publishedAfter || undefined,
       });
       const videoItems = searchItems.filter((i) => i.idKind === "youtube#video");
       const playlistItems = searchItems.filter((i) => i.idKind === "youtube#playlist");
@@ -238,7 +243,7 @@ export function registerPostChannelSearch<
 async function searchChannelItems(
   channelId: string,
   apiKey: string,
-  options: { isFullSearch: boolean },
+  options: { isFullSearch: boolean; publishedAfter?: string },
 ): Promise<SearchItem[]> {
   const items: SearchItem[] = [];
   let pageToken: string | undefined;
@@ -256,6 +261,9 @@ async function searchChannelItems(
     url.searchParams.set("regionCode", "JP");
     url.searchParams.set("relevanceLanguage", "ja");
     url.searchParams.set("key", apiKey);
+    if (options.publishedAfter) {
+      url.searchParams.set("publishedAfter", options.publishedAfter);
+    }
     if (pageToken) {
       url.searchParams.set("pageToken", pageToken);
     }
