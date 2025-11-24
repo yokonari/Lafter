@@ -154,9 +154,6 @@ export function registerPostChannelSearch<
             publishedAt: item.publishedAt,
           });
           summary.videosInserted += 1;
-          // 動画登録の成功をこまめに記録し、進捗を追いやすくします。
-          console.log(`[channel-search] 動画登録 success id=${item.videoId} channel=${item.channelId}`);
-          
         } catch (error) {
           if (isUniqueConstraintError(error)) {
             continue;
@@ -168,6 +165,7 @@ export function registerPostChannelSearch<
           );
         }
       }
+      console.log(`[channel-search] 動画登録 success count=${summary.videosInserted}`);
 
       for (const item of playlistItems) {
         if (!item.playlistId || !item.channelId) continue;
@@ -185,7 +183,6 @@ export function registerPostChannelSearch<
               topVideoId: item.topVideoId ?? null,
             });
             summary.playlistsInserted += 1;
-            console.log(`[channel-search] 再生リスト登録 success id=${item.playlistId} channel=${item.channelId}`);
           } else {
             // 名前かトップ動画が変わっていたら更新します
             if (existing.name !== item.title || existing.topVideoId !== item.topVideoId) {
@@ -206,6 +203,7 @@ export function registerPostChannelSearch<
           );
         }
       }
+      console.log(`[channel-search] 再生リスト登録 success count=${summary.playlistsInserted}`);
 
       // 保存直後に該当チャンネルの動画だけを丁寧に自動分類し、分類漏れを防ぎます。
       try {
