@@ -33,7 +33,7 @@ export default cronWorker;
 async function runChannelSearchCron(env: CronEnv) {
   const base = resolveBaseUrl(env);
   const secret = resolveSecret(env);
-  const batchLimit = resolveNumber(env.CRON_CHANNEL_BATCH_LIMIT, 20);
+  const batchLimit = resolveNumber(env.CRON_CHANNEL_BATCH_LIMIT, 3);
   const delayMs = resolveNumber(env.CRON_CHANNEL_DELAY_MS, 1000);
 
   if (!base || !secret) {

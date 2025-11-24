@@ -83,6 +83,17 @@ export type FetchVideoOptions = {
 export type FetchVideosResponse = {
   videos: VideoItem[];
   playlists: PlaylistItem[];
+  page: number;
+  limit: number;
+  hasNext: boolean;
+};
+
+type VideosApiPayload = {
+  videos?: RawVideo[];
+  play_lists?: RawPlaylist[];
+  page?: number;
+  limit?: number;
+  hasNext?: boolean;
 };
 
 export async function fetchVideoItems(
@@ -116,10 +127,7 @@ export async function fetchVideoItems(
     throw new Error("動画情報の取得に失敗しました。");
   }
 
-  const payload = (await response.json()) as {
-    videos?: RawVideo[];
-    play_lists?: RawPlaylist[];
-  };
+  const payload = (await response.json()) as VideosApiPayload;
 
   const videoItems: VideoItem[] = [];
   for (const raw of payload.videos ?? []) {
@@ -137,5 +145,18 @@ export async function fetchVideoItems(
     }
   }
 
-  return { videos: videoItems, playlists: playlistItems };
+  const page = typeof payload.page === "number" && payload.page > 0 ? Math.floor(payload.page) : 1;
+  const responseLimit =
+    typeof payload.limit === "number" && payload.limit > 0
+      ? Math.floor(payload.limit)
+      : (options?.limit ?? 20);
+  const hasNext = Boolean(payload.hasNext);
+
+  return {
+    videos: videoItems,
+    playlists: playlistItems,
+    page,
+    limit: responseLimit,
+    hasNext,
+  };
 }

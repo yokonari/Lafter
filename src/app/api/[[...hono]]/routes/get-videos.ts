@@ -103,7 +103,10 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         ? Math.min(limitParam, MAX_LIMIT)
         : MAX_LIMIT;
 
-    const videoRows = await orderedVideoQuery.limit(safeLimit).offset(safeOffset);
+    // 追加取得分の1件を含めておき、次ページの有無を丁寧に判断します。
+    const videoRowsRaw = await orderedVideoQuery.limit(safeLimit + 1).offset(safeOffset);
+    const hasNext = videoRowsRaw.length > safeLimit;
+    const videoRows = hasNext ? videoRowsRaw.slice(0, safeLimit) : videoRowsRaw;
 
     let playlistRows:
       | Array<{
@@ -159,7 +162,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         .innerJoin(channels, eq(playlists.channelId, channels.id))
         .where(playlistWhere)
         .orderBy(desc(playlists.createdAt))
-        .limit(MAX_LIMIT)
+        .limit(safeLimit)
         .offset(safeOffset);
     }
 
@@ -185,6 +188,9 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       {
         videos: videosPayload,
         play_lists: playlistsPayload,
+        page: Math.floor(safeOffset / safeLimit) + 1,
+        limit: safeLimit,
+        hasNext,
       },
       200,
     );

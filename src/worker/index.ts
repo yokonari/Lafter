@@ -11,11 +11,11 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
   const cron = event.cron;
   console.log(`[worker] scheduled event triggered: ${cron}`);
 
-  // チャンネル検索: 毎日 20:00 (UTC+9だと朝5時?) -> 0 20 * * *
+  // チャンネル検索: 毎時 0分 -> 0 * * * *
   // LLM 判定: 30分ごと -> */30 * * * *
 
   // cron 文字列で分岐します。
-  if (cron === "0 20 * * *") {
+  if (cron === "0 * * * *") {
     if (typeof cronChannelSearch.scheduled === "function") {
       await cronChannelSearch.scheduled(event, env, ctx);
     }
