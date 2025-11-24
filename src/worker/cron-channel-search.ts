@@ -156,12 +156,12 @@ function sleep(ms: number): Promise<void> {
 }
 
 async function shouldUseFullSearch(env: CronEnv, channel: ChannelRow): Promise<boolean> {
-  // lastCheckedAt が null (未チェック) かつ status=1 の動画が50件以上ある場合のみ全件検索を行います。
+  // lastCheckedAt が null (未チェック) かつ status=1 の動画が20件以上ある場合のみ全件検索を行います。
   if (channel.lastCheckedAt !== null) {
     return false;
   }
   const count = await countStatusOneVideos(env, channel.id);
-  return count >= 50;
+  return count >= 20;
 }
 
 async function countStatusOneVideos(env: CronEnv, channelId: string): Promise<number> {
