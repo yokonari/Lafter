@@ -1,3 +1,5 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore `.open-next/worker.js` は build 時に生成される
 import nextWorker from "../../.open-next/worker";
 import cronChannelSearch from "./cron-channel-search";
 import cronLlmClassify from "./cron-llm-classify";
