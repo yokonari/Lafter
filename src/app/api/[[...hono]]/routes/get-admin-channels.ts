@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, asc, desc, eq, inArray, like } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, like } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -83,6 +83,11 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       .limit(limit)
       .offset((page - 1) * limit);
 
+    const [{ count: totalCount }] = await db
+      .select({ count: count() })
+      .from(channels)
+      .where(whereExpression);
+
     const hasNext = rows.length === limit;
 
     const latestVideoByChannel = new Map<string, { title: string; videoId: string | null }>();
@@ -124,6 +129,7 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
         page,
         limit,
         hasNext,
+        totalCount,
       },
       200,
     );

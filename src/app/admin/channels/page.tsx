@@ -22,6 +22,7 @@ type AdminChannelsResponse = {
   page: number;
   limit: number;
   hasNext: boolean;
+  totalCount: number;
 };
 
 // API から管理画面用のチャンネル一覧を丁寧に取り出します。
@@ -107,6 +108,7 @@ async function fetchAdminChannels(
     page: number;
     limit: number;
     hasNext: boolean;
+    totalCount: number;
   };
 
   const mappedChannels = raw.channels.map((channel) => ({
@@ -125,6 +127,7 @@ async function fetchAdminChannels(
     page: raw.page,
     limit: raw.limit,
     hasNext: raw.hasNext,
+    totalCount: raw.totalCount ?? 0,
   };
 }
 
@@ -196,6 +199,7 @@ export default async function AdminChannelsPage({ searchParams }: PageProps) {
           prevHref={prevHref}
           nextHref={nextHref}
           channelStatus={channelStatusFilter}
+          totalCount={data?.totalCount ?? 0}
         />
       )}
     </AdminTabsLayout>

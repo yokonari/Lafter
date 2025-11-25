@@ -17,6 +17,7 @@ type ChannelAdminSectionProps = {
   prevHref: string;
   nextHref: string;
   channelStatus: number;
+  totalCount: number;
 };
 
 type PaginationState = {
@@ -35,6 +36,7 @@ export function ChannelAdminSection({
   prevHref,
   nextHref,
   channelStatus,
+  totalCount,
 }: ChannelAdminSectionProps) {
   const router = useRouter();
   const [channels, setChannels] = useState<ChannelRow[]>(initialChannels);
@@ -46,6 +48,7 @@ export function ChannelAdminSection({
     nextHref,
   });
   const [searchMode, setSearchMode] = useState(false);
+  const [currentTotalCount, setCurrentTotalCount] = useState(totalCount);
 
   // ページ遷移などで初期データが変わった場合に丁寧に同期します。
   useEffect(() => {
@@ -58,11 +61,12 @@ export function ChannelAdminSection({
       nextHref,
     });
     setSearchMode(false);
-  }, [initialChannels, currentPage, hasPrev, hasNext, prevHref, nextHref]);
+    setCurrentTotalCount(totalCount);
+  }, [initialChannels, currentPage, hasPrev, hasNext, prevHref, nextHref, totalCount]);
 
   const handleSearchResults = (
     results: ChannelRow[],
-    meta: { hasNext: boolean },
+    meta: { hasNext: boolean; totalCount?: number },
   ) => {
     setChannels(results);
     setPagination({
@@ -73,6 +77,9 @@ export function ChannelAdminSection({
       nextHref: "#",
     });
     setSearchMode(true);
+    if (typeof meta.totalCount === "number") {
+      setCurrentTotalCount(meta.totalCount);
+    }
   };
 
   const handleReset = () => {
@@ -85,6 +92,7 @@ export function ChannelAdminSection({
       nextHref,
     });
     setSearchMode(false);
+    setCurrentTotalCount(totalCount);
   };
 
   const executeSearch = useCallback(async (keyword: string) => {
@@ -119,20 +127,21 @@ export function ChannelAdminSection({
         latest_video_id?: string | null;
       }>;
       hasNext?: boolean;
+      totalCount?: number;
     };
 
     const mapped: ChannelRow[] = Array.isArray(data?.channels)
       ? data.channels.map((item) => ({
-          id: item.id,
-          name: item.name,
-          url: item.url,
-          status: item.status ?? 0,
-          latestVideoTitle: item.latest_video_title ?? null,
-          latestVideoId: item.latest_video_id ?? null,
-        }))
+        id: item.id,
+        name: item.name,
+        url: item.url,
+        status: item.status ?? 0,
+        latestVideoTitle: item.latest_video_title ?? null,
+        latestVideoId: item.latest_video_id ?? null,
+      }))
       : [];
 
-    return { items: mapped, hasNext: Boolean(data?.hasNext) };
+    return { items: mapped, hasNext: Boolean(data?.hasNext), totalCount: data?.totalCount };
   }, [channelStatus]);
 
   const isPendingFilter = channelStatus === 0;
@@ -183,7 +192,7 @@ export function ChannelAdminSection({
           onClick={handlePendingButtonClick}
           className={`${styles.filterButton} ${isPendingFilter ? styles.buttonActiveAmber : ""}`}
         >
-          未判定
+          未判定{isPendingFilter && `(${currentTotalCount.toLocaleString()}件)`}
         </button>
         {/* LLM による判定結果もすぐ確認できるよう AI ステータス専用ボタンを配置します。 */}
         <button
@@ -191,28 +200,28 @@ export function ChannelAdminSection({
           onClick={() => router.push(buildStatusHref(3))}
           className={`${styles.filterButton} ${isAiOkFilter ? styles.buttonActiveGreen : ""}`}
         >
-          AI-OK
+          AI-OK{isAiOkFilter && `(${currentTotalCount.toLocaleString()}件)`}
         </button>
         <button
           type="button"
           onClick={() => router.push(buildStatusHref(4))}
           className={`${styles.filterButton} ${isAiNgFilter ? styles.buttonActiveAmber : ""}`}
         >
-          AI-NG
+          AI-NG{isAiNgFilter && `(${currentTotalCount.toLocaleString()}件)`}
         </button>
         <button
           type="button"
           onClick={handleRegisteredButtonClick}
           className={`${styles.filterButton} ${isRegisteredFilter ? styles.buttonActiveBlue : ""}`}
         >
-          OK
+          OK{isRegisteredFilter && `(${currentTotalCount.toLocaleString()}件)`}
         </button>
         <button
           type="button"
           onClick={handleNgButtonClick}
           className={`${styles.filterButton} ${isNgFilter ? styles.buttonActiveRed : ""}`}
         >
-          NG
+          NG{isNgFilter && `(${currentTotalCount.toLocaleString()}件)`}
         </button>
       </div>
       <ChannelBulkManager
