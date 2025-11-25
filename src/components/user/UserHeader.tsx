@@ -1,5 +1,6 @@
 'use client';
 
+import Image from "next/image";
 import { CircleQuestionMark, Search, X } from "lucide-react";
 import { ChangeEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import styles from "./userTheme.module.scss";
@@ -136,7 +137,15 @@ export function UserHeader({
     <header className={styles.header}>
       <div className={styles.headerInner}>
         <button type="button" onClick={onReset} className={styles.brandButton}>
-          <span className={styles.brandLabel}>Lafter</span>
+          {/* 画面幅が狭くなった際も丁寧にアスペクト比を保ったまま縮小させます。 */}
+          <Image
+            src="/Lafter.png"
+            alt="Lafter"
+            width={195}
+            height={49}
+            style={{ width: "100%", minWidth: "60px", maxWidth: "90px", height: "auto" }}
+            priority
+          />
         </button>
 
         <div className={styles.searchArea} ref={searchAreaRef}>
@@ -192,7 +201,7 @@ export function UserHeader({
             onClick={onUsageOpen}
             aria-label="使いかたを開く"
           >
-            <CircleQuestionMark   size={24} aria-hidden="true" />
+            <CircleQuestionMark size={24} aria-hidden="true" />
           </button>
           <span className={styles.headerSpacer} aria-hidden />
         </div>
