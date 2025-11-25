@@ -32,6 +32,7 @@ type AdminVideosResponse = {
     page: number;
     limit: number;
     hasNext: boolean;
+    totalCount: number;
 };
 
 type SelectionDefaults = {
@@ -93,6 +94,7 @@ export default function AdminVideosPageContent() {
     const [selections, setSelections] = useState<Record<string, VideoSelection>>({});
     const [submitting, setSubmitting] = useState(false);
     const [hasNextPage, setHasNextPage] = useState(false);
+    const [totalCount, setTotalCount] = useState(0);
     const [searchContext, setSearchContext] = useState<"form" | "shortcut" | null>(null);
     const [currentSearchKeyword, setCurrentSearchKeyword] = useState<string | null>(null);
     const [searchSelectionDefaults, setSearchSelectionDefaults] = useState<SelectionDefaults | null>(null);
@@ -149,13 +151,16 @@ export default function AdminVideosPageContent() {
     const applySearchResults = useCallback(
         (
             results: AdminVideo[],
-            meta: { hasNext: boolean },
+            meta: { hasNext: boolean; totalCount?: number },
             options?: { defaults?: SelectionDefaults; mode?: "form" | "shortcut" | null },
         ) => {
             setVideos(results);
             setSelections(createInitialSelections(results, options?.defaults));
             setCurrentPage(1);
             setHasNextPage(Boolean(meta.hasNext));
+            if (typeof meta.totalCount === "number") {
+                setTotalCount(meta.totalCount);
+            }
             setSearchContext(options?.mode ?? null);
             if (options?.mode === "form" || options?.mode === "shortcut") {
                 const keyword = searchKeywordRef.current ?? null;
@@ -238,6 +243,7 @@ export default function AdminVideosPageContent() {
                     }),
                 );
                 setHasNextPage(Boolean(data.hasNext));
+                setTotalCount(data.totalCount);
                 setSearchContext(null);
                 setCurrentSearchKeyword(null);
                 setSearchSelectionDefaults(null);
@@ -268,7 +274,7 @@ export default function AdminVideosPageContent() {
     }, [page, videoStatusFilter, loadVideos]);
 
     const handleSearchResults = useCallback(
-        (results: AdminVideo[], meta: { hasNext: boolean }) => {
+        (results: AdminVideo[], meta: { hasNext: boolean; totalCount?: number }) => {
             const statusDefault = resolveStatusValue(videoStatusFilter);
             applySearchResults(results, meta, {
                 defaults: {
@@ -340,7 +346,7 @@ export default function AdminVideosPageContent() {
                 selected: true,
             });
             const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter);
-            return { items: data.videos, hasNext: Boolean(data.hasNext) };
+            return { items: data.videos, hasNext: Boolean(data.hasNext), totalCount: data.totalCount };
         },
         [fetchVideosByKeyword, videoStatusFilter],
     );
@@ -425,9 +431,11 @@ export default function AdminVideosPageContent() {
                 if (filterTitles) {
                     combinedVideos = combinedVideos.filter((video) => filterTitles.test(video.title));
                 }
+
+                // ショートカット検索の場合は正確な総数が不明なため、取得できた件数を表示します。
                 applySearchResults(
                     combinedVideos,
-                    { hasNext: combinedHasNext },
+                    { hasNext: combinedHasNext, totalCount: combinedVideos.length },
                     { defaults, mode: "shortcut" },
                 );
                 setActiveShortcut(shortcut);
@@ -563,6 +571,7 @@ export default function AdminVideosPageContent() {
                     createInitialSelections(data.videos, defaults),
                 );
                 setHasNextPage(Boolean(data.hasNext));
+                setTotalCount(data.totalCount);
                 if (data.videos.length === 0) {
                     toast.info("該当する動画が見つかりませんでした。");
                 }
@@ -706,35 +715,35 @@ export default function AdminVideosPageContent() {
                                 onClick={handlePendingFilterClick}
                                 className={`${styles.filterButton} ${isPendingFilter ? styles.buttonActiveAmber : ""}`}
                             >
-                                未判定
+                                未判定{isPendingFilter && !loading && `(${totalCount.toLocaleString()}件)`}
                             </button>
                             <button
                                 type="button"
                                 onClick={handleAiOkFilterClick}
                                 className={`${styles.filterButton} ${isAiOkFilter ? styles.buttonActiveGreen : ""}`}
                             >
-                                AI-OK
+                                AI-OK{isAiOkFilter && !loading && `(${totalCount.toLocaleString()}件)`}
                             </button>
                             <button
                                 type="button"
                                 onClick={handleAiNgFilterClick}
                                 className={`${styles.filterButton} ${isAiNgFilter ? styles.buttonActiveAmber : ""}`}
                             >
-                                AI-NG
+                                AI-NG{isAiNgFilter && !loading && `(${totalCount.toLocaleString()}件)`}
                             </button>
                             <button
                                 type="button"
                                 onClick={handleOkFilterClick}
                                 className={`${styles.filterButton} ${isOkFilter ? styles.buttonActiveBlue : ""}`}
                             >
-                                OK
+                                OK{isOkFilter && !loading && `(${totalCount.toLocaleString()}件)`}
                             </button>
                             <button
                                 type="button"
                                 onClick={handleNgFilterClick}
                                 className={`${styles.filterButton} ${isNgFilter ? styles.buttonActiveRed : ""}`}
                             >
-                                NG
+                                NG{isNgFilter && !loading && `(${totalCount.toLocaleString()}件)`}
                             </button>
                         </div>
                         {/* よく使う漫才・コント・ネタ検索をドロップダウンで提供し、選択と解除を簡潔にします。 */}
