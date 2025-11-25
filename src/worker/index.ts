@@ -4,6 +4,8 @@ import nextWorker from "../../.open-next/worker";
 import cronChannelSearch from "./cron-channel-search";
 import cronLlmClassify from "./cron-llm-classify";
 
+type ScheduledEventParam = Parameters<ExportedHandlerScheduledHandler>[0];
+
 // OpenNext の fetch を明示的に型付けし、ビルド時の推論抜けを防ぎます。
 const fetchHandler: ExportedHandlerFetchHandler = (request, env, ctx) =>
   nextWorker.fetch(request, env, ctx);
@@ -14,16 +16,22 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
   console.log(`[worker] scheduled event triggered: ${cron}`);
 
   // チャンネル検索: 毎時 0分 -> 0 * * * *
-  // LLM 判定: 30分ごと -> */30 * * * *
+  // LLM 判定: 31分間隔 (Cron 自体は毎分起動し、エポック分単位で 31 の倍数だけ実行)
+  //   ※ 0分トリガーとの衝突頻度を丁寧に下げるため、Worker 内で 31 分周期を算出します。
 
   // cron 文字列で分岐します。
   if (cron === "0 * * * *") {
     if (typeof cronChannelSearch.scheduled === "function") {
       await cronChannelSearch.scheduled(event, env, ctx);
     }
-  } else if (cron === "*/30 * * * *") {
-    if (typeof cronLlmClassify.scheduled === "function") {
-      await cronLlmClassify.scheduled(event, env, ctx);
+  } else if (cron === "* * * * *") {
+    // 毎分トリガーのうち、エポック分が 31 の倍数の場合のみ LLM 判定を丁寧に実行します。
+    if (shouldRunLlmJob(event)) {
+      if (typeof cronLlmClassify.scheduled === "function") {
+        await cronLlmClassify.scheduled(event, env, ctx);
+      }
+    } else {
+      console.log("[worker] LLM 判定は 31 分周期外のためスキップしました。");
     }
   } else {
     // マッチしない場合は念のため両方動かすか、ログを出して終了するか。
@@ -39,3 +47,9 @@ const workerEntrypoint: ExportedHandler = {
 };
 
 export default workerEntrypoint;
+
+function shouldRunLlmJob(event: ScheduledEventParam): boolean {
+  // Cloudflare から渡される scheduledTime(ms) を丁寧に分単位へ変換し、エポック基準で 31 の倍数かを判定します。
+  const epochMinutes = Math.floor(event.scheduledTime / 60_000);
+  return epochMinutes % 31 === 0;
+}

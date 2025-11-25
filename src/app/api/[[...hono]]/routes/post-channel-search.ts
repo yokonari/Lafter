@@ -43,6 +43,8 @@ type SearchItem = {
 
 const SEARCH_BASE_URL = "https://www.googleapis.com/youtube/v3/search";
 const MAX_RESULTS_PER_PAGE = 50;
+const MAX_VIDEOS_TO_SAVE = 300; // API が大量件数を返しても保存・分類処理は300件に丁寧に制限します。
+const MAX_SEARCH_PAGES = 6; // Search API 呼び出し回数も 6 ページまでに抑え、リクエスト総量を丁寧に制御します。
 
 export function registerPostChannelSearch<
   E extends import("hono").Env,
@@ -108,9 +110,11 @@ export function registerPostChannelSearch<
       });
       const videoItems = searchItems.filter((i) => i.idKind === "youtube#video");
       const playlistItems = searchItems.filter((i) => i.idKind === "youtube#playlist");
+      // フルサーチであっても保存対象は 300 件までに抑え、DB/分類処理の負荷を丁寧にコントロールします。
+      const limitedVideoItems = videoItems.slice(0, MAX_VIDEOS_TO_SAVE);
       // 取得件数をこまめに記録し、API 側の挙動を追跡しやすくします。
       console.log(
-        `[channel-search] 取得結果 チャンネル=${channelId} 動画=${videoItems.length}件 再生リスト=${playlistItems.length}件 合計=${searchItems.length}件`,
+        `[channel-search] 取得結果 チャンネル=${channelId} 動画=${videoItems.length}件(保存対象:${limitedVideoItems.length}件) 再生リスト=${playlistItems.length}件 合計=${searchItems.length}件`,
       );
 
       const ensuredChannels = new Set<string>();
@@ -121,13 +125,13 @@ export function registerPostChannelSearch<
         videosInserted: 0,
         playlistsInserted: 0,
         // サーチAPIで取得した動画タイトルをすべて返し、結果の確認をしやすくします。
-        videoTitles: videoItems.map((v) => v.title),
+        videoTitles: limitedVideoItems.map((v) => v.title),
         errors: [] as string[],
       };
 
       // チャンネル名の候補は最初に得られた要素から丁寧に抽出します。
       const channelTitleFallback =
-        videoItems[0]?.channelTitle ||
+        limitedVideoItems[0]?.channelTitle ||
         playlistItems[0]?.channelTitle ||
         channelId;
 
@@ -141,7 +145,7 @@ export function registerPostChannelSearch<
         );
       }
 
-      for (const item of videoItems) {
+      for (const item of limitedVideoItems) {
         if (!item.videoId || !item.channelId) continue;
         const resolvedTitle = item.channelTitle || channelTitleFallback;
         if (shouldSkipChannel(resolvedTitle ?? "")) continue;
@@ -248,9 +252,10 @@ async function searchChannelItems(
   const items: SearchItem[] = [];
   let pageToken: string | undefined;
   let hasMore = true;
+  let pageFetchCount = 0;
 
   // 追加取得が必要な場合に nextPageToken を繰り返し使い回します。
-  while (hasMore) {
+  while (hasMore && pageFetchCount < MAX_SEARCH_PAGES) {
     const url = new URL(SEARCH_BASE_URL);
     url.searchParams.set("part", "snippet");
     url.searchParams.set("type", "video,playlist");
@@ -306,6 +311,8 @@ async function searchChannelItems(
 
     pageToken = options.isFullSearch ? data.nextPageToken : undefined;
     hasMore = Boolean(options.isFullSearch && pageToken);
+    pageFetchCount += 1;
+    // 取得ページ数が上限へ達した場合は options.isFullSearch に関係なく丁寧に打ち切ります。
   }
 
   return items;
