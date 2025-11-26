@@ -222,22 +222,53 @@ $title-font-weight: 400;
   gap: 0.25rem;
 }
 
-.searchHistoryItem {
+.searchHistoryItemWrapper {
+  display: flex;
+  align-items: center;
   width: 100%;
+  border-radius: 0.5rem;
+  transition: background-color 0.2s ease;
+
+  &:hover,
+  &:focus-within {
+    background: var(--user-surface-hover);
+  }
+}
+
+.searchHistoryItem {
+  flex: 1;
   text-align: left;
   padding: 0.5rem 0.75rem;
-  border-radius: 0.5rem;
+  border-radius: 0.5rem 0 0 0.5rem;
   color: var(--user-text);
   border: none;
+  background: transparent;
   transition: background-color 0.2s ease, color 0.2s ease;
   font-size: 0.85rem; // 少し小さめにして履歴一覧をコンパクトに
 
-  &:hover,
   &:focus-visible {
     background: var(--user-surface-hover);
     outline: none;
     cursor: pointer;
   }
+
+  // マウスホバー時の背景色は Wrapper 側で制御するため、ここでは指定しません。
+  &:hover {
+    cursor: pointer;
+  }
+}
+
+.searchHistoryDelete {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--user-text-secondary);
+  cursor: pointer;
+  border-radius: 0 0.5rem 0.5rem 0;
+  transition: color 0.2s ease, background-color 0.2s ease;
 }
 
 .searchHistoryEmpty {
@@ -782,6 +813,11 @@ $title-font-weight: 400;
   width: 20px;
   height: 20px;
   // Lucide のアイコンサイズを統一し、ダイアログの右下ボタン群で上下中央にきちんと収まるよう整えます。
+
+  @media (min-width: 1024px) {
+    width: 24px;
+    height: 24px;
+  }
 }
 
 // 閉じるボタンのみ余白をなくし、アイコン位置をより正確に揃えます。
@@ -927,7 +963,6 @@ $title-font-weight: 400;
   gap: 6px;
   font-size: 0.95rem;
   color: $user-text-secondary;
-  font-weight: 600;
 }
 
 .contactInput,

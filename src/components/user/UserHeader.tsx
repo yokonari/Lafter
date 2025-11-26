@@ -173,23 +173,33 @@ export function UserHeader({
               <X aria-hidden="true" className={styles.searchClearIcon} size={18} />
             </button>
           )}
-          {isHistoryOpen && (
+          {isHistoryOpen && history.length > 0 && (
             <div className={styles.searchHistory} role="listbox">
               <div className={styles.searchHistoryList}>
-                {history.length === 0 ? (
-                  <div className={styles.searchHistoryEmpty}>検索履歴はまだありません。</div>
-                ) : (
-                  history.map((item) => (
+                {history.map((item) => (
+                  <div key={item} className={styles.searchHistoryItemWrapper}>
                     <button
-                      key={item}
                       type="button"
                       className={styles.searchHistoryItem}
                       onClick={() => handleHistorySelect(item)}
                     >
                       {item}
                     </button>
-                  ))
-                )}
+                    <button
+                      type="button"
+                      className={styles.searchHistoryDelete}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const nextHistory = history.filter((h) => h !== item);
+                        persistHistory(nextHistory);
+                        searchInputRef.current?.focus();
+                      }}
+                      aria-label={`${item}を履歴から削除`}
+                    >
+                      <X size={16} aria-hidden="true" />
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}

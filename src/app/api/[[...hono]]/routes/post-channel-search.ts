@@ -492,12 +492,14 @@ async function insertPlaylist(
 function shouldSkipVideo(title: string): boolean {
   const normalized = title.toLowerCase();
   const hasNegative = NEGATIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
-  // NGワードが含まれている場合は、OKワードの有無に関係なく即座に除外します。
+  const hasPositive = POSITIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
+
+  // ポジティブワードが含まれている場合は、NGワードの有無に関係なく除外しません。
+  if (hasPositive) {
+    return false;
+  }
+  // ポジティブワードが含まれておらず、NGワードが含まれている場合は除外します。
   if (hasNegative) {
-    const hasPositive = POSITIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
-    if (hasPositive) {
-      return false;
-    }
     return true;
   }
   return false;
