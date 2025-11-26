@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { desc, eq, and, like, count } from "drizzle-orm";
+import { desc, eq, and, like, count, inArray } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -42,6 +42,10 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     }
     const videoStatus = parsedStatus;
 
+    const rawReportedOnly = c.req.query("reported_only");
+    const reportedOnly = rawReportedOnly === "1";
+    const effectiveVideoStatus = reportedOnly ? 1 : videoStatus;
+
     // PC からのアクセスなら 50 件、それ以外は 10 件を既定値に据えつつ、limit パラメータで上書き可能にします。
     const rawLimit = c.req.query("limit");
     const userAgent = c.req.header("user-agent") ?? null;
@@ -61,7 +65,10 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
 
-    const whereConditions = [eq(videos.status, videoStatus), eq(channels.status, 1)];
+    const whereConditions = [eq(videos.status, effectiveVideoStatus), eq(channels.status, 1)];
+    if (reportedOnly) {
+      whereConditions.push(inArray(videos.reportStatus, [1, 2, 3]));
+    }
     if (keyword) {
       whereConditions.push(like(videos.title, `%${keyword}%`));
     }
@@ -72,6 +79,8 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
         id: videos.id,
         title: videos.title,
         channelName: channels.name,
+        status: videos.status,
+        reportStatus: videos.reportStatus,
       })
       .from(videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
@@ -93,6 +102,8 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       url: `https://www.youtube.com/watch?v=${row.id}`,
       title: row.title,
       channel_name: row.channelName ?? "",
+      status: row.status,
+      report_status: row.reportStatus,
     }));
 
     // 管理画面向けに整形した一覧データを丁寧にお返しいたします。

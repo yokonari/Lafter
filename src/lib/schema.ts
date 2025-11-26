@@ -39,6 +39,8 @@ export const videos = sqliteTable(
       .references(() => channels.id, { onDelete: "cascade", onUpdate: "cascade" }),
     publishedAt: text("published_at"),
     status: integer("status").notNull().default(0),
+    // 報告対応状況を丁寧に保持し、0 = 未処理 を初期値とします。
+    reportStatus: integer("report_status").notNull().default(0),
     lastCheckedAt: text("last_checked_at"),
     createdAt: text("created_at")
       .notNull()

@@ -178,14 +178,15 @@ export function AdminLoginForm() {
                         >
                             {submittingAction === "login" ? "認証中…" : "ログイン"}
                         </button>
-                        <button
+                        {/* 一次的にコメントアウトします。削除しないでください。 */}
+                        {/* <button
                             type="button"
                             className="flex-1 border border-slate-300 text-slate-900 font-medium py-2 rounded transition-colors hover:bg-slate-100 disabled:opacity-60"
                             onClick={handleRegister}
                             disabled={submittingAction !== null}
                         >
                             {submittingAction === "register" ? "登録処理中…" : "登録"}
-                        </button>
+                        </button> */}
                     </div>
                 </form>
                 {message && (

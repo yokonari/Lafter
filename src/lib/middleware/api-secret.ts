@@ -4,7 +4,7 @@ import { verifyApiSecret } from "@/lib/api-secret";
 import type { AdminEnv } from "@/app/api/[[...hono]]/types";
 
 const PUBLIC_GET_PATHS = new Set(["/videos", "/api/videos"]);
-const PUBLIC_POST_PATHS = new Set(["/search-logs", "/api/search-logs"]);
+const PUBLIC_POST_PATHS = new Set(["/search-logs", "/api/search-logs", "/videos/report", "/api/videos/report"]);
 
 // API_SECRET を丁寧に検証し、公開 API 以外への不正アクセスを防ぎます。
 export const apiSecretMiddleware = createMiddleware<AdminEnv>(async (c, next) => {

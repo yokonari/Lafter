@@ -14,6 +14,7 @@ import { ArrowLeft, ArrowRight, PlayCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { VideoDialog } from "@/components/user/VideoDialog";
 import type { VideoItem } from "@/lib/videoService";
+import { REPORT_REASONS } from "@/lib/reportReasons";
 import { AdminTabsLayout } from "../../components/AdminTabsLayout";
 import { SearchForm } from "../../components/SearchForm";
 import { ListFooter } from "../../components/ListFooter";
@@ -25,6 +26,8 @@ export type AdminVideo = {
     url: string;
     title: string;
     channel_name: string;
+    status?: number;
+    report_status?: number;
 };
 
 type AdminVideosResponse = {
@@ -50,6 +53,11 @@ const VIDEO_STATUS_OPTIONS = [
     { value: "2", label: "NG" as const },
 ];
 
+const REPORT_STATUS_LABELS = REPORT_REASONS.reduce<Record<number, string>>((acc, reason) => {
+    acc[reason.status] = reason.label;
+    return acc;
+}, {});
+
 type ShortcutConfig = {
     label: string;
     keywords?: string[];
@@ -74,6 +82,13 @@ type ShortcutKey = keyof typeof SHORTCUT_CONFIG;
 
 const defaultVideoStatus = 3; // 初期表示では AI OK 判定済みの動画を優先して確認できるようにします。
 
+const getReportStatusText = (reportStatus?: number) => {
+    if (typeof reportStatus !== "number" || reportStatus <= 0) {
+        return "報告なし";
+    }
+    return REPORT_STATUS_LABELS[reportStatus] ?? "報告あり";
+};
+
 export default function AdminVideosPageContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -82,10 +97,13 @@ export default function AdminVideosPageContent() {
     const page = Number.isFinite(parsedPage) && parsedPage > 0 ? Math.floor(parsedPage) : 1;
     const videoStatusParam = searchParams.get("video_status");
     const parsedStatusFilter = videoStatusParam ? Number(videoStatusParam) : defaultVideoStatus;
-    const videoStatusFilter =
+    const normalizedVideoStatusFilter =
         Number.isFinite(parsedStatusFilter) && parsedStatusFilter >= 0 && parsedStatusFilter <= 4
             ? Math.floor(parsedStatusFilter)
             : defaultVideoStatus;
+    const reportedOnlyParam = searchParams.get("reported_only");
+    const reportedOnlyFilter = reportedOnlyParam === "1";
+    const videoStatusFilter = reportedOnlyFilter ? 1 : normalizedVideoStatusFilter;
 
     const [loading, setLoading] = useState(true);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -177,7 +195,7 @@ export default function AdminVideosPageContent() {
 
     // API から管理画面用の動画一覧を丁寧に取り出します。
     const loadVideos = useCallback(
-        async (targetPage: number, statusFilter: number) => {
+        async (targetPage: number, statusFilter: number, reportedOnly = reportedOnlyFilter) => {
             setLoading(true);
             setErrorMessage(null);
             try {
@@ -186,6 +204,9 @@ export default function AdminVideosPageContent() {
                     search.set("page", String(targetPage));
                 }
                 search.set("video_status", String(statusFilter));
+                if (reportedOnly) {
+                    search.set("reported_only", "1");
+                }
                 const query = search.toString();
                 const response = await fetch(`/api/admin/videos${query ? `?${query}` : ""}`, {
                     method: "GET",
@@ -266,12 +287,12 @@ export default function AdminVideosPageContent() {
                 setLoading(false);
             }
         },
-        [createInitialSelections],
+        [createInitialSelections, reportedOnlyFilter],
     );
 
     useEffect(() => {
-        loadVideos(page, videoStatusFilter);
-    }, [page, videoStatusFilter, loadVideos]);
+        loadVideos(page, videoStatusFilter, reportedOnlyFilter);
+    }, [page, videoStatusFilter, reportedOnlyFilter, loadVideos]);
 
     const handleSearchResults = useCallback(
         (results: AdminVideo[], meta: { hasNext: boolean; totalCount?: number }) => {
@@ -294,17 +315,21 @@ export default function AdminVideosPageContent() {
         setSearchSelectionDefaults(null);
         setSearchContext(null);
         setActiveShortcut(null);
-        loadVideos(page, videoStatusFilter);
-    }, [loadVideos, page, videoStatusFilter]);
+        loadVideos(page, videoStatusFilter, reportedOnlyFilter);
+    }, [loadVideos, page, reportedOnlyFilter, videoStatusFilter]);
 
     const fetchVideosByKeyword = useCallback(async (
         keyword: string,
         pageNumber = 1,
         statusFilter: number,
+        reportedOnly = reportedOnlyFilter,
     ) => {
         const searchParams = new URLSearchParams();
         searchParams.set("page", String(pageNumber));
         searchParams.set("video_status", String(statusFilter));
+        if (reportedOnly) {
+            searchParams.set("reported_only", "1");
+        }
         const trimmed = keyword.trim();
         if (trimmed) {
             searchParams.set("q", trimmed);
@@ -333,7 +358,7 @@ export default function AdminVideosPageContent() {
             throw new Error("検索結果の形式が正しくありません。");
         }
         return payload as AdminVideosResponse;
-    }, []);
+    }, [reportedOnlyFilter]);
 
     const executeVideoSearch = useCallback(
         async (keyword: string) => {
@@ -345,10 +370,10 @@ export default function AdminVideosPageContent() {
                 videoStatus: statusDefault,
                 selected: true,
             });
-            const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter);
+            const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter, reportedOnlyFilter);
             return { items: data.videos, hasNext: Boolean(data.hasNext), totalCount: data.totalCount };
         },
-        [fetchVideosByKeyword, videoStatusFilter],
+        [fetchVideosByKeyword, reportedOnlyFilter, videoStatusFilter],
     );
 
     const filteredVideos = useMemo(() => videos, [videos]);
@@ -401,7 +426,7 @@ export default function AdminVideosPageContent() {
                 setCurrentSearchKeyword(null);
                 setSearchSelectionDefaults(null);
                 searchKeywordRef.current = null;
-                await loadVideos(1, videoStatusFilter);
+                await loadVideos(1, videoStatusFilter, reportedOnlyFilter);
                 return;
             }
 
@@ -421,7 +446,7 @@ export default function AdminVideosPageContent() {
                 let combinedHasNext = false;
                 const shortcutsToRun = keywords.length > 0 ? keywords : [""];
                 for (const keyword of shortcutsToRun) {
-                    const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter);
+                    const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter, reportedOnlyFilter);
                     for (const video of data.videos) {
                         merged.set(video.id, video);
                     }
@@ -458,6 +483,7 @@ export default function AdminVideosPageContent() {
             searchContext,
             activeShortcut,
             loadVideos,
+            reportedOnlyFilter,
         ],
     );
 
@@ -481,7 +507,7 @@ export default function AdminVideosPageContent() {
                 return;
             }
             toast.success(`自動分類を実行しました (検査 ${result.scanned ?? 0} 件 / 更新 ${result.updated ?? 0} 件)`);
-            await loadVideos(currentPage, videoStatusFilter);
+            await loadVideos(currentPage, videoStatusFilter, reportedOnlyFilter);
         } catch (error) {
             const fallback =
                 error instanceof Error ? error.message : "自動分類の実行中にエラーが発生しました。";
@@ -489,7 +515,7 @@ export default function AdminVideosPageContent() {
         } finally {
             setAutoCategorizing(false);
         }
-    }, [autoCategorizeLimit, currentPage, loadVideos, videoStatusFilter]);
+    }, [autoCategorizeLimit, currentPage, loadVideos, reportedOnlyFilter, videoStatusFilter]);
 
     const handleShortcutSelectChange = useCallback(
         (event: ChangeEvent<HTMLSelectElement>) => {
@@ -501,13 +527,13 @@ export default function AdminVideosPageContent() {
                     setCurrentSearchKeyword(null);
                     setSearchSelectionDefaults(null);
                     searchKeywordRef.current = null;
-                    void loadVideos(1, videoStatusFilter);
+                    void loadVideos(1, videoStatusFilter, reportedOnlyFilter);
                 }
                 return;
             }
             void handleShortcutSearch(value);
         },
-        [handleShortcutSearch, loadVideos, searchContext, videoStatusFilter],
+        [handleShortcutSearch, loadVideos, reportedOnlyFilter, searchContext, videoStatusFilter],
     );
 
     const isPendingFilter = videoStatusFilter === 0;
@@ -544,6 +570,20 @@ export default function AdminVideosPageContent() {
     const handleAiNgFilterClick = () => {
         router.push(isAiNgFilter ? defaultFilterHref : aiNgFilterHref);
     };
+    const handleReportedFilterClick = () => {
+        if (reportedOnlyFilter) {
+            router.push(defaultFilterHref);
+            return;
+        }
+        // 報告フィルター有効時は OK ステータスと報告済みのみを取り出せるようクエリを固定します。
+        const params = new URLSearchParams();
+        params.set("video_status", "1");
+        params.set("reported_only", "1");
+        const query = params.toString();
+        router.push(`/admin/videos${query ? `?${query}` : ""}`);
+    };
+    const isReportedFilter = reportedOnlyFilter;
+    const showStatusBadges = isReportedFilter;
 
     const shortcutSelectValue: "" | ShortcutKey =
         searchContext === "shortcut" && activeShortcut ? activeShortcut : "";
@@ -558,6 +598,7 @@ export default function AdminVideosPageContent() {
                     currentSearchKeyword,
                     targetPage,
                     videoStatusFilter,
+                    reportedOnlyFilter,
                 );
                 setVideos(data.videos);
                 setCurrentPage(typeof data.page === "number" ? data.page : targetPage);
@@ -590,6 +631,7 @@ export default function AdminVideosPageContent() {
             createInitialSelections,
             searchSelectionDefaults,
             videoStatusFilter,
+            reportedOnlyFilter,
         ],
     );
 
@@ -661,7 +703,7 @@ export default function AdminVideosPageContent() {
                 // ショートカット等で検索中の場合は同じ条件で丁寧に再読み込みし、設定を維持します。
                 await loadSearchPage(currentPage);
             } else {
-                await loadVideos(currentPage, videoStatusFilter);
+                await loadVideos(currentPage, videoStatusFilter, reportedOnlyFilter);
             }
         } catch (error) {
             const fallback =
@@ -684,6 +726,9 @@ export default function AdminVideosPageContent() {
         }
         if (videoStatusFilter !== defaultVideoStatus) {
             params.set("video_status", String(videoStatusFilter));
+        }
+        if (reportedOnlyFilter) {
+            params.set("reported_only", "1");
         }
         const query = params.toString();
         router.push(`/admin/videos${query ? `?${query}` : ""}`);
@@ -745,9 +790,18 @@ export default function AdminVideosPageContent() {
                             >
                                 NG{isNgFilter && !loading && `(${totalCount.toLocaleString()}件)`}
                             </button>
+                            {/* 報告有無のフィルターを用意し、報告対応をすぐ抽出できるようにします。 */}
+                            <button
+                                type="button"
+                                onClick={handleReportedFilterClick}
+                                className={`${styles.filterButton} ${isReportedFilter ? styles.buttonActiveAmber : ""}`}
+                            >
+                                報告あり{isReportedFilter && !loading && `(${totalCount.toLocaleString()}件)`}
+                            </button>
                         </div>
                         {/* よく使う漫才・コント・ネタ検索をドロップダウンで提供し、選択と解除を簡潔にします。 */}
-                        <div className="flex flex-wrap items-center gap-2">
+                        {/* 一旦コメントアウトにします。削除しないでください。 */}
+                        {/* <div className="flex flex-wrap items-center gap-2">
                             <label className="sr-only" htmlFor="auto-categorize-limit">
                                 自動分類の対象件数
                             </label>
@@ -791,7 +845,7 @@ export default function AdminVideosPageContent() {
                                     </option>
                                 ))}
                             </select>
-                        </div>
+                        </div> */}
                         {loading ? (
                             <p className={styles.feedbackCard}>読み込み中です…</p>
                         ) : filteredVideos.length === 0 ? (
@@ -804,6 +858,13 @@ export default function AdminVideosPageContent() {
                                         selected: true,
                                         videoStatus: resolveStatusValue(videoStatusFilter),
                                     };
+                                    const reportStatusValue =
+                                        typeof video.report_status === "number" ? video.report_status : 0;
+                                    const reportStatusText = getReportStatusText(reportStatusValue);
+                                    const hasReport = reportStatusValue > 0;
+                                    const reportStatusClass = hasReport
+                                        ? "border-amber-400 text-amber-200"
+                                        : "border-slate-700 text-slate-400";
                                     return (
                                         <article key={video.id} className={styles.videoCard}>
                                             {/* サムネイルを先頭に配置し、視覚情報を最初に確認できるようにします。 */}
@@ -851,6 +912,17 @@ export default function AdminVideosPageContent() {
                                                     </label>
                                                 </div>
                                                 {/* タイトル直下にフォームを置き、視線移動をスムーズにします。 */}
+                                                {showStatusBadges && (
+                                                    // 報告ありフィルター時のみ報告バッジを表示し、対応動画に集中できるようにします。
+                                                    <div className="flex flex-wrap gap-2 text-xs">
+                                                        <span
+                                                            className={`${styles.cardMeta} inline-flex items-center gap-1 rounded-full border px-2 py-1 ${reportStatusClass}`}
+                                                        >
+                                                            <span className="font-semibold">報告</span>
+                                                            {reportStatusText}
+                                                        </span>
+                                                    </div>
+                                                )}
                                                 <div className="space-y-2">
                                                     {/* ラジオボタンで OK/NG を即決できるようにし、クリック数を減らします。 */}
                                                     <fieldset className={styles.radioGroup}>

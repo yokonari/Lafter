@@ -14,7 +14,7 @@ type ReportDialogProps = {
   onSuccess: () => void;
 };
 
-// 報告内容を確認し、Resend 経由で送信するためのシンプルな確認ダイアログです。
+// 報告内容を確認し、バックエンド API へ POST して DB に丁寧に保存させるための確認ダイアログです。
 export function ReportDialog({ open, video, onClose, onSuccess }: ReportDialogProps) {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,10 +29,12 @@ export function ReportDialog({ open, video, onClose, onSuccess }: ReportDialogPr
     }
   }, [open]);
 
-  const reasonLabel = useMemo(
-    () => REPORT_REASONS.find((r) => r.key === selectedReason)?.label ?? "",
+  const selectedReasonInfo = useMemo(
+    () => REPORT_REASONS.find((r) => r.key === selectedReason),
     [selectedReason],
   );
+  const reasonLabel = selectedReasonInfo?.label ?? "";
+  const reasonStatus = selectedReasonInfo?.status ?? 0;
 
   if (!open || !video) {
     return null;
@@ -43,15 +45,17 @@ export function ReportDialog({ open, video, onClose, onSuccess }: ReportDialogPr
     setSending(true);
     setError(null);
     try {
-      const response = await fetch("/api/report", {
+      // バックエンド API (/api/videos/report) へ POST し、報告内容を DB に確実に残します。
+      if (!reasonStatus) {
+        setError("報告種別が選択されていません。再度お試しください。");
+        return;
+      }
+      const response = await fetch("/api/videos/report", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          videoTitle: video.title,
-          videoId: video.id ?? "",
-          channelId: video.channelId ?? "",
-          channelName: video.channelName ?? "",
-          reason: selectedReason,
+          videoId: video.id,
+          report_status: reasonStatus,
         }),
       });
 

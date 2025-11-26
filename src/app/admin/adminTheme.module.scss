@@ -297,8 +297,6 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 
   &:hover,
   &:focus-visible {
-    border-color: var(--admin-accent);
-    color: var(--admin-accent);
     outline: none;
   }
 

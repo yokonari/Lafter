@@ -1,0 +1,1 @@
+ALTER TABLE `videos` ADD `report_status` integer DEFAULT 0 NOT NULL;

@@ -1,6 +1,7 @@
+import { faXTwitter } from "@fortawesome/free-brands-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import Image from "next/image";
 import Link from "next/link";
-import { Twitter } from "lucide-react";
 import styles from "./userTheme.module.scss";
 
 type UserFooterProps = {
@@ -33,7 +34,8 @@ export function UserFooter({ onContactClick }: UserFooterProps) {
             className={styles.footerLink}
             aria-label="@_yokonari"
           >
-            <Twitter size={16} aria-hidden="true" />
+            {/* Font Awesome のブランド向けアイコンから X（旧 Twitter）を選択し、ブランド表現を丁寧に統一します。 */}
+            <FontAwesomeIcon icon={faXTwitter} aria-hidden="true" />
           </a>
         </div>
         <div className={styles.footerBadge}>

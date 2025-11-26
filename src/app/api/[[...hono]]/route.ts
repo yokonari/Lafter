@@ -12,6 +12,7 @@ import { registerPostAdminPlaylistsCheck } from "./routes/post-admin-playlists-c
 import { registerPostChannelSearch } from "./routes/post-channel-search";
 import { registerPostSearchLogs } from "./routes/post-search-logs";
 import { registerPostVideosAutoCategorize } from "./routes/post-videos-auto-categorize";
+import { registerPostVideosReport } from "./routes/post-videos-report";
 import { authMiddleware } from "@/lib/middleware/auth";
 import { apiSecretMiddleware } from "@/lib/middleware/api-secret";
 import type { AdminEnv } from "./types";
@@ -37,6 +38,7 @@ registerPostAdminPlaylistsCheck(app);
 registerPostChannelSearch(app);
 registerPostSearchLogs(app);
 registerPostVideosAutoCategorize(app);
+registerPostVideosReport(app);
 
 export const GET = handle(app);
 export const POST = handle(app);
