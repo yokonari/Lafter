@@ -520,6 +520,10 @@ $title-font-weight: 400;
     transform: translateY(0);
     pointer-events: auto;
   }
+
+  &.atBottom {
+    bottom: 7rem;
+  }
 }
 
 .scrollTopIcon {
@@ -686,7 +690,7 @@ $title-font-weight: 400;
   max-width: 86.4rem; // 管理画面と同じ幅に揃えます。
   width: 100%;
   margin: 0 auto;
-  padding: 1rem; // 上下左右を均等に16pxとし、ヘッダーと同じリズムで整えます。
+  padding: 1.5rem 1.5rem 0 1.5rem;
   display: flex;
   flex-direction: column; // YouTube バッジは常に改行し、リンク列と縦に並べます。
   align-items: center;
