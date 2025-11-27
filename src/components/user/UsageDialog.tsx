@@ -1,6 +1,6 @@
 'use client';
 
-import { Flag, Lightbulb, PlaySquare, Search, X } from "lucide-react";
+import { Flag, Info, Lightbulb, PlaySquare, Search, X } from "lucide-react";
 import { useEffect, useId, useMemo } from "react";
 import styles from "./userTheme.module.scss";
 
@@ -29,7 +29,7 @@ export function UsageDialog({ open, onClose }: UsageDialogProps) {
       icon: <Search size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "ネタ動画を探す",
       description:
-        "キーワード検索で、YouTubeのネタ動画を探せます。",
+        "キーワード検索でYouTubeのネタ動画を探せます。動画下のチャンネル名を押すと、そのチャンネルのネタだけに絞り込むこともできます。",
     },
     {
       icon: <PlaySquare size={24} className={styles.usageIcon} aria-hidden="true" />,
@@ -48,7 +48,13 @@ export function UsageDialog({ open, onClose }: UsageDialogProps) {
       title: "新しい発見",
       description:
         "「最近」や「ランダム」で、普段見ないネタ動画にも出会えます。",
-    }
+    },
+    {
+      icon: <Info size={24} className={styles.usageIcon} aria-hidden="true" />,
+      title: "検索対象について",
+      description:
+        "公式お笑いチャンネル約570件・ネタ動画約1万本（2025-11-28時点）が検索対象です。すべてのネタ動画を網羅しているわけではなく、一部のチャンネル・動画は検索に出てこないことがあります。",
+    },
   ], []);
 
   if (!open) return null;
@@ -68,7 +74,7 @@ export function UsageDialog({ open, onClose }: UsageDialogProps) {
       >
         <div className={styles.contactHeader}>
           <h2 id={titleId} className={styles.contactTitle}>
-            Lafterの使いかた
+            使いかた
           </h2>
           <button
             type="button"
