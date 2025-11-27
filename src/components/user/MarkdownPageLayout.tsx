@@ -1,14 +1,19 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import styles from "./userTheme.module.scss";
+import { ContactDialog } from "./ContactDialog";
 
 interface MarkdownPageLayoutProps {
     markdownContent: string;
 }
 
 export default function MarkdownPageLayout({ markdownContent }: MarkdownPageLayoutProps) {
+    const [isContactOpen, setIsContactOpen] = useState(false);
+
     const markdownComponents = {
         h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
             <h1 className={styles.termsHeading1} {...props} />
@@ -34,9 +39,24 @@ export default function MarkdownPageLayout({ markdownContent }: MarkdownPageLayo
         strong: (props: React.HTMLAttributes<HTMLElement>) => (
             <strong className={styles.termsStrong} {...props} />
         ),
-        a: (props: React.HTMLAttributes<HTMLAnchorElement>) => (
-            <a className={styles.termsLink} {...props} />
-        ),
+        a: (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
+            if (props.href === "#contact") {
+                return (
+                    <button
+                        type="button"
+                        className={styles.termsLink}
+                        onClick={(e) => {
+                            e.preventDefault();
+                            setIsContactOpen(true);
+                        }}
+                        style={{ background: "none", border: "none", padding: 0, font: "inherit", cursor: "pointer", textDecoration: "underline" }}
+                    >
+                        {props.children}
+                    </button>
+                );
+            }
+            return <a className={styles.termsLink} {...props} />;
+        },
     };
 
     return (
@@ -54,6 +74,7 @@ export default function MarkdownPageLayout({ markdownContent }: MarkdownPageLayo
                     </div>
                 </div>
             </div>
+            <ContactDialog open={isContactOpen} onClose={() => setIsContactOpen(false)} />
         </main>
     );
 }

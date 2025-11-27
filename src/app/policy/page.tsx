@@ -3,8 +3,8 @@ import MarkdownPageLayout from "../../components/user/MarkdownPageLayout";
 export const runtime = "nodejs";
 
 export default async function PolicyPage() {
-  // 外部読み込みを避け、ビルドに同梱したMarkdown本文を直接埋め込みます。
-  const policyMarkdown = `# Lafter プライバシーポリシー
+   // 外部読み込みを避け、ビルドに同梱したMarkdown本文を直接埋め込みます。
+   const policyMarkdown = `# Lafter プライバシーポリシー
 
 Lafter（以下「本サービス」といいます。）は、本サービスにおけるユーザー情報の取扱いについて、以下のとおりプライバシーポリシー（以下「本ポリシー」といいます。）を定めます。本サービスを利用することにより、ユーザーは本ポリシーに同意したものとみなされます。
 
@@ -14,7 +14,7 @@ Lafter（以下「本サービス」といいます。）は、本サービス�
 
 - サービス名：Lafter
 - 運営者：よこなり
-- お問い合わせ窓口：
+- 連絡先：[お問い合わせフォーム](#contact)
 
 ## 第2条（取得する情報）
 
@@ -85,5 +85,5 @@ Lafter（以下「本サービス」といいます。）は、本サービス�
 1. 本ポリシーの内容は、法令の改正やサービス内容の変更等に応じて、運営者の判断により変更されることがあります。
 2. 本ポリシーの変更は、本サービス上に掲載した時点から効力を生じるものとします。`;
 
-  return <MarkdownPageLayout markdownContent={policyMarkdown} />;
+   return <MarkdownPageLayout markdownContent={policyMarkdown} />;
 }
