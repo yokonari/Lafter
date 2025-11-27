@@ -1,5 +1,5 @@
 import { ArrowLeft } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { fetchVideoItems, type VideoItem, type PlaylistItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
 import { PlaylistCard } from "./PlaylistCard";
@@ -100,7 +100,7 @@ export function SearchResults({
     };
   }, [query, channelId, mode]);
 
-  const handleLoadMore = async () => {
+  const handleLoadMore = useCallback(async () => {
     if (loadingMore) return;
     // ページング用に続きの動画を丁寧に追加します。
     setLoadingMore(true);
@@ -129,7 +129,29 @@ export function SearchResults({
     } finally {
       setLoadingMore(false);
     }
-  };
+  }, [loadingMore, query, channelId, mode, nextOffset]);
+
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = observerTarget.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          handleLoadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(element);
+
+    return () => {
+      observer.unobserve(element);
+    };
+  }, [hasMore, loadingMore, loading, handleLoadMore]);
 
   const buildTitle = () => {
     if (mode === "new") return "最近";
@@ -203,15 +225,12 @@ export function SearchResults({
       )}
 
       {hasMore && (
-        <div className={styles.loadMoreWrap}>
-          <button
-            type="button"
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className={styles.searchLoadMoreButton}
-          >
-            もっと見る
-          </button>
+        <div ref={observerTarget} className={styles.loadMoreWrap}>
+          {loadingMore && (
+            <div className="flex justify-center py-4" aria-label="追加読み込み中" aria-live="polite">
+              <div className="animate-spin h-8 w-8 rounded-xl bg-[var(--user-accent)]" />
+            </div>
+          )}
         </div>
       )}
     </div>
