@@ -3,6 +3,7 @@
 import nextWorker from "../../.open-next/worker";
 import cronChannelSearch from "./cron-channel-search";
 import cronLlmClassify from "./cron-llm-classify";
+import cronVideoCheck from "./cron-video-check";
 
 type ScheduledEventParam = Parameters<ExportedHandlerScheduledHandler>[0];
 
@@ -25,13 +26,23 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
       await cronChannelSearch.scheduled(event, env, ctx);
     }
   } else if (cron === "* * * * *") {
+    const runLlm = shouldRunLlmJob(event);
+    const runVideoCheck = shouldRunVideoCheckJob(event);
     // 毎分トリガーのうち、エポック分が 31 の倍数の場合のみ LLM 判定を丁寧に実行します。
-    if (shouldRunLlmJob(event)) {
+    if (runLlm) {
       if (typeof cronLlmClassify.scheduled === "function") {
         await cronLlmClassify.scheduled(event, env, ctx);
       }
     } else {
       console.log("[worker] LLM 判定は 31 分周期外のためスキップしました。");
+    }
+    // 動画存在チェックは 1 日 10 回 (=144分間隔) で実行し、API クォータを丁寧に保護します。
+    if (runVideoCheck) {
+      if (typeof cronVideoCheck.scheduled === "function") {
+        await cronVideoCheck.scheduled(event, env, ctx);
+      }
+    } else {
+      console.log("[worker] 動画存在チェックは 144 分周期外のためスキップしました。");
     }
   } else {
     // マッチしない場合は念のため両方動かすか、ログを出して終了するか。
@@ -52,4 +63,10 @@ function shouldRunLlmJob(event: ScheduledEventParam): boolean {
   // Cloudflare から渡される scheduledTime(ms) を丁寧に分単位へ変換し、エポック基準で 31 の倍数かを判定します。
   const epochMinutes = Math.floor(event.scheduledTime / 60_000);
   return epochMinutes % 31 === 0;
+}
+
+function shouldRunVideoCheckJob(event: ScheduledEventParam): boolean {
+  // 1 日 10 回に抑えるため、144 分ごと (24h / 10) に動画チェックを実行します。
+  const epochMinutes = Math.floor(event.scheduledTime / 60_000);
+  return epochMinutes % 144 === 0;
 }
