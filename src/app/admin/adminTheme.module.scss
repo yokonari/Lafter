@@ -630,3 +630,137 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
     background-color: var(--admin-surface-disabled);
   }
 }
+
+/* ------- ログイン画面 ------- */
+.loginBody {
+  width: 100%;
+  min-height: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  background: radial-gradient(circle at top, rgba(15, 23, 42, 0.45), transparent 65%); // 背景をわずかに照らし、他画面との一体感を丁寧に演出します。
+
+  @media (min-width: 640px) {
+    padding: 3rem 1.5rem;
+  }
+}
+
+.loginShell {
+  width: min(100%, 26rem);
+  border-radius: 1.25rem;
+  border: 1px solid var(--admin-border);
+  background: linear-gradient(145deg, var(--admin-surface), var(--admin-surface-alt));
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55); // 管理画面のカード感覚を丁寧に再現し、浮遊感を持たせます。
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  color: var(--admin-text);
+
+  @media (min-width: 640px) {
+    padding: 2.5rem;
+  }
+}
+
+.loginHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.loginTitle {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--admin-text-light);
+}
+
+.loginSubtitle {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--admin-text-muted);
+}
+
+.loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.loginField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.loginLabel {
+  font-size: 0.875rem;
+  color: var(--admin-text-light); // 管理カードと同じ控えめなテキスト色で統一感を保ちます。
+}
+
+.loginInput {
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  font-size: 0.95rem;
+  @include focusable-input;
+
+  &:disabled {
+    background-color: var(--admin-surface-disabled);
+    color: var(--admin-disabled); // 入力不可時もアクセントに頼らず落ち着いた色味で示します。
+    cursor: not-allowed;
+  }
+
+  &::placeholder {
+    color: var(--admin-text-muted);
+  }
+}
+
+.loginActions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.loginSubmit {
+  @include primary-button;
+  width: 100%;
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  // プライマリーボタンの丸みとグラデーションをそのまま適用し、メイン操作の連続性を保ちます。
+}
+
+.loginSecondaryButton {
+  border-radius: 9999px;
+  border: 1px solid var(--admin-border);
+  background: transparent;
+  color: var(--admin-text-light);
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+
+  &:hover {
+    color: var(--admin-accent);
+    border-color: var(--admin-accent);
+    background-color: rgba(251, 191, 36, 0.08);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+.loginMessage {
+  margin: 0;
+  border-radius: 0.75rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-muted);
+  color: var(--admin-text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 0.75rem 1rem;
+  // 成功・失敗に関わらず読みやすい中立色で、認証ステータスを丁寧に伝えます。
+}

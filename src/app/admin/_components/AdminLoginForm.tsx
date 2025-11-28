@@ -3,6 +3,7 @@
 import { FormEvent, useMemo, useState } from "react";
 import { createAuthClient } from "better-auth/react";
 import type { ClientOptions } from "better-auth/types";
+import styles from "../adminTheme.module.scss";
 
 export function AdminLoginForm() {
     const [email, setEmail] = useState("");
@@ -74,8 +75,8 @@ export function AdminLoginForm() {
                         window.location.href = responseData.url;
                         return;
                     }
-                    // 認証完了後は丁寧にチャンネル一覧ページへご案内し、管理作業へ素早く移れるようにいたします。
-                    window.location.href = "/admin/channels";
+                    // 認証完了後は丁寧に動画管理ページへお連れし、作業開始までの導線を最短化いたします。
+                    window.location.href = "/admin/videos";
                 }, 1000);
             }
         } catch (error) {
@@ -128,70 +129,70 @@ export function AdminLoginForm() {
     };
 
     return (
-        <main className="min-h-screen flex flex-col items-center justify-center bg-slate-100 p-6">
-            <section className="bg-white shadow-md rounded-lg w-full max-w-md p-6">
-                <h1 className="text-2xl font-semibold text-center mb-2">管理画面</h1>
-                <p className="text-sm text-center text-slate-500 mb-4">
-                    メールアドレスとパスワードでログインしてください。
-                </p>
-                <form className="space-y-4" onSubmit={handleSignIn}>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-sm font-medium text-slate-600" htmlFor="email">
-                            メールアドレス
-                        </label>
-                        <input
-                            id="email"
-                            type="email"
-                            value={email}
-                            onChange={(event) => setEmail(event.target.value)}
-                            className="w-full border border-slate-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
-                            placeholder="admin@example.com"
-                            required
-                            autoComplete="email"
-                            disabled={submittingAction !== null}
-                        />
+        // 管理画面のテーマに沿ったレイアウトで包み、他セクションとの一体感を丁寧に持たせます。
+        <main className={styles.adminLayout}>
+            <section className={styles.loginBody}>
+                <div className={styles.loginShell}>
+                    <div className={styles.loginHeader}>
+                        <h1 className={styles.loginTitle}>管理画面</h1>
+                        <p className={styles.loginSubtitle}>
+                            メールアドレスとパスワードでログインしてください。
+                        </p>
                     </div>
-                    <div className="flex flex-col gap-1">
-                        <label
-                            className="text-sm font-medium text-slate-600"
-                            htmlFor="password"
-                        >
-                            パスワード
-                        </label>
-                        <input
-                            id="password"
-                            type="password"
-                            value={password}
-                            onChange={(event) => setPassword(event.target.value)}
-                            className="w-full border border-slate-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-400"
-                            placeholder="********"
-                            required
-                            autoComplete="current-password"
-                            disabled={submittingAction !== null}
-                        />
-                    </div>
-                    <div className="flex gap-3">
-                        <button
-                            type="submit"
-                            className="flex-1 bg-slate-900 hover:bg-slate-950 text-white font-medium py-2 rounded transition-colors disabled:opacity-60"
-                            disabled={submittingAction !== null}
-                        >
-                            {submittingAction === "login" ? "認証中…" : "ログイン"}
-                        </button>
-                        {/* 一次的にコメントアウトします。削除しないでください。 */}
-                        {/* <button
-                            type="button"
-                            className="flex-1 border border-slate-300 text-slate-900 font-medium py-2 rounded transition-colors hover:bg-slate-100 disabled:opacity-60"
-                            onClick={handleRegister}
-                            disabled={submittingAction !== null}
-                        >
-                            {submittingAction === "register" ? "登録処理中…" : "登録"}
-                        </button> */}
-                    </div>
-                </form>
-                {message && (
-                    <p className="mt-4 text-center text-sm text-slate-600">{message}</p>
-                )}
+                    <form className={styles.loginForm} onSubmit={handleSignIn}>
+                        <div className={styles.loginField}>
+                            <label className={styles.loginLabel} htmlFor="email">
+                                メールアドレス
+                            </label>
+                            <input
+                                id="email"
+                                type="email"
+                                value={email}
+                                onChange={(event) => setEmail(event.target.value)}
+                                className={styles.loginInput}
+                                placeholder="admin@example.com"
+                                required
+                                autoComplete="email"
+                                disabled={submittingAction !== null}
+                            />
+                        </div>
+                        <div className={styles.loginField}>
+                            <label className={styles.loginLabel} htmlFor="password">
+                                パスワード
+                            </label>
+                            <input
+                                id="password"
+                                type="password"
+                                value={password}
+                                onChange={(event) => setPassword(event.target.value)}
+                                className={styles.loginInput}
+                                placeholder="********"
+                                required
+                                autoComplete="current-password"
+                                disabled={submittingAction !== null}
+                            />
+                        </div>
+                        <div className={styles.loginActions}>
+                            <button
+                                type="submit"
+                                className={styles.loginSubmit}
+                                disabled={submittingAction !== null}
+                            >
+                                {submittingAction === "login" ? "認証中…" : "ログイン"}
+                            </button>
+                            {/* 一次的にコメントアウトします。削除しないでください。 */}
+                            {/* <button
+                                type="button"
+                                className={styles.loginSecondaryButton}
+                                onClick={handleRegister}
+                                disabled={submittingAction !== null}
+                            >
+                                {submittingAction === "register" ? "登録処理中…" : "登録"}
+                            </button> */}
+                        </div>
+                    </form>
+                    {message && <p className={styles.loginMessage}>{message}</p>}
+                </div>
             </section>
         </main>
     );

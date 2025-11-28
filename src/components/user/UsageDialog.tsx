@@ -29,7 +29,7 @@ export function UsageDialog({ open, onClose }: UsageDialogProps) {
       icon: <Search size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "ネタ動画を探す",
       description:
-        "キーワード検索でYouTubeのネタ動画を探せます。動画下のチャンネル名を押すと、そのチャンネルのネタだけに絞り込むこともできます。",
+        "キーワード検索でネタ動画を探せます。チャンネル名から絞り込みもできます。",
     },
     {
       icon: <PlaySquare size={24} className={styles.usageIcon} aria-hidden="true" />,
@@ -41,19 +41,19 @@ export function UsageDialog({ open, onClose }: UsageDialogProps) {
       icon: <Flag size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "報告する",
       description:
-        "ネタ以外・非公式の動画などを見つけたら、プレイヤー内の旗アイコンから報告できます。",
+        "ネタ以外・非公式の動画は旗アイコンから報告できます。",
     },
     {
       icon: <Lightbulb size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "新しい発見",
       description:
-        "「最近」や「ランダム」で、普段見ないネタ動画にも出会えます。",
+        "「最近」「ランダム」で、普段見ないネタにも出会えます。",
     },
     {
       icon: <Info size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "検索対象について",
       description:
-        "公式お笑いチャンネル約570件・ネタ動画約1万本（2025-11-28時点）が検索対象です。すべてのネタ動画を網羅しているわけではなく、一部のチャンネル・動画は検索に出てこないことがあります。",
+        "約570チャンネル・約1万本が対象です。すべてのネタ動画を網羅しているわけではありません。",
     },
   ], []);
 

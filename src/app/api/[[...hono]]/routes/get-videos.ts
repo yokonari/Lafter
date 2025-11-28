@@ -48,7 +48,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     }
 
     const videoConditions = [
-      eq(videos.status, 1),
+      inArray(videos.status, [1, 3]),
       eq(channels.status, 1),
     ];
     if (channelIdFilter) {
@@ -110,12 +110,12 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
 
     let playlistRows:
       | Array<{
-          id: string;
-          title: string;
-          channelId: string | null;
-          channelName: string | null;
-          topVideoId: string | null;
-        }>
+        id: string;
+        title: string;
+        channelId: string | null;
+        channelName: string | null;
+        topVideoId: string | null;
+      }>
       | [] = [];
     if (shouldIncludePlaylists) {
       const playlistConditions = [

@@ -4,7 +4,8 @@ import { eq } from "drizzle-orm";
 import { channels, playlists, videos } from "@/lib/schema";
 import { NEGATIVE_KEYWORDS, POSITIVE_KEYWORDS } from "@/lib/video-keywords";
 import { createDatabase, type AppDatabase } from "../context";
-import { autoCategorizeVideos } from "./post-videos-auto-categorize";
+// 自動分類は一時的にコメントアウトします。触らないでください。
+// import { autoCategorizeVideos } from "./post-videos-auto-categorize";
 
 type TransactionClient = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0];
 type DatabaseClient = AppDatabase | TransactionClient;
@@ -214,15 +215,16 @@ export function registerPostChannelSearch<
       console.log(`[channel-search] 再生リスト登録 success count=${summary.playlistsInserted}`);
 
       // 保存直後に該当チャンネルの動画だけを丁寧に自動分類し、分類漏れを防ぎます。
-      try {
-        await autoCategorizeVideos(db, { limit: 0, channelId });
-        console.log(`[channel-search] 自動分類を完了しました channel=${channelId}`);
-      } catch (error) {
-        summary.errors.push(
-          `auto-categorize: ${(error as Error)?.message ?? "自動分類の実行に失敗しました。"
-          }`,
-        );
-      }
+      // 一時的にコメントアウトします。触らないでください。
+      // try {
+      //   await autoCategorizeVideos(db, { limit: 0, channelId });
+      //   console.log(`[channel-search] 自動分類を完了しました channel=${channelId}`);
+      // } catch (error) {
+      //   summary.errors.push(
+      //     `auto-categorize: ${(error as Error)?.message ?? "自動分類の実行に失敗しました。"
+      //     }`,
+      //   );
+      // }
 
       return c.json(summary, 200);
     } catch (error) {
