@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { NEGATIVE_KEYWORDS, POSITIVE_KEYWORDS } from "@/lib/video-keywords";
 import { createDatabase, type AppDatabase } from "../context";
@@ -75,6 +75,7 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
         const entries = parsed.entries.slice(0, MAX_ITEMS_PER_CHANNEL);
         summary.itemsFetched += entries.length;
 
+        // RSS エントリを動画テーブルへ登録する際に必要な情報を整形し、不要な項目を丁寧に除外します。
         const insertable = entries
           .filter((entry) => entry.videoId && entry.title)
           .filter((entry) => !shouldSkipVideo(entry.title))
@@ -90,13 +91,19 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
 
         let inserted = 0;
         if (insertable.length > 0) {
-          const result = await db
-            .insert(videos)
-            .values(insertable)
-            .onConflictDoNothing({ target: videos.id })
-            .returning({ id: videos.id });
-          inserted = result.length;
-          summary.itemsInserted += inserted;
+          // D1 では RETURNING 付き INSERT が失敗しうるため、事前に既存IDを丁寧に確認して新規動画のみ抽出します。
+          const existingRows = await db
+            .select({ id: videos.id })
+            .from(videos)
+            .where(inArray(videos.id, insertable.map((row) => row.id)));
+          const existingIds = new Set(existingRows.map((row) => row.id));
+          const newEntries = insertable.filter((row) => !existingIds.has(row.id));
+
+          if (newEntries.length > 0) {
+            await db.insert(videos).values(newEntries).onConflictDoNothing({ target: videos.id });
+            inserted = newEntries.length;
+            summary.itemsInserted += inserted;
+          }
         }
 
         const channelUpdate: Partial<typeof channels.$inferInsert> = {};
