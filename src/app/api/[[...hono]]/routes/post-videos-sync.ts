@@ -600,6 +600,8 @@ async function insertVideo(
     channelId: input.channelId,
     publishedAt: input.publishedAt ?? null,
     status: 0,
+    // report_status を 0 指定で丁寧に初期化し、追加カラムの必須制約へ確実に対応します。
+    reportStatus: 0,
     lastCheckedAt: new Date().toISOString(),
   });
 }

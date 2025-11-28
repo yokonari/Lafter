@@ -449,6 +449,8 @@ async function insertVideo(
     channelId: input.channelId,
     publishedAt: input.publishedAt ?? null,
     status: 0,
+    // report_status カラムも確実に 0 へ初期化し、NOT NULL 制約違反を丁寧に防ぎます。
+    reportStatus: 0,
     lastCheckedAt: new Date().toISOString(),
   });
 }
