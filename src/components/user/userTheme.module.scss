@@ -630,7 +630,7 @@ $title-font-weight: 400;
 .cardTitle {
   color: var(--user-text);
   // 画面幅に応じてタイトル文字サイズを丁寧に伸縮させ、PCではわずかに大きく表示します。
-  font-size: clamp(0.7rem, 0.7rem + 0.25vw, 0.8rem);
+  font-size: clamp(0.7rem, 0.7rem + 0.25vw, 0.9rem);
   font-weight: $title-font-weight;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -647,7 +647,7 @@ $title-font-weight: 400;
 
 .cardChannel {
   color: var(--user-link); // チャンネル名などのテキストリンクはon-surface系の柔らかなリンク色で示します。
-  font-size: clamp(0.6rem, 0.6rem + 0.25vw, 0.7rem);
+  font-size: clamp(0.6rem, 0.6rem + 0.25vw, 0.8rem);
   text-decoration: none;
   cursor: pointer;
   display: inline-block;

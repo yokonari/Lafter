@@ -4,6 +4,7 @@ import nextWorker from "../../.open-next/worker";
 import cronChannelSearch from "./cron-channel-search";
 import cronLlmClassify from "./cron-llm-classify";
 import cronVideoCheck from "./cron-video-check";
+import cronVideoRss from "./cron-video-rss";
 
 type ScheduledEventParam = Parameters<ExportedHandlerScheduledHandler>[0];
 
@@ -28,6 +29,7 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
   } else if (cron === "* * * * *") {
     const runLlm = shouldRunLlmJob(event);
     const runVideoCheck = shouldRunVideoCheckJob(event);
+    const runVideoRss = shouldRunVideoRssJob(event);
     // 毎分トリガーのうち、エポック分が 31 の倍数の場合のみ LLM 判定を丁寧に実行します。
     if (runLlm) {
       if (typeof cronLlmClassify.scheduled === "function") {
@@ -43,6 +45,14 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
       }
     } else {
       console.log("[worker] 動画存在チェックは 144 分周期外のためスキップしました。");
+    }
+    // RSS 同期は毎時 10 分周期で動かし、24 時間以内に各チャンネルを丁寧に巡回します。
+    if (runVideoRss) {
+      if (typeof cronVideoRss.scheduled === "function") {
+        await cronVideoRss.scheduled(event, env, ctx);
+      }
+    } else {
+      console.log("[worker] RSS 同期は 60 分周期外のためスキップしました。");
     }
   } else {
     // マッチしない場合は念のため両方動かすか、ログを出して終了するか。
@@ -69,4 +79,10 @@ function shouldRunVideoCheckJob(event: ScheduledEventParam): boolean {
   // 1 日 10 回に抑えるため、144 分ごと (24h / 10) に動画チェックを実行します。
   const epochMinutes = Math.floor(event.scheduledTime / 60_000);
   return epochMinutes % 144 === 0;
+}
+
+function shouldRunVideoRssJob(event: ScheduledEventParam): boolean {
+  // RSS 取得は毎時 10 分のタイミング (=60分毎) で動かし、1 日 540 チャンネルを確実に巡回します。
+  const epochMinutes = Math.floor(event.scheduledTime / 60_000);
+  return epochMinutes % 60 === 10;
 }
