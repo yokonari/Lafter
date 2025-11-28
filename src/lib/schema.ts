@@ -23,6 +23,11 @@ export const channels = sqliteTable(
   },
   (table) => ({
     idxChannelsStatus: index("idx_channels_status").on(table.status),
+    // ステータスでの全件集計後に id を参照するケースも多いため、status, id の複合インデックスを丁寧に追加します。
+    idxChannelsStatusId: index("idx_channels_status_id").on(table.status, table.id),
+    // lastCheckedAt による並び替えや抽出が頻繁なため、status, lastCheckedAt, createdAt をまとめたインデックスも追加します。
+    idxChannelsStatusLastCheckedAtCreatedAt: index("idx_channels_status_last_checked_created")
+      .on(table.status, table.lastCheckedAt, table.createdAt),
   }),
 );
 
@@ -50,6 +55,10 @@ export const videos = sqliteTable(
     idxVideosStatusCreatedAt: index("idx_videos_status_created_at").on(table.status, table.createdAt),
     idxVideosChannelStatus: index("idx_videos_channel_status").on(table.channelId, table.status),
     idxVideosStatusPublishedAt: index("idx_videos_status_published_at").on(table.status, table.publishedAt),
+    // ステータス絞り込みのみを想定したクエリで活用できるよう、status 単独インデックスを丁寧に追加します。
+    idxVideosStatus: index("idx_videos_status").on(table.status),
+    // status → channelId の順で参照する JOIN 集計にも対応するための複合インデックスです。
+    idxVideosStatusChannel: index("idx_videos_status_channel").on(table.status, table.channelId),
   }),
 );
 

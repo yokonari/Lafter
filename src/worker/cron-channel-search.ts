@@ -189,6 +189,7 @@ async function fetchPendingChannels(env: CronEnv, limit: number): Promise<Channe
   }
   try {
     // lastCheckedAt が 24 時間以上前または未設定のチャンネルのみを丁寧に抽出します。
+    // ORDER BY は last_checked_at, created_at の順に抑え、追加した複合インデックスを素直に活用して処理を軽くします。
     const rows = await db
       .prepare(
         `
@@ -200,7 +201,6 @@ async function fetchPendingChannels(env: CronEnv, limit: number): Promise<Channe
             OR last_checked_at <= datetime('now', '-1 day')
           )
         ORDER BY
-          last_checked_at IS NOT NULL,
           last_checked_at ASC,
           created_at ASC
         LIMIT ?
@@ -248,5 +248,3 @@ async function getLatestPublishedAt(env: CronEnv, channelId: string): Promise<st
     return undefined;
   }
 }
-
-
