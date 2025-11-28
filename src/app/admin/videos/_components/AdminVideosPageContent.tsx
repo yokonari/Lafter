@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import {
-    Suspense,
     useCallback,
     useEffect,
     useMemo,
@@ -10,7 +9,7 @@ import {
     useState,
     type ChangeEvent,
 } from "react";
-import { ArrowLeft, ArrowRight, PlayCircle } from "lucide-react";
+import { PlayCircle } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { VideoDialog } from "@/components/user/VideoDialog";
 import type { VideoItem } from "@/lib/videoService";
@@ -117,8 +116,13 @@ export default function AdminVideosPageContent() {
     const [currentSearchKeyword, setCurrentSearchKeyword] = useState<string | null>(null);
     const [searchSelectionDefaults, setSearchSelectionDefaults] = useState<SelectionDefaults | null>(null);
     const searchKeywordRef = useRef<string | null>(null);
+    // ショートカット検索 UI は一時停止中ですが、再開を見据えて状態を保持するため lint を抑制します。
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [activeShortcut, setActiveShortcut] = useState<ShortcutKey | null>(null);
+    // 自動分類機能も現在はコメントアウト中のため、状態だけ定義して lint を抑止します。
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [autoCategorizing, setAutoCategorizing] = useState(false);
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [autoCategorizeLimit, setAutoCategorizeLimit] = useState(500);
     const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
     const resolveStatusValue = (value?: number | string | null) => {
@@ -387,9 +391,6 @@ export default function AdminVideosPageContent() {
         [filteredVideos, selections],
     );
 
-    const areAllVisibleSelected =
-        filteredVideos.length > 0 && selectedCount === filteredVideos.length;
-
     const hasPrev = currentPage > 1;
     const effectiveHasPrev = searchContext ? currentPage > 1 : hasPrev;
     const effectiveHasNext = hasNextPage;
@@ -487,6 +488,8 @@ export default function AdminVideosPageContent() {
         ],
     );
 
+    // 自動分類エンドポイント呼び出しも現状は UI から到達しないため、警告を回避しつつ実装を保持します。
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const runAutoCategorization = useCallback(async () => {
         setAutoCategorizing(true);
         try {
@@ -517,6 +520,8 @@ export default function AdminVideosPageContent() {
         }
     }, [autoCategorizeLimit, currentPage, loadVideos, reportedOnlyFilter, videoStatusFilter]);
 
+    // ショートカット選択 UI は非表示のため、ハンドラーは再開時まで温存します。
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const handleShortcutSelectChange = useCallback(
         (event: ChangeEvent<HTMLSelectElement>) => {
             const value = event.target.value as "" | ShortcutKey;
@@ -585,6 +590,8 @@ export default function AdminVideosPageContent() {
     const isReportedFilter = reportedOnlyFilter;
     const showStatusBadges = isReportedFilter;
 
+    // ドロップダウン非表示のため、一時的に未使用となる値も lint を抑制して残します。
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const shortcutSelectValue: "" | ShortcutKey =
         searchContext === "shortcut" && activeShortcut ? activeShortcut : "";
 

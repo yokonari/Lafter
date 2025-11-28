@@ -10,21 +10,23 @@ export const metadata: Metadata = {
 // 認証セッションの有無を Cloudflare 実行環境を経由して丁寧に確認します。
 async function hasValidAdminSession() {
   try {
-    const headerList = headers();
+    const headerList = await headers();
     const protocol =
-      headerList.get("x-forwarded-proto") ??
-      headerList.get("x-forwarded-protocol") ??
-      "http";
+      headerList.get("x-forwarded-proto") ?? headerList.get("x-forwarded-protocol") ?? "http";
     const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
     if (!host) {
       return false;
     }
     const cookieHeader = headerList.get("cookie");
+    const authorizationHeader = headerList.get("authorization");
+    const userAgentHeader = headerList.get("user-agent");
     const url = new URL("/api/auth/session", `${protocol}://${host}`);
     const response = await fetch(url.toString(), {
       cache: "no-store",
       headers: {
         ...(cookieHeader ? { cookie: cookieHeader } : {}),
+        ...(authorizationHeader ? { authorization: authorizationHeader } : {}),
+        ...(userAgentHeader ? { "user-agent": userAgentHeader } : {}),
       },
     });
     if (!response.ok) {

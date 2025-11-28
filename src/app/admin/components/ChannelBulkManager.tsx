@@ -1,10 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight } from "lucide-react";
 import { ListFooter } from "./ListFooter";
 import { toast } from "react-toastify";
 import styles from "../adminTheme.module.scss";

@@ -1,9 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ArrowRight } from "lucide-react";
 import { AdminTabsLayout } from "../../components/AdminTabsLayout";
 import { ListFooter } from "../../components/ListFooter";
 import { toast } from "react-toastify";

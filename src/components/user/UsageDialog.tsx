@@ -53,7 +53,7 @@ export function UsageDialog({ open, onClose }: UsageDialogProps) {
       icon: <Info size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "検索対象について",
       description:
-        "約570チャンネル・約1万本が対象です。すべてのネタ動画を網羅しているわけではありません。",
+        "約570チャンネル・約1万本をAI判定＋人力チェックで掲載しています（一部のネタ漏れや誤判定があります）。",
     },
   ], []);
 

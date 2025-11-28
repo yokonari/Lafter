@@ -90,6 +90,8 @@ export function AdminLoginForm() {
     };
 
     // 新規管理者登録の手続きを丁寧に実行します。
+    // 現状は UI から登録ボタンを取り下げているため、lint 警告を抑止して将来の再開に備えます。
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const handleRegister = async () => {
         setMessage(null);
         setSubmittingAction("register");
