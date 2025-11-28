@@ -109,8 +109,11 @@ export function registerPostVideosCheck(app: Hono<AdminEnv>) {
     let deletedCount = 0;
     if (missingIds.length > 0) {
       if (deleteMissing) {
-        // YouTube 側で削除されている動画はDBからも削除し、利用者に表示されないよう迅速に整理します。
-        await db.delete(videos).where(inArray(videos.id, missingIds));
+        // YouTube 側で削除されている動画は status=2, reportStatus=3 に丁寧に更新し、管理者報告待ちとして安全に退避します。
+        await db
+          .update(videos)
+          .set({ lastCheckedAt: now, status: 2, reportStatus: 3 })
+          .where(inArray(videos.id, missingIds));
         deletedCount = missingIds.length;
       } else {
         await db.update(videos).set({ lastCheckedAt: now }).where(inArray(videos.id, missingIds));
