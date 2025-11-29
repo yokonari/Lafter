@@ -296,16 +296,16 @@ async function insertVideosSafely(db: AppDatabase, rows: VideoInsertRow[]): Prom
 
 async function updateVideoIfExists(db: AppDatabase, row: VideoInsertRow, reason?: unknown): Promise<boolean> {
   try {
+    const updateValues: Partial<VideoInsertRow> = {
+      title: row.title,
+      channelId: row.channelId,
+      publishedAt: row.publishedAt ?? null,
+      lastCheckedAt: row.lastCheckedAt ?? null,
+    };
+    // RSS 同期時は既存の判定結果や報告状況を安全に保持するため、status/reportStatus は更新しません。
     const result = await db
       .update(videos)
-      .set({
-        title: row.title,
-        channelId: row.channelId,
-        publishedAt: row.publishedAt ?? null,
-        status: row.status ?? 0,
-        reportStatus: row.reportStatus ?? 0,
-        lastCheckedAt: row.lastCheckedAt ?? null,
-      })
+      .set(updateValues)
       .where(eq(videos.id, row.id));
     const changes = getAffectedRowCount(result);
     if (changes > 0) {
