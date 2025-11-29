@@ -85,7 +85,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       .from(videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(whereExpression)
-      .orderBy(desc(videos.createdAt))
+      .orderBy(desc(videos.publishedAt))
       .limit(limit)
       .offset((page - 1) * limit);
 
