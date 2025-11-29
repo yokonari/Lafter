@@ -270,36 +270,62 @@ async function insertVideosSafely(db: AppDatabase, rows: VideoInsertRow[]): Prom
   let inserted = 0;
   let updated = 0;
   for (const row of rows) {
+    // まず UPDATE を試みることで、既存動画があればその場で最新情報を反映します。
+    const alreadyUpdated = await updateVideoIfExists(db, row);
+    if (alreadyUpdated) {
+      updated += 1;
+      continue;
+    }
+
     try {
       await db.insert(videos).values(row);
       inserted += 1;
     } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        // 重複発生時は既存レコードへ最新情報を丁寧に反映します。
-        await db
-          .update(videos)
-          .set({
-            title: row.title,
-            channelId: row.channelId,
-            publishedAt: row.publishedAt ?? null,
-            status: row.status ?? 0,
-            reportStatus: row.reportStatus ?? 0,
-            lastCheckedAt: row.lastCheckedAt ?? null,
-          })
-          .where(eq(videos.id, row.id));
-        updated += 1;
-        continue;
+      // INSERT が失敗した場合は状況を丁寧に記録し、UPDATE へ切り替えます。
+      console.warn("[videos/rss-sync] INSERT に失敗したため UPDATE を試行します", row.id, error);
+      // INSERT に失敗した場合も、最終的に UPDATE へ切り替えられるかを丁寧に確認します。
+      const updatedExisting = await updateVideoIfExists(db, row, error);
+      if (!updatedExisting) {
+        throw error;
       }
-      throw error;
+      updated += 1;
     }
   }
   return { inserted, updated };
 }
 
-function isUniqueConstraintError(error: unknown): boolean {
-  if (!(error instanceof Error)) {
+async function updateVideoIfExists(db: AppDatabase, row: VideoInsertRow, reason?: unknown): Promise<boolean> {
+  try {
+    const result = await db
+      .update(videos)
+      .set({
+        title: row.title,
+        channelId: row.channelId,
+        publishedAt: row.publishedAt ?? null,
+        status: row.status ?? 0,
+        reportStatus: row.reportStatus ?? 0,
+        lastCheckedAt: row.lastCheckedAt ?? null,
+      })
+      .where(eq(videos.id, row.id));
+    const changes = getAffectedRowCount(result);
+    if (changes > 0) {
+      if (reason) {
+        // INSERT 失敗時にも確実に情報を反映できるよう、丁寧に UPDATE へ切り替えます。
+        console.warn("[videos/rss-sync] INSERT から UPDATE に切り替え", row.id, reason);
+      }
+      return true;
+    }
+    return false;
+  } catch (updateError) {
+    console.error("[videos/rss-sync] 既存動画の UPDATE も失敗", row.id, updateError);
     return false;
   }
-  // D1/SQLite で発生する UNIQUE 制約エラーのメッセージを丁寧に判定します。
-  return /unique constraint failed/i.test(error.message ?? "");
+}
+
+function getAffectedRowCount(result: unknown): number {
+  if (!result || typeof result !== "object") {
+    return 0;
+  }
+  const meta = (result as { meta?: { changes?: number } }).meta;
+  return meta?.changes ?? 0;
 }
