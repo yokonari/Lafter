@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { NEGATIVE_KEYWORDS, POSITIVE_KEYWORDS } from "@/lib/video-keywords";
 import { createDatabase, type AppDatabase } from "../context";
@@ -20,6 +20,8 @@ type FeedEntry = {
   title: string;
   publishedAt?: string;
 };
+
+type VideoInsertRow = typeof videos.$inferInsert;
 
 export function registerPostVideosRss(app: Hono<AdminEnv>) {
   // Cron から直接叩けるよう /admin 外に公開し、共有シークレットで丁寧に保護します。
@@ -64,6 +66,7 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
       channelsProcessed: 0,
       itemsFetched: 0,
       itemsInserted: 0,
+      itemsUpdated: 0,
       errors: [] as string[],
     };
 
@@ -89,21 +92,11 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
             lastCheckedAt: now,
           }));
 
-        let inserted = 0;
         if (insertable.length > 0) {
-          // D1 では RETURNING 付き INSERT が失敗しうるため、事前に既存IDを丁寧に確認して新規動画のみ抽出します。
-          const existingRows = await db
-            .select({ id: videos.id })
-            .from(videos)
-            .where(inArray(videos.id, insertable.map((row) => row.id)));
-          const existingIds = new Set(existingRows.map((row) => row.id));
-          const newEntries = insertable.filter((row) => !existingIds.has(row.id));
-
-          if (newEntries.length > 0) {
-            await db.insert(videos).values(newEntries).onConflictDoNothing({ target: videos.id });
-            inserted = newEntries.length;
-            summary.itemsInserted += inserted;
-          }
+          // 既存レコードがあっても最新情報を丁寧に反映できるよう、逐次 INSERT/UPDATE を行います。
+          const upsertResult = await insertVideosSafely(db, insertable);
+          summary.itemsInserted += upsertResult.inserted;
+          summary.itemsUpdated += upsertResult.updated;
         }
 
         const channelUpdate: Partial<typeof channels.$inferInsert> = {};
@@ -266,4 +259,47 @@ function shouldSkipVideo(title: string): boolean {
   }
   // OK ワードが含まれていない場合のみ、NG ワード検知で除外します。
   return hasNegative;
+}
+
+type InsertVideosResult = {
+  inserted: number;
+  updated: number;
+};
+
+async function insertVideosSafely(db: AppDatabase, rows: VideoInsertRow[]): Promise<InsertVideosResult> {
+  let inserted = 0;
+  let updated = 0;
+  for (const row of rows) {
+    try {
+      await db.insert(videos).values(row);
+      inserted += 1;
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        // 重複発生時は既存レコードへ最新情報を丁寧に反映します。
+        await db
+          .update(videos)
+          .set({
+            title: row.title,
+            channelId: row.channelId,
+            publishedAt: row.publishedAt ?? null,
+            status: row.status ?? 0,
+            reportStatus: row.reportStatus ?? 0,
+            lastCheckedAt: row.lastCheckedAt ?? null,
+          })
+          .where(eq(videos.id, row.id));
+        updated += 1;
+        continue;
+      }
+      throw error;
+    }
+  }
+  return { inserted, updated };
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  // D1/SQLite で発生する UNIQUE 制約エラーのメッセージを丁寧に判定します。
+  return /unique constraint failed/i.test(error.message ?? "");
 }
