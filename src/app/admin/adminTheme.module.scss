@@ -340,6 +340,70 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   color: var(--admin-primary-text);
 }
 
+.channelFilterSection {
+  border-radius: 0.75rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.channelFilterTitle {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--admin-text-light);
+}
+
+.channelFilterReset {
+  border: none;
+  background: transparent;
+  color: var(--admin-text-muted);
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-decoration-color: var(--admin-link-underline);
+  cursor: pointer;
+
+  &:hover {
+    color: var(--admin-text-light);
+  }
+}
+
+.channelPillList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.channelPill {
+  @include pill-button-base;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-color: var(--admin-border);
+  background-color: var(--admin-surface-muted);
+  font-size: 0.8rem;
+  max-width: 100%;
+}
+
+.channelPillActive {
+  border-color: var(--admin-accent);
+  background-color: var(--admin-accent);
+  color: var(--admin-primary-text);
+}
+
+.channelPillDot {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 9999px;
+  background-color: var(--admin-accent);
+}
+
+.channelPillActive .channelPillDot {
+  background-color: var(--admin-primary-text);
+}
+
 .filterSelect {
   width: auto;
   min-width: 11rem;

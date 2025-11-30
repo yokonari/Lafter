@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { desc, eq, and, like, count, inArray } from "drizzle-orm";
+import { desc, eq, and, like, count, inArray, asc } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -64,16 +64,6 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
 
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
-    // 公開済みチャンネルのみを CTE で事前に抜き出し、本体クエリの JOIN を極力軽量化します。
-    const activeChannels = db.$with("active_channels").as(
-      db
-        .select({
-          id: channels.id,
-          name: channels.name,
-        })
-        .from(channels)
-        .where(eq(channels.status, 1)),
-    );
 
     const whereConditions = [eq(videos.status, effectiveVideoStatus)];
     const rawChannelId = c.req.query("channel_id") ?? "";
@@ -89,29 +79,51 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     }
     const whereExpression = and(...whereConditions);
 
-    // アクティブチャンネル CTE に JOIN することで、video 側の走査結果へコンパクトに名前を結合します。
+    // 公開チャンネルへ素直に JOIN し、video 側の走査結果へコンパクトに名前を付与いたします。
     const rows = await db
-      .with(activeChannels)
       .select({
         id: videos.id,
         title: videos.title,
-        channelName: activeChannels.name,
-        channelId: videos.channelId,
+        channelName: channels.name,
+        channelId: channels.id,
         status: videos.status,
         reportStatus: videos.reportStatus,
       })
       .from(videos)
-      .innerJoin(activeChannels, eq(videos.channelId, activeChannels.id))
+      .innerJoin(
+        channels,
+        // JOIN 部分で status = 1 のチャンネルだけに丁寧に絞り込み、余計な結果を避けます。
+        and(eq(videos.channelId, channels.id), eq(channels.status, 1)),
+      )
       .where(whereExpression)
       .orderBy(desc(videos.publishedAt))
       .limit(limit)
       .offset((page - 1) * limit);
 
+    // 同じフィルター条件に該当し、動画を1件以上持つチャンネルのみを一覧化します。
+    const channelList = await db
+      .select({
+        id: channels.id,
+        name: channels.name,
+      })
+      .from(videos)
+      .innerJoin(
+        channels,
+        // 動画の存在する公開チャンネルだけに限定し、件数 0 のチャンネルは自然に除外します。
+        and(eq(videos.channelId, channels.id), eq(channels.status, 1)),
+      )
+      .where(whereExpression)
+      .groupBy(channels.id, channels.name)
+      .orderBy(asc(channels.name));
+
     const [{ count: totalCount }] = await db
-      .with(activeChannels)
       .select({ count: count() })
       .from(videos)
-      .innerJoin(activeChannels, eq(videos.channelId, activeChannels.id))
+      .innerJoin(
+        channels,
+        // 集計時も同じ条件で公開チャンネルに限定し、カウント結果の整合性を守ります。
+        and(eq(videos.channelId, channels.id), eq(channels.status, 1)),
+      )
       .where(whereExpression);
 
     const hasNext = rows.length === limit;
@@ -130,6 +142,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     return c.json(
       {
         videos: payload,
+        channels: channelList,
         page,
         limit,
         hasNext,

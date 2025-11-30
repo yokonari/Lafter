@@ -30,8 +30,14 @@ export type AdminVideo = {
     report_status?: number;
 };
 
+type ChannelSummary = {
+    id: string;
+    name: string;
+};
+
 type AdminVideosResponse = {
     videos: AdminVideo[];
+    channels: ChannelSummary[];
     page: number;
     limit: number;
     hasNext: boolean;
@@ -136,6 +142,7 @@ export default function AdminVideosPageContent() {
     const [currentSearchKeyword, setCurrentSearchKeyword] = useState<string | null>(null);
     const [searchSelectionDefaults, setSearchSelectionDefaults] = useState<SelectionDefaults | null>(null);
     const searchKeywordRef = useRef<string | null>(null);
+    const latestSearchChannelsRef = useRef<ChannelSummary[]>([]);
     // ショートカット検索 UI は一時停止中ですが、再開を見据えて状態を保持するため lint を抑制します。
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [activeShortcut, setActiveShortcut] = useState<ShortcutKey | null>(null);
@@ -146,6 +153,7 @@ export default function AdminVideosPageContent() {
     const [autoCategorizeLimit, setAutoCategorizeLimit] = useState(500);
     const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
     const [activeChannelFilter, setActiveChannelFilter] = useState<{ id: string; name: string } | null>(null);
+    const [channelSummaries, setChannelSummaries] = useState<ChannelSummary[]>([]);
     // サムネイル押下時にモーダル動画を表示させる制御を丁寧に用意します。
     const handleThumbnailDialogOpen = useCallback((video: AdminVideo, videoId: string) => {
         const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
@@ -185,6 +193,7 @@ export default function AdminVideosPageContent() {
                 mode?: SearchContextMode;
                 channelFilter?: { id: string; name: string } | null;
             },
+            channelList?: ChannelSummary[],
         ) => {
             setVideos(results);
             setSelections(createInitialSelections(results, options?.defaults));
@@ -193,6 +202,7 @@ export default function AdminVideosPageContent() {
             if (typeof meta.totalCount === "number") {
                 setTotalCount(meta.totalCount);
             }
+            setChannelSummaries(channelList ?? []);
             setSearchContext(options?.mode ?? null);
             if (options?.mode === "form" || options?.mode === "shortcut") {
                 const keyword = searchKeywordRef.current ?? null;
@@ -261,6 +271,7 @@ export default function AdminVideosPageContent() {
                     setSelections({});
                     setHasNextPage(false);
                     setCurrentPage(targetPage);
+                    setChannelSummaries([]);
                     return;
                 }
 
@@ -286,6 +297,7 @@ export default function AdminVideosPageContent() {
                 );
                 setHasNextPage(Boolean(data.hasNext));
                 setTotalCount(data.totalCount);
+                setChannelSummaries(Array.isArray(data.channels) ? data.channels : []);
                 setSearchContext(null);
                 setCurrentSearchKeyword(null);
                 setSearchSelectionDefaults(null);
@@ -305,6 +317,7 @@ export default function AdminVideosPageContent() {
                 searchKeywordRef.current = null;
                 setActiveShortcut(null);
                 setActiveChannelFilter(null);
+                setChannelSummaries([]);
                 toast.error(fallback);
             } finally {
                 setLoading(false);
@@ -326,7 +339,8 @@ export default function AdminVideosPageContent() {
                     selected: true,
                 },
                 mode: "form",
-            });
+            }, latestSearchChannelsRef.current);
+            latestSearchChannelsRef.current = [];
             setActiveShortcut(null);
         },
         [applySearchResults, videoStatusFilter],
@@ -339,6 +353,7 @@ export default function AdminVideosPageContent() {
         setSearchContext(null);
         setActiveShortcut(null);
         setActiveChannelFilter(null);
+        setChannelSummaries([]);
         loadVideos(page, videoStatusFilter, reportedOnlyFilter);
     }, [loadVideos, page, reportedOnlyFilter, videoStatusFilter]);
 
@@ -428,6 +443,7 @@ export default function AdminVideosPageContent() {
 
     const executeVideoSearch = useCallback(
         async (keyword: string) => {
+            latestSearchChannelsRef.current = [];
             searchKeywordRef.current = keyword;
             setCurrentSearchKeyword(keyword);
             setSearchContext("form");
@@ -437,12 +453,17 @@ export default function AdminVideosPageContent() {
                 selected: true,
             });
             const data = await fetchVideosByKeyword(keyword, 1, videoStatusFilter, reportedOnlyFilter);
+            latestSearchChannelsRef.current = Array.isArray(data.channels) ? data.channels : [];
             return { items: data.videos, hasNext: Boolean(data.hasNext), totalCount: data.totalCount };
         },
         [fetchVideosByKeyword, reportedOnlyFilter, videoStatusFilter],
     );
 
-    const filteredVideos = useMemo(() => videos, [videos]);
+    const shouldShowVideoGrid = searchContext !== null;
+    const filteredVideos = useMemo(
+        () => (shouldShowVideoGrid ? videos : []),
+        [videos, shouldShowVideoGrid],
+    );
 
     const selectedCount = useMemo(
         () =>
@@ -542,6 +563,7 @@ export default function AdminVideosPageContent() {
                 setSearchSelectionDefaults(defaults);
                 setSearchContext("shortcut");
                 const merged = new Map<string, AdminVideo>();
+                const channelMap = new Map<string, ChannelSummary>();
                 let combinedHasNext = false;
                 const shortcutsToRun = keywords.length > 0 ? keywords : [""];
                 for (const keyword of shortcutsToRun) {
@@ -550,17 +572,27 @@ export default function AdminVideosPageContent() {
                         merged.set(video.id, video);
                     }
                     combinedHasNext = combinedHasNext || Boolean(data.hasNext);
+                    if (Array.isArray(data.channels)) {
+                        for (const channel of data.channels) {
+                            if (!channel?.id) continue;
+                            channelMap.set(channel.id, channel);
+                        }
+                    }
                 }
                 let combinedVideos = Array.from(merged.values());
                 if (filterTitles) {
                     combinedVideos = combinedVideos.filter((video) => filterTitles.test(video.title));
                 }
+                const mergedChannels = Array.from(channelMap.values()).sort((a, b) =>
+                    a.name.localeCompare(b.name, "ja"),
+                );
 
                 // ショートカット検索の場合は正確な総数が不明なため、取得できた件数を表示します。
                 applySearchResults(
                     combinedVideos,
                     { hasNext: combinedHasNext, totalCount: combinedVideos.length },
                     { defaults, mode: "shortcut" },
+                    mergedChannels,
                 );
                 setActiveShortcut(shortcut);
                 if (combinedVideos.length === 0) {
@@ -610,10 +642,12 @@ export default function AdminVideosPageContent() {
             };
             try {
                 const data = await fetchVideosByChannel(channelId, 1, videoStatusFilter, reportedOnlyFilter);
+                const channelList = Array.isArray(data.channels) ? data.channels : [];
                 applySearchResults(
                     data.videos,
                     { hasNext: Boolean(data.hasNext), totalCount: data.totalCount },
                     { defaults, mode: "channel", channelFilter: { id: channelId, name: channelName } },
+                    channelList,
                 );
                 setActiveShortcut(null);
                 if (data.videos.length === 0) {
@@ -780,6 +814,7 @@ export default function AdminVideosPageContent() {
                 }
                 setVideos(data.videos);
                 setCurrentPage(typeof data.page === "number" ? data.page : targetPage);
+                setChannelSummaries(Array.isArray(data.channels) ? data.channels : []);
                 const defaults: SelectionDefaults = {
                     videoStatus: resolveStatusValue(videoStatusFilter),
                     selected: true,
@@ -1026,7 +1061,55 @@ export default function AdminVideosPageContent() {
                                 ))}
                             </select>
                         </div> */}
-                        {loading ? (
+                        {channelSummaries.length > 0 ? (
+                            // 現在の絞り込み条件に該当するチャンネルを先頭で提示し、動画一覧へ移る前に丁寧に選択していただきます。
+                            <section
+                                className={styles.channelFilterSection}
+                                aria-label="対象チャンネル一覧"
+                            >
+                                <div className="flex items-center justify-between gap-3">
+                                    <p className={styles.channelFilterTitle}>
+                                        対象チャンネル
+                                    </p>
+                                    {activeChannelFilter ? (
+                                        <button
+                                            type="button"
+                                            className={styles.channelFilterReset}
+                                            onClick={() => handleChannelFilterClick(activeChannelFilter.id, activeChannelFilter.name)}
+                                        >
+                                            絞り込みを解除
+                                        </button>
+                                    ) : null}
+                                </div>
+                                <div className={styles.channelPillList}>
+                                    {channelSummaries.map((channel) => {
+                                        const isActive = activeChannelFilter?.id === channel.id;
+                                        return (
+                                            <button
+                                                key={channel.id}
+                                                type="button"
+                                                className={`${styles.channelPill} ${isActive ? styles.channelPillActive : ""}`}
+                                                onClick={() => handleChannelFilterClick(channel.id, channel.name)}
+                                                aria-pressed={isActive}
+                                                aria-label={`${channel.name} の動画で絞り込む`}
+                                            >
+                                                <span className={styles.channelPillDot} aria-hidden="true" />
+                                                <span className="truncate">{channel.name}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </section>
+                        ) : null}
+                        {!shouldShowVideoGrid ? (
+                            loading ? (
+                                <p className={styles.feedbackCard}>読み込み中です…</p>
+                            ) : (
+                                <p className={styles.feedbackCard}>
+                                    チャンネル一覧から対象を選ぶと動画が表示されます。検索機能も従来どおりご利用いただけます。
+                                </p>
+                            )
+                        ) : loading ? (
                             <p className={styles.feedbackCard}>読み込み中です…</p>
                         ) : filteredVideos.length === 0 ? (
                             <p className={styles.feedbackCard}>表示できる動画がありません。</p>
@@ -1164,60 +1247,62 @@ export default function AdminVideosPageContent() {
                                 })}
                             </div>
                         )}
-                        {/* フッターに専用の一括操作エリアを設け、OK/NG の一括反映をすぐ実行できるようにします。 */}
-                        <ListFooter
-                            selectionContent={(
-                                <div className="flex flex-wrap items-center gap-3 text-sm">
-                                    <label className="inline-flex items-center gap-2">
-                                        <input
-                                            type="checkbox"
-                                            className={styles.checkbox}
-                                            checked={filteredVideos.length > 0 && selectedCount === filteredVideos.length}
-                                            onChange={(event) => handleToggleAll(event.target.checked)}
-                                            disabled={bulkStatusDisabled}
-                                            aria-label="全て選択"
-                                        />
-                                        全て選択
-                                    </label>
-                                    <span className={styles.metaText}>
-                                        選択中: {selectedCount} / {filteredVideos.length}
-                                    </span>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <button
-                                            type="button"
-                                            onClick={() => handleBulkStatusChange("1")}
-                                            disabled={bulkStatusDisabled}
-                                            className="rounded-full border border-emerald-400/70 px-3 py-1 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            選択をOKにする
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => handleBulkStatusChange("2")}
-                                            disabled={bulkStatusDisabled}
-                                            className="rounded-full border border-rose-400/70 px-3 py-1 text-xs font-semibold text-rose-100 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            選択をNGにする
-                                        </button>
+                        {shouldShowVideoGrid ? (
+                            // フッターに専用の一括操作エリアを設け、OK/NG の一括反映をすぐ実行できるようにします。
+                            <ListFooter
+                                selectionContent={(
+                                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                                        <label className="inline-flex items-center gap-2">
+                                            <input
+                                                type="checkbox"
+                                                className={styles.checkbox}
+                                                checked={filteredVideos.length > 0 && selectedCount === filteredVideos.length}
+                                                onChange={(event) => handleToggleAll(event.target.checked)}
+                                                disabled={bulkStatusDisabled}
+                                                aria-label="全て選択"
+                                            />
+                                            全て選択
+                                        </label>
+                                        <span className={styles.metaText}>
+                                            選択中: {selectedCount} / {filteredVideos.length}
+                                        </span>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => handleBulkStatusChange("1")}
+                                                disabled={bulkStatusDisabled}
+                                                className="rounded-full border border-emerald-400/70 px-3 py-1 text-xs font-semibold text-emerald-100 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                選択をOKにする
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleBulkStatusChange("2")}
+                                                disabled={bulkStatusDisabled}
+                                                className="rounded-full border border-rose-400/70 px-3 py-1 text-xs font-semibold text-rose-100 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                選択をNGにする
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
-                            paging={{
-                                currentPage,
-                                hasPrev: effectiveHasPrev,
-                                hasNext: effectiveHasNext,
-                                onPrev: effectiveHasPrev ? () => goToPage(currentPage - 1) : undefined,
-                                onNext: effectiveHasNext ? () => goToPage(currentPage + 1) : undefined,
-                            }}
-                            bulkControl={{
-                                selectedCount,
-                                totalCount: filteredVideos.length,
-                                onToggleAll: handleToggleAll,
-                                onSubmit: handleSubmit,
-                                submitting: loading || submitting,
-                                disabled: loading || filteredVideos.length === 0,
-                            }}
-                        />
+                                )}
+                                paging={{
+                                    currentPage,
+                                    hasPrev: effectiveHasPrev,
+                                    hasNext: effectiveHasNext,
+                                    onPrev: effectiveHasPrev ? () => goToPage(currentPage - 1) : undefined,
+                                    onNext: effectiveHasNext ? () => goToPage(currentPage + 1) : undefined,
+                                }}
+                                bulkControl={{
+                                    selectedCount,
+                                    totalCount: filteredVideos.length,
+                                    onToggleAll: handleToggleAll,
+                                    onSubmit: handleSubmit,
+                                    submitting: loading || submitting,
+                                    disabled: loading || filteredVideos.length === 0,
+                                }}
+                            />
+                        ) : null}
                     </div>
                 )}
             </AdminTabsLayout>
