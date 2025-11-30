@@ -7,6 +7,8 @@
 	"name": "lafter",
 	"main": "src/worker/index.ts",
 	"compatibility_date": "2025-10-24",
+	// ビルド後のJSを縮小化
+	"minify": true,
 	"compatibility_flags": [
 		"nodejs_compat",
 		"global_fetch_strictly_public"

@@ -44,6 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="apple-mobile-web-app-title" content="Lafter" />
         <link
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap"
           rel="stylesheet"
