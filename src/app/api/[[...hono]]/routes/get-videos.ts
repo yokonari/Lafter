@@ -13,16 +13,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const { env } = getCloudflareContext();
     // 型定義済みの env から安全に DB インスタンスを取得いたします。
     const db = createDatabase(env);
-    // 公開中のチャンネルだけを先に CTE へ絞り込み、JOIN 対象の行数を丁寧に抑え込みます。
-    const activeChannels = db.$with("active_channels").as(
-      db
-        .select({
-          id: channels.id,
-          name: channels.name,
-        })
-        .from(channels)
-        .where(eq(channels.status, 1)),
-    );
 
     const qRaw = c.req.query("q") ?? "";
     const q = qRaw.trim();
@@ -89,18 +79,21 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const videoWhere =
       videoConditions.length === 1 ? videoConditions[0] : and(...videoConditions);
 
-    // CTE で抽出したアクティブチャンネルに対して JOIN し、videos 側のフィルタリング結果へ素早く名前を付与します。
+    // 公開チャンネルへ素直に INNER JOIN し、videos 側のフィルタリング結果へ素早く名前を付与いたします。
     const baseVideoQuery = db
-      .with(activeChannels)
       .select({
         id: videos.id,
         title: videos.title,
         publishedAt: videos.publishedAt,
-        channelId: activeChannels.id,
-        channelName: activeChannels.name,
+        channelId: channels.id,
+        channelName: channels.name,
       })
       .from(videos)
-      .innerJoin(activeChannels, eq(videos.channelId, activeChannels.id))
+      .innerJoin(
+        channels,
+        // ステータス 1 のチャンネルだけを JOIN し、不要な行をここで丁寧に排除します。
+        and(eq(videos.channelId, channels.id), eq(channels.status, 1)),
+      )
       .where(videoWhere);
 
     const orderedVideoQuery =
@@ -160,18 +153,21 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       const playlistWhere =
         playlistConditions.length === 1 ? playlistConditions[0] : and(...playlistConditions);
 
-      // プレイリストにも同じ CTE を使って結合し、不要なチャンネル行を読み飛ばします。
+      // プレイリストも公開チャンネルへの素直な JOIN でチャンネル名を補います。
       playlistRows = await db
-        .with(activeChannels)
         .select({
           id: playlists.id,
           title: playlists.name,
-          channelId: activeChannels.id,
-          channelName: activeChannels.name,
+          channelId: channels.id,
+          channelName: channels.name,
           topVideoId: playlists.topVideoId,
         })
         .from(playlists)
-        .innerJoin(activeChannels, eq(playlists.channelId, activeChannels.id))
+        .innerJoin(
+          channels,
+          // JOIN 時点で公開チャンネルのみにそっと限定し、余計なループを避けます。
+          and(eq(playlists.channelId, channels.id), eq(channels.status, 1)),
+        )
         .where(playlistWhere)
         .orderBy(desc(playlists.createdAt))
         .limit(safeLimit)

@@ -84,7 +84,7 @@ export async function classifyTitleWithLLM(
   title: string,
 ): Promise<LLMClassification> {
   const completion = await client.responses.create({
-    model: "gpt-5-nano",
+    model: "gpt-5-mini",
     input: [
       {
         role: "system",
