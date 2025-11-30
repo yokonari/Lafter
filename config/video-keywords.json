@@ -49,7 +49,13 @@
     "コメント",
     "幕間",
     "ワラムゲ",
-    "VTR"
+    "VTR",
+    "ASMR",
+    "ランキング",
+    "#",
+    "ラジ",
+    "ルームツアー",
+    "クイズ"
   ],
   "positiveKeywordBonus": 0.4,
   "negativeKeywordPenalty": 0.4
