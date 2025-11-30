@@ -18,6 +18,22 @@ export const metadata = {
   description:
     'お笑い芸人の公式YouTubeチャンネルから、漫才・コントなどのネタ動画だけを検索できるサービス。',
   metadataBase: new URL('https://lafter.day'),
+
+  openGraph: {
+    title: 'Lafter | ネタ動画検索アプリ',
+    description: 'お笑い芸人の公式YouTubeチャンネルのネタ動画だけを集めて検索できるサービス。',
+    url: 'https://lafter.day',
+    siteName: 'Lafter',
+    type: 'website',
+    images: [
+      {
+        url: 'https://lafter.day/ogp.png',
+        width: 1200,
+        height: 630,
+        alt: 'Lafter | ネタ動画検索アプリ',
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
