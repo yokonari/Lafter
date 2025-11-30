@@ -76,8 +76,13 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     );
 
     const whereConditions = [eq(videos.status, effectiveVideoStatus)];
+    const rawChannelId = c.req.query("channel_id") ?? "";
+    const channelIdFilter = rawChannelId.trim();
     if (reportedOnly) {
       whereConditions.push(inArray(videos.reportStatus, [1, 2, 3]));
+    }
+    if (channelIdFilter) {
+      whereConditions.push(eq(videos.channelId, channelIdFilter));
     }
     if (keyword) {
       whereConditions.push(like(videos.title, `%${keyword}%`));
@@ -91,6 +96,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
         id: videos.id,
         title: videos.title,
         channelName: activeChannels.name,
+        channelId: videos.channelId,
         status: videos.status,
         reportStatus: videos.reportStatus,
       })
@@ -114,6 +120,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       id: row.id,
       url: `https://www.youtube.com/watch?v=${row.id}`,
       title: row.title,
+      channel_id: row.channelId,
       channel_name: row.channelName ?? "",
       status: row.status,
       report_status: row.reportStatus,
