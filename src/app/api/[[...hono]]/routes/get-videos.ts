@@ -13,6 +13,16 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const { env } = getCloudflareContext();
     // 型定義済みの env から安全に DB インスタンスを取得いたします。
     const db = createDatabase(env);
+    // 公開中のチャンネルだけを先に CTE へ絞り込み、JOIN 対象の行数を丁寧に抑え込みます。
+    const activeChannels = db.$with("active_channels").as(
+      db
+        .select({
+          id: channels.id,
+          name: channels.name,
+        })
+        .from(channels)
+        .where(eq(channels.status, 1)),
+    );
 
     const qRaw = c.req.query("q") ?? "";
     const q = qRaw.trim();
@@ -49,7 +59,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
 
     const videoConditions = [
       inArray(videos.status, [1, 3]),
-      eq(channels.status, 1),
     ];
     if (channelIdFilter) {
       // チャンネル指定がある場合は最優先でそのチャンネルに絞ります。
@@ -80,16 +89,18 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const videoWhere =
       videoConditions.length === 1 ? videoConditions[0] : and(...videoConditions);
 
+    // CTE で抽出したアクティブチャンネルに対して JOIN し、videos 側のフィルタリング結果へ素早く名前を付与します。
     const baseVideoQuery = db
+      .with(activeChannels)
       .select({
         id: videos.id,
         title: videos.title,
         publishedAt: videos.publishedAt,
-        channelId: channels.id,
-        channelName: channels.name,
+        channelId: activeChannels.id,
+        channelName: activeChannels.name,
       })
       .from(videos)
-      .innerJoin(channels, eq(videos.channelId, channels.id))
+      .innerJoin(activeChannels, eq(videos.channelId, activeChannels.id))
       .where(videoWhere);
 
     const orderedVideoQuery =
@@ -120,7 +131,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     if (shouldIncludePlaylists) {
       const playlistConditions = [
         eq(playlists.status, 1),
-        eq(channels.status, 1),
       ];
       if (channelIdFilter) {
         // チャンネルに紐づく動画一覧を閲覧している場合は、プレイリストも同一チャンネルに限定します。
@@ -150,16 +160,18 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       const playlistWhere =
         playlistConditions.length === 1 ? playlistConditions[0] : and(...playlistConditions);
 
+      // プレイリストにも同じ CTE を使って結合し、不要なチャンネル行を読み飛ばします。
       playlistRows = await db
+        .with(activeChannels)
         .select({
           id: playlists.id,
           title: playlists.name,
-          channelId: channels.id,
-          channelName: channels.name,
+          channelId: activeChannels.id,
+          channelName: activeChannels.name,
           topVideoId: playlists.topVideoId,
         })
         .from(playlists)
-        .innerJoin(channels, eq(playlists.channelId, channels.id))
+        .innerJoin(activeChannels, eq(playlists.channelId, activeChannels.id))
         .where(playlistWhere)
         .orderBy(desc(playlists.createdAt))
         .limit(safeLimit)

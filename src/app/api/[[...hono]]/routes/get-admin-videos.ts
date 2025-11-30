@@ -64,8 +64,18 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
 
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
+    // 公開済みチャンネルのみを CTE で事前に抜き出し、本体クエリの JOIN を極力軽量化します。
+    const activeChannels = db.$with("active_channels").as(
+      db
+        .select({
+          id: channels.id,
+          name: channels.name,
+        })
+        .from(channels)
+        .where(eq(channels.status, 1)),
+    );
 
-    const whereConditions = [eq(videos.status, effectiveVideoStatus), eq(channels.status, 1)];
+    const whereConditions = [eq(videos.status, effectiveVideoStatus)];
     if (reportedOnly) {
       whereConditions.push(inArray(videos.reportStatus, [1, 2, 3]));
     }
@@ -74,25 +84,28 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     }
     const whereExpression = and(...whereConditions);
 
+    // アクティブチャンネル CTE に JOIN することで、video 側の走査結果へコンパクトに名前を結合します。
     const rows = await db
+      .with(activeChannels)
       .select({
         id: videos.id,
         title: videos.title,
-        channelName: channels.name,
+        channelName: activeChannels.name,
         status: videos.status,
         reportStatus: videos.reportStatus,
       })
       .from(videos)
-      .innerJoin(channels, eq(videos.channelId, channels.id))
+      .innerJoin(activeChannels, eq(videos.channelId, activeChannels.id))
       .where(whereExpression)
       .orderBy(desc(videos.publishedAt))
       .limit(limit)
       .offset((page - 1) * limit);
 
     const [{ count: totalCount }] = await db
+      .with(activeChannels)
       .select({ count: count() })
       .from(videos)
-      .innerJoin(channels, eq(videos.channelId, channels.id))
+      .innerJoin(activeChannels, eq(videos.channelId, activeChannels.id))
       .where(whereExpression);
 
     const hasNext = rows.length === limit;

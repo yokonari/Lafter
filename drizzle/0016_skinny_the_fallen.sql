@@ -1,0 +1,1 @@
+CREATE INDEX `idx_videos_status_published_channel` ON `videos` (`status`,`published_at`,`channel_id`);

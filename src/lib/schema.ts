@@ -59,6 +59,9 @@ export const videos = sqliteTable(
     idxVideosStatus: index("idx_videos_status").on(table.status),
     // status → channelId の順で参照する JOIN 集計にも対応するための複合インデックスです。
     idxVideosStatusChannel: index("idx_videos_status_channel").on(table.status, table.channelId),
+    // 公開ステータスで絞りつつ published_at 降順+channelId での並び替えを行うクエリを最適化するためのカバリングインデックスです。
+    idxVideosStatusPublishedChannel: index("idx_videos_status_published_channel")
+      .on(table.status, table.publishedAt, table.channelId),
   }),
 );
 
