@@ -66,7 +66,7 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
       channelsProcessed: 0,
       itemsFetched: 0,
       itemsInserted: 0,
-      itemsUpdated: 0,
+      itemsSkipped: 0,
       errors: [] as string[],
     };
 
@@ -93,10 +93,10 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
           }));
 
         if (insertable.length > 0) {
-          // 既存レコードがあっても最新情報を丁寧に反映できるよう、逐次 INSERT/UPDATE を行います。
+          // 既存レコードは丁寧にスキップし、新規分のみを INSERT します。
           const upsertResult = await insertVideosSafely(db, insertable);
           summary.itemsInserted += upsertResult.inserted;
-          summary.itemsUpdated += upsertResult.updated;
+          summary.itemsSkipped += upsertResult.skipped;
         }
 
         const channelUpdate: Partial<typeof channels.$inferInsert> = {};
@@ -263,17 +263,17 @@ function shouldSkipVideo(title: string): boolean {
 
 type InsertVideosResult = {
   inserted: number;
-  updated: number;
+  skipped: number;
 };
 
 async function insertVideosSafely(db: AppDatabase, rows: VideoInsertRow[]): Promise<InsertVideosResult> {
   let inserted = 0;
-  let updated = 0;
+  let skipped = 0;
   for (const row of rows) {
-    // まず UPDATE を試みることで、既存動画があればその場で最新情報を反映します。
-    const alreadyUpdated = await updateVideoIfExists(db, row);
-    if (alreadyUpdated) {
-      updated += 1;
+    // 既存レコードがあれば即座にスキップし、無駄な INSERT を避けつつ丁寧に処理します。
+    const exists = await videoExists(db, row.id);
+    if (exists) {
+      skipped += 1;
       continue;
     }
 
@@ -281,51 +281,24 @@ async function insertVideosSafely(db: AppDatabase, rows: VideoInsertRow[]): Prom
       await db.insert(videos).values(row);
       inserted += 1;
     } catch (error) {
-      // INSERT が失敗した場合は状況を丁寧に記録し、UPDATE へ切り替えます。
-      console.warn("[videos/rss-sync] INSERT に失敗したため UPDATE を試行します", row.id, error);
-      // INSERT に失敗した場合も、最終的に UPDATE へ切り替えられるかを丁寧に確認します。
-      const updatedExisting = await updateVideoIfExists(db, row, error);
-      if (!updatedExisting) {
+      // レースコンディション等で INSERT が失敗した場合も、最終的に存在確認を行って静かにスキップします。
+      console.warn("[videos/rss-sync] INSERT 失敗のため存在確認を再実行してスキップします", row.id, error);
+      const existsAfterFailure = await videoExists(db, row.id);
+      if (!existsAfterFailure) {
         throw error;
       }
-      updated += 1;
+      skipped += 1;
     }
   }
-  return { inserted, updated };
+  return { inserted, skipped };
 }
 
-async function updateVideoIfExists(db: AppDatabase, row: VideoInsertRow, reason?: unknown): Promise<boolean> {
-  try {
-    const updateValues: Partial<VideoInsertRow> = {
-      title: row.title,
-      channelId: row.channelId,
-      publishedAt: row.publishedAt ?? null,
-      lastCheckedAt: row.lastCheckedAt ?? null,
-    };
-    // RSS 同期時は既存の判定結果や報告状況を安全に保持するため、status/reportStatus は更新しません。
-    const result = await db
-      .update(videos)
-      .set(updateValues)
-      .where(eq(videos.id, row.id));
-    const changes = getAffectedRowCount(result);
-    if (changes > 0) {
-      if (reason) {
-        // INSERT 失敗時にも確実に情報を反映できるよう、丁寧に UPDATE へ切り替えます。
-        console.warn("[videos/rss-sync] INSERT から UPDATE に切り替え", row.id, reason);
-      }
-      return true;
-    }
-    return false;
-  } catch (updateError) {
-    console.error("[videos/rss-sync] 既存動画の UPDATE も失敗", row.id, updateError);
-    return false;
-  }
-}
-
-function getAffectedRowCount(result: unknown): number {
-  if (!result || typeof result !== "object") {
-    return 0;
-  }
-  const meta = (result as { meta?: { changes?: number } }).meta;
-  return meta?.changes ?? 0;
+async function videoExists(db: AppDatabase, videoId: string): Promise<boolean> {
+  // 主キー検索で存在確認を行い、既知の動画を丁寧に除外します。
+  const rows = await db
+    .select({ id: videos.id })
+    .from(videos)
+    .where(eq(videos.id, videoId))
+    .limit(1);
+  return rows.length > 0;
 }
