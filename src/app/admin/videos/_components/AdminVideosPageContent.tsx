@@ -781,7 +781,10 @@ export default function AdminVideosPageContent() {
         searchContext === "shortcut" && activeShortcut ? activeShortcut : "";
 
     const loadSearchPage = useCallback(
-        async (targetPage: number): Promise<AdminVideosResponse | null> => {
+        async (
+            targetPage: number,
+            options?: { fallbackToLast?: boolean },
+        ): Promise<AdminVideosResponse | null> => {
             if (!searchContext) return null;
             setLoading(true);
             try {
@@ -809,6 +812,27 @@ export default function AdminVideosPageContent() {
                         videoStatusFilter,
                         reportedOnlyFilter,
                     );
+                }
+                const limitValue =
+                    typeof data.limit === "number" && Number.isFinite(data.limit) && data.limit > 0
+                        ? data.limit
+                        : null;
+                const totalValue =
+                    typeof data.totalCount === "number" && data.totalCount >= 0
+                        ? data.totalCount
+                        : null;
+                if (
+                    options?.fallbackToLast !== false &&
+                    targetPage > 1 &&
+                    limitValue &&
+                    totalValue !== null &&
+                    totalValue > 0
+                ) {
+                    const maxPage = Math.max(1, Math.ceil(totalValue / limitValue));
+                    if (targetPage > maxPage) {
+                        // ページング対象が途中で減った場合でも見落としがないよう、末尾ページを丁寧に再読込します。
+                        return await loadSearchPage(maxPage, { fallbackToLast: false });
+                    }
                 }
                 setVideos(data.videos);
                 setCurrentPage(typeof data.page === "number" ? data.page : targetPage);
@@ -916,11 +940,13 @@ export default function AdminVideosPageContent() {
             });
             const wasSearchContext = Boolean(searchContext);
             if (wasSearchContext) {
-                // 更新完了後は残りの対象を途切れなく確認できるよう、次ページがあれば即座に遷移します。
+                let nextResult: AdminVideosResponse | null = null;
                 if (hasNextPage) {
-                    await loadSearchPage(currentPage + 1);
-                } else {
-                    // 追加のページがない場合は検索状態を丁寧に解除し、動画一覧トップへ戻して新しい対象を選び直していただきます。
+                    // API 側の件数が更新により前倒しで減るケースを考慮し、まずは次ページを素直に読み込みます。
+                    nextResult = await loadSearchPage(currentPage + 1);
+                }
+                if (!nextResult || nextResult.videos.length === 0) {
+                    // これ以上処理対象が存在しない場合は、チャンネル一覧中心の初期ビューへ戻して新たなモードを選び直していただきます。
                     await loadVideos(1, videoStatusFilter, reportedOnlyFilter);
                 }
             } else {
