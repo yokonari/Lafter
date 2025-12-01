@@ -1,5 +1,5 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, asc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { CLASSIFIER_THRESHOLD, classifyTitle } from "@/lib/video-classifier";
 import { getOpenAIClient } from "@/lib/openai-client";
 import { classifyTitleWithLLM } from "@/lib/llm-classifier";
@@ -76,7 +76,7 @@ export async function POST(request: Request) {
         .from(videos)
         .innerJoin(channels, eq(videos.channelId, channels.id))
         .where(baseCondition)
-        .orderBy(asc(videos.createdAt))
+        .orderBy(desc(videos.publishedAt))
         .limit(MAX_TITLES);
 
       if (pendingVideos.length === 0) {
