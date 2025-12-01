@@ -915,19 +915,16 @@ export default function AdminVideosPageContent() {
                 return next;
             });
             const wasSearchContext = Boolean(searchContext);
-            let latestSearchResult: AdminVideosResponse | null = null;
             if (wasSearchContext) {
-                // ショートカット等で検索中の場合は同じ条件で丁寧に再読み込みし、設定を維持します。
-                latestSearchResult = await loadSearchPage(currentPage);
+                // 更新完了後は残りの対象を途切れなく確認できるよう、次ページがあれば即座に遷移します。
+                if (hasNextPage) {
+                    await loadSearchPage(currentPage + 1);
+                } else {
+                    // 追加のページがない場合は検索状態を丁寧に解除し、動画一覧トップへ戻して新しい対象を選び直していただきます。
+                    await loadVideos(1, videoStatusFilter, reportedOnlyFilter);
+                }
             } else {
                 await loadVideos(currentPage, videoStatusFilter, reportedOnlyFilter);
-            }
-            if (
-                wasSearchContext &&
-                (!latestSearchResult || !latestSearchResult.hasNext)
-            ) {
-                // 次ページへ進む必要がなくなった場合は、チャンネル一覧中心の画面へ丁寧に戻して作業対象を切り替えやすくいたします。
-                await loadVideos(1, videoStatusFilter, reportedOnlyFilter);
             }
         } catch (error) {
             const fallback =
