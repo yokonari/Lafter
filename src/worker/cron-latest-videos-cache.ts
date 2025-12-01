@@ -9,6 +9,7 @@ type CronEnv = Env & {
 
 type LatestVideoRow = {
   channel_id: string;
+  channel_name: string | null;
   video_id: string;
   video_title: string;
 };
@@ -20,11 +21,6 @@ type LatestVideoPayload = {
   video_title: string;
 };
 
-type ActiveChannelRecord = {
-  channel_id?: string;
-  channel_name?: string | null;
-};
-
 type LatestVideoCache = {
   updated_at: string;
   items: LatestVideoPayload[];
@@ -32,7 +28,6 @@ type LatestVideoCache = {
 
 const CACHE_LIMIT = 500;
 const CACHE_KEY = "latest_active_videos";
-const ACTIVE_CHANNELS_KEY = "active_channels";
 
 const app = new Hono();
 
@@ -62,12 +57,6 @@ async function runLatestVideosCacheCron(env: CronEnv) {
     return;
   }
 
-  const activeChannelMap = await loadActiveChannelMap(kv);
-  if (!activeChannelMap) {
-    console.error("[cron-latest-videos] active_channels の読み込みに失敗したため処理を中断します。");
-    return;
-  }
-
   // 最新公開日順に 500 件の動画を抽出し、KV 用のプレーンな配列へ丁寧に変換します。
   const rows = await fetchLatestVideos(db, CACHE_LIMIT);
   if (rows.length === 0) {
@@ -76,8 +65,8 @@ async function runLatestVideosCacheCron(env: CronEnv) {
 
   const payload: LatestVideoPayload[] = rows.map((row) => ({
     channel_id: row.channel_id,
-    // active_channels に存在しない場合も ID を名称のフォールバックとして利用し、KV 参照時の情報欠落を丁寧に防ぎます。
-    channel_name: activeChannelMap.get(row.channel_id) ?? row.channel_id,
+    // channels.name が null の場合も ID で補い、キャッシュ参照時の情報欠落を丁寧に防ぎます。
+    channel_name: row.channel_name ?? row.channel_id,
     video_id: row.video_id,
     video_title: row.video_title,
   }));
@@ -87,17 +76,20 @@ async function runLatestVideosCacheCron(env: CronEnv) {
 
 async function fetchLatestVideos(db: D1Database, limit: number): Promise<LatestVideoRow[]> {
   try {
-    // active_channels に存在する ID かどうかは後段で検証するため、ここでは videos テーブル単体から素直に取得します。
+    // channels.status=1 のチャンネルのみを JOIN で抽出し、動画・チャンネル情報を同時に整えます。
     const result = await db
       .prepare(
         `
         SELECT
-          v.channel_id as channel_id,
-          v.id as video_id,
-          v.title as video_title
+          v.channel_id AS channel_id,
+          c.name AS channel_name,
+          v.id AS video_id,
+          v.title AS video_title
         FROM videos v
+        INNER JOIN channels c ON v.channel_id = c.id
         WHERE
           v.status IN (1, 3)
+          AND c.status = 1
         ORDER BY v.published_at DESC
         LIMIT ?
       `,
@@ -141,35 +133,4 @@ async function saveToKv(kv: KVNamespace, payload: LatestVideoPayload[]): Promise
 function resolveDb(env: CronEnv): D1Database | null {
   // Wrangler 側の DB バインディング名ゆらぎを丁寧に吸収し、安全に D1 インスタンスを返します。
   return env.DB ?? env.lafter_db ?? null;
-}
-
-async function loadActiveChannelMap(kv: KVNamespace): Promise<Map<string, string> | null> {
-  try {
-    const text = await kv.get(ACTIVE_CHANNELS_KEY, "text");
-    if (!text) {
-      console.error("[cron-latest-videos] active_channels が KV に存在しません。");
-      return null;
-    }
-    let parsed: ActiveChannelRecord[] = [];
-    try {
-      parsed = JSON.parse(text) as ActiveChannelRecord[];
-    } catch {
-      console.error("[cron-latest-videos] active_channels を JSON として解析できませんでした。");
-      return null;
-    }
-    const map = new Map<string, string>();
-    for (const entry of parsed) {
-      if (entry && typeof entry.channel_id === "string" && entry.channel_id) {
-        map.set(entry.channel_id, entry.channel_name ?? "");
-      }
-    }
-    if (map.size === 0) {
-      console.error("[cron-latest-videos] active_channels に有効なチャンネルが含まれていません。");
-      return null;
-    }
-    return map;
-  } catch (error) {
-    console.error("[cron-latest-videos] active_channels の取得に失敗しました。", error);
-    return null;
-  }
 }

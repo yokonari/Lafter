@@ -49,9 +49,6 @@ export function ChannelAdminSection({
   });
   const [searchMode, setSearchMode] = useState(false);
   const [currentTotalCount, setCurrentTotalCount] = useState(totalCount);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncSuccessMessage, setSyncSuccessMessage] = useState<string | null>(null);
-  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null);
 
   // ページ遷移などで初期データが変わった場合に丁寧に同期します。
   useEffect(() => {
@@ -65,8 +62,6 @@ export function ChannelAdminSection({
     });
     setSearchMode(false);
     setCurrentTotalCount(totalCount);
-    setSyncSuccessMessage(null);
-    setSyncErrorMessage(null);
   }, [initialChannels, currentPage, hasPrev, hasNext, prevHref, nextHref, totalCount]);
 
   const handleSearchResults = (
@@ -176,35 +171,6 @@ export function ChannelAdminSection({
     // NG判定フィルターへの切り替え操作も丁寧に router を経由させます。
     router.push(ngFilterHref);
   };
-  const handleActiveChannelSync = useCallback(async () => {
-    // KV に保存されたアクティブチャンネル情報を GET API で強制更新し、管理画面の情報を最新化します。
-    setIsSyncing(true);
-    setSyncSuccessMessage(null);
-    setSyncErrorMessage(null);
-    try {
-      const response = await fetch("/api/active-channels", {
-        method: "GET",
-        cache: "no-store",
-      });
-      const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-      if (!response.ok) {
-        const message =
-          payload && typeof payload === "object" && typeof payload.message === "string"
-            ? payload.message
-            : "アクティブチャンネル情報の同期に失敗しました。";
-        throw new Error(message);
-      }
-      setSyncSuccessMessage("アクティブチャンネル情報を最新の内容へ同期しました。");
-      // 同期直後に最新データを反映させるため、ページ全体を丁寧に再取得します。
-      router.refresh();
-    } catch (error) {
-      const fallback = "アクティブチャンネル情報の同期に失敗しました。時間を置いて再度お試しください。";
-      setSyncErrorMessage(error instanceof Error ? error.message || fallback : fallback);
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [router]);
-
   return (
     <div className={styles.section}>
       <SearchForm<ChannelRow>
@@ -257,26 +223,8 @@ export function ChannelAdminSection({
           >
             NG{isNgFilter && `(${currentTotalCount.toLocaleString()}件)`}
           </button>
-          {/* ステータスボタンの右側に同期ボタンと説明文をまとめ、同期作業へ丁寧に誘導します。 */}
-          <button
-            type="button"
-            onClick={handleActiveChannelSync}
-            className={styles.syncButton}
-            disabled={isSyncing}
-          >
-            {isSyncing ? "同期中..." : "チャンネル同期"}
-          </button>
         </div>
       </div>
-      {(syncSuccessMessage || syncErrorMessage) && (
-        <p
-          className={
-            syncSuccessMessage ? styles.syncSuccessMessage : styles.syncErrorMessage
-          }
-        >
-          {syncSuccessMessage ?? syncErrorMessage}
-        </p>
-      )}
       <ChannelBulkManager
         channels={channels}
         currentPage={pagination.currentPage}

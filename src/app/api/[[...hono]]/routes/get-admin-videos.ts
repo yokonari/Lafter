@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { desc, eq, and, like, count, inArray, asc } from "drizzle-orm";
-import { videos } from "@/lib/schema";
+import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
@@ -11,11 +11,6 @@ const MAX_LIMIT = 100;
 
 const DESKTOP_PATTERN = /(windows nt|macintosh|x11|linux x86_64)/i;
 const MOBILE_PATTERN = /(iphone|ipad|ipod|android|mobile)/i;
-
-type ActiveChannelRecord = {
-  channel_id?: string;
-  channel_name?: string | null;
-};
 
 function resolveDefaultLimit(userAgentHeader: string | null): number {
   const ua = userAgentHeader ?? "";
@@ -69,50 +64,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
 
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
-    const kv = env.LAFTER;
-    if (!kv) {
-      return c.json(
-        { message: "Workers KV LAFTER バインディングが設定されていません。" },
-        500,
-      );
-    }
-    const cachedActiveChannelsText = await kv.get("active_channels");
-    if (!cachedActiveChannelsText) {
-      return c.json(
-        { message: "Workers KV に active_channels が存在しません。先に同期を実行してください。" },
-        500,
-      );
-    }
-    let cachedActiveChannels: ActiveChannelRecord[] = [];
-    try {
-      cachedActiveChannels = JSON.parse(cachedActiveChannelsText) as ActiveChannelRecord[];
-    } catch {
-      return c.json(
-        { message: "Workers KV の active_channels データを JSON として解析できませんでした。" },
-        500,
-      );
-    }
-    const activeChannelMap = new Map<string, string>();
-    for (const entry of cachedActiveChannels) {
-      if (entry && typeof entry.channel_id === "string" && entry.channel_id) {
-        activeChannelMap.set(entry.channel_id, entry.channel_name ?? "");
-      }
-    }
-    const activeChannelIds = Array.from(activeChannelMap.keys());
-    if (activeChannelIds.length === 0) {
-      // アクティブチャンネルが存在しない場合は空データを即時返却し、無駄な DB クエリを避けます。
-      return c.json(
-        {
-          videos: [],
-          channels: [],
-          page,
-          limit,
-          hasNext: false,
-          totalCount: 0,
-        },
-        200,
-      );
-    }
+    // KV を経由せず channels.status=1 をその都度参照し、常に DB と同じアクティブ判定結果を共有します。
 
     const whereConditions = [eq(videos.status, effectiveVideoStatus)];
     const rawChannelId = c.req.query("channel_id") ?? "";
@@ -126,44 +78,50 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     if (keyword) {
       whereConditions.push(like(videos.title, `%${keyword}%`));
     }
-    whereConditions.push(inArray(videos.channelId, activeChannelIds));
+    // D1 のパラメータ上限に抵触しないよう、channels.status = 1 との結合でアクティブ判定を丁寧に行います。
+    whereConditions.push(eq(channels.status, 1));
     const whereExpression = and(...whereConditions);
 
-    // KV に格納されたアクティブチャンネル ID を条件に用いて、videos テーブルのみから丁寧に取得します。
+    // channels.status=1 を JOIN で確認しつつ、管理画面向けの最新動画情報を丁寧に集めます。
     const rows = await db
       .select({
         id: videos.id,
         title: videos.title,
         channelId: videos.channelId,
+        channelName: channels.name,
         status: videos.status,
         reportStatus: videos.reportStatus,
       })
       .from(videos)
+      .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(whereExpression)
       .orderBy(desc(videos.publishedAt))
       .limit(limit)
       .offset((page - 1) * limit);
 
-    // 条件に合致する動画を保有しているチャンネルのみを videos テーブルから抽出し、KV に保存された名称へ丁寧に紐付けます。
+    // 条件に合致する動画を保有するチャンネルを JOIN で抽出し、DB に保存された名称を丁寧に付与します。
     const channelRows = await db
       .select({
         channelId: videos.channelId,
+        channelName: channels.name,
       })
       .from(videos)
+      .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(whereExpression)
-      .groupBy(videos.channelId)
+      .groupBy(videos.channelId, channels.name)
       .orderBy(asc(videos.channelId));
 
     const channelList = channelRows
       .map((row) => ({
         id: row.channelId,
-        name: activeChannelMap.get(row.channelId) ?? "",
+        name: row.channelName ?? "",
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
 
     const [{ count: totalCount }] = await db
       .select({ count: count() })
       .from(videos)
+      .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(whereExpression);
 
     const hasNext = rows.length === limit;
@@ -173,7 +131,7 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       url: `https://www.youtube.com/watch?v=${row.id}`,
       title: row.title,
       channel_id: row.channelId,
-      channel_name: activeChannelMap.get(row.channelId) ?? "",
+      channel_name: row.channelName ?? "",
       status: row.status,
       report_status: row.reportStatus,
     }));

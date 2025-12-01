@@ -3,16 +3,11 @@ import type { KVNamespace } from "@cloudflare/workers-types";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
-import { playlists, videos } from "@/lib/schema";
+import { channels, playlists, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
 const MAX_LIMIT = 20;
-
-type ActiveChannelRecord = {
-  channel_id?: string;
-  channel_name?: string | null;
-};
 
 type CachedVideoItem = {
   channel_id?: string;
@@ -36,38 +31,21 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const { env } = getCloudflareContext();
     // 型定義済みの env から安全に DB インスタンスを取得いたします。
     const db = createDatabase(env);
-    const kv = env.LAFTER;
-    if (!kv) {
-      return c.json(
-        { message: "Workers KV LAFTER バインディングが設定されていません。" },
-        500,
-      );
-    }
-    const cachedActiveChannelsText = await kv.get("active_channels", "text");
-    if (!cachedActiveChannelsText) {
-      return c.json(
-        { message: "active_channels のキャッシュが存在しません。先に同期を実行してください。" },
-        500,
-      );
-    }
-    let cachedActiveChannels: ActiveChannelRecord[] = [];
-    try {
-      cachedActiveChannels = JSON.parse(cachedActiveChannelsText) as ActiveChannelRecord[];
-    } catch {
-      return c.json(
-        { message: "active_channels の内容を JSON として解析できませんでした。" },
-        500,
-      );
-    }
+    const kv = env.LAFTER ?? null;
+    // 時々刻々と変化するチャンネル状況は DB から素直に取得し、KV 非依存で最新の状態を共有します。
+    const activeChannelRows = await db
+      .select({
+        id: channels.id,
+        name: channels.name,
+      })
+      .from(channels)
+      .where(eq(channels.status, 1));
     const activeChannelMap = new Map<string, string>();
-    for (const entry of cachedActiveChannels) {
-      if (entry && typeof entry.channel_id === "string" && entry.channel_id) {
-        activeChannelMap.set(entry.channel_id, entry.channel_name ?? "");
-      }
+    for (const channel of activeChannelRows) {
+      activeChannelMap.set(channel.id, channel.name ?? "");
     }
-    const activeChannelIds = Array.from(activeChannelMap.keys());
-    if (activeChannelIds.length === 0) {
-      // 有効なチャンネルが存在しない場合は空データを返却し、余計なクエリを実行しません。
+    if (activeChannelMap.size === 0) {
+      // 有効なチャンネルが存在しない場合は空データを返却し、無駄なクエリを実行しません。
       return c.json(
         {
           videos: [],
@@ -110,7 +88,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const isCacheEligible =
       q.length === 0 && !channelIdFilter && normalizedPatternsPerWord.length === 0;
 
-    if (isCacheEligible && mode === "new" && !shouldIncludePlaylists) {
+    if (kv && isCacheEligible && mode === "new" && !shouldIncludePlaylists) {
       // トップ画面の「最近」専用に、最新500件のキャッシュを利用してDBへアクセスせず高速に返します。
       const latestCache = await loadCachedVideos(kv, "latest_active_videos");
       if (latestCache) {
@@ -119,7 +97,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       console.warn("[get-videos] latest_active_videos キャッシュが利用できなかったため DB で処理を継続します。");
     }
 
-    if (isCacheEligible && mode === "random" && !shouldIncludePlaylists) {
+    if (kv && isCacheEligible && mode === "random" && !shouldIncludePlaylists) {
       // トップ画面の「ランダム」専用に、事前に選定済みの500件をKVから配布します。
       const randomCache = await loadCachedVideos(kv, "random_active_videos");
       if (randomCache) {
@@ -128,10 +106,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       console.warn("[get-videos] random_active_videos キャッシュが利用できなかったため DB で処理を継続します。");
     }
 
-    const videoConditions = [
-      inArray(videos.status, [1, 3]),
-      inArray(videos.channelId, activeChannelIds),
-    ];
+    const videoConditions = [inArray(videos.status, [1, 3]), eq(channels.status, 1)];
     if (channelIdFilter) {
       // チャンネル指定がある場合は最優先でそのチャンネルに絞ります。
       videoConditions.push(eq(videos.channelId, channelIdFilter));
@@ -161,15 +136,17 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const videoWhere =
       videoConditions.length === 1 ? videoConditions[0] : and(...videoConditions);
 
-    // Workers KV に保存済みのチャンネル ID を用い、videos テーブル単体で対象レコードを丁寧に絞りこみます。
+    // DB 上の channels.status=1 を直接参照しながら、videos テーブルから対象レコードを丁寧に抽出します。
     const baseVideoQuery = db
       .select({
         id: videos.id,
         title: videos.title,
         publishedAt: videos.publishedAt,
         channelId: videos.channelId,
+        channelName: channels.name,
       })
       .from(videos)
+      .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(videoWhere);
 
     const orderedVideoQuery =
@@ -187,14 +164,12 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         id: string;
         title: string;
         channelId: string | null;
+        channelName: string | null;
         topVideoId: string | null;
       }>
       | [] = [];
     if (shouldIncludePlaylists) {
-      const playlistConditions = [
-        eq(playlists.status, 1),
-        inArray(playlists.channelId, activeChannelIds),
-      ];
+      const playlistConditions = [eq(playlists.status, 1), eq(channels.status, 1)];
       if (channelIdFilter) {
         // チャンネルに紐づく動画一覧を閲覧している場合は、プレイリストも同一チャンネルに限定します。
         playlistConditions.push(eq(playlists.channelId, channelIdFilter));
@@ -223,15 +198,17 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       const playlistWhere =
         playlistConditions.length === 1 ? playlistConditions[0] : and(...playlistConditions);
 
-      // Workers KV の情報に基づき、プレイリストはチャンネル ID のみを取得して名前は後段で丁寧に補います。
+      // channels.status=1 を JOIN で参照しつつ、プレイリストとチャンネル名称を同時に整えます。
       playlistRows = await db
         .select({
           id: playlists.id,
           title: playlists.name,
           channelId: playlists.channelId,
+          channelName: channels.name,
           topVideoId: playlists.topVideoId,
         })
         .from(playlists)
+        .innerJoin(channels, eq(playlists.channelId, channels.id))
         .where(playlistWhere)
         .orderBy(desc(playlists.createdAt))
         .limit(safeLimit)
@@ -243,7 +220,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       // YouTube 由来のタイトルに含まれる &quot; などのエンティティを丁寧にデコードします。
       title: decodeHtmlEntities(row.title),
       channel_id: row.channelId,
-      channel_name: activeChannelMap.get(row.channelId) ?? "",
+      channel_name: row.channelName ?? "",
       published_at: toUnixTime(row.publishedAt),
     }));
 
@@ -252,7 +229,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       // プレイリスト名も同様にエンティティを整えます。
       title: decodeHtmlEntities(row.title),
       channel_id: row.channelId,
-      channel_name: row.channelId ? activeChannelMap.get(row.channelId) ?? "" : "",
+      channel_name: row.channelId ? row.channelName ?? "" : "",
       top_video_id: row.topVideoId,
     }));
 

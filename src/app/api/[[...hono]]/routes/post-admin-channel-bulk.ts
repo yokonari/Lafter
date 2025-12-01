@@ -22,7 +22,7 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
   app.post("/admin/channel/bulk", async (c) => {
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
-    let requiresActiveChannelRefresh = false;
+    let requiresCacheRefresh = false;
 
     const fail = (message: string, status: ContentfulStatusCode = 400) =>
       c.json({ message }, status);
@@ -55,10 +55,8 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
       }
       if (channelStatusInput !== undefined) {
         update.status = channelStatusInput;
-        if (channelStatusInput === 1) {
-          // ステータスを 1 (アクティブ) に変更する場合は、後段で KV を最新化する必要があるため印を付けておきます。
-          requiresActiveChannelRefresh = true;
-        }
+        // ステータス変更が発生した場合は、後段でキャッシュ更新を行うため印を付けておきます。
+        requiresCacheRefresh = true;
       }
 
       if (Object.keys(update).length === 0) {
@@ -78,7 +76,7 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
       processed += 1;
     }
 
-    if (requiresActiveChannelRefresh) {
+    if (requiresCacheRefresh) {
       const kv = env.LAFTER;
       if (!kv) {
         return c.json(
@@ -86,22 +84,15 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
           500,
         );
       }
-      const activeChannels = await db
-        .select({
-          channel_id: channels.id,
-          channel_name: channels.name,
-        })
-        .from(channels)
-        .where(eq(channels.status, 1));
       try {
-        // ステータス 1 のチャンネル一覧を丁寧に KV へ反映し、GET API と同じ内容を即時共有いたします。
-        await kv.put("active_channels", JSON.stringify(activeChannels));
+        // 管理画面からステータス変更があった場合は、最新/ランダム動画キャッシュを丁寧に削除して再生成を促します。
+        await Promise.all([
+          kv.delete("latest_active_videos"),
+          kv.delete("random_active_videos"),
+        ]);
       } catch (error) {
-        console.error("Workers KV への active_channels 保存に失敗しました。", error);
-        return c.json(
-          { message: "Workers KV へアクティブチャンネル情報を書き込めませんでした。" },
-          500,
-        );
+        console.error("Workers KV のキャッシュ削除に失敗しました。", error);
+        return c.json({ message: "キャッシュの削除に失敗しました。" }, 500);
       }
     }
 

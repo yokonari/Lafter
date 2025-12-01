@@ -9,6 +9,7 @@ type CronEnv = Env & {
 
 type RandomVideoRow = {
   channel_id: string;
+  channel_name: string | null;
   video_id: string;
   video_title: string;
 };
@@ -20,11 +21,6 @@ type RandomVideoPayload = {
   video_title: string;
 };
 
-type ActiveChannelRecord = {
-  channel_id?: string;
-  channel_name?: string | null;
-};
-
 type RandomVideoCache = {
   updated_at: string;
   items: RandomVideoPayload[];
@@ -32,7 +28,6 @@ type RandomVideoCache = {
 
 const CACHE_LIMIT = 500;
 const CACHE_KEY = "random_active_videos";
-const ACTIVE_CHANNELS_KEY = "active_channels";
 
 const app = new Hono();
 
@@ -62,13 +57,7 @@ async function runRandomVideosCacheCron(env: CronEnv) {
     return;
   }
 
-  const activeChannelMap = await loadActiveChannelMap(kv);
-  if (!activeChannelMap) {
-    console.error("[cron-random-videos] active_channels の読み込みに失敗したため処理を中断します。");
-    return;
-  }
-
-  // ランダム抽出で 500 件の候補を取得し、active_channels に沿った情報へ丁寧に整形します。
+  // ランダム抽出で 500 件の候補を取得し、channels.status=1 の DB 情報をもとに丁寧に整形します。
   const rows = await fetchRandomVideos(db, CACHE_LIMIT);
   if (rows.length === 0) {
     console.warn("[cron-random-videos] KV へ保存するランダム動画が見つかりませんでした。");
@@ -76,7 +65,8 @@ async function runRandomVideosCacheCron(env: CronEnv) {
 
   const payload: RandomVideoPayload[] = rows.map((row) => ({
     channel_id: row.channel_id,
-    channel_name: activeChannelMap.get(row.channel_id) ?? row.channel_id,
+    // チャンネル名が null の場合でも ID を返しておき、利用側の情報欠落を丁寧に防ぎます。
+    channel_name: row.channel_name ?? row.channel_id,
     video_id: row.video_id,
     video_title: row.video_title,
   }));
@@ -90,12 +80,15 @@ async function fetchRandomVideos(db: D1Database, limit: number): Promise<RandomV
       .prepare(
         `
         SELECT
-          v.channel_id as channel_id,
-          v.id as video_id,
-          v.title as video_title
+          v.channel_id AS channel_id,
+          c.name AS channel_name,
+          v.id AS video_id,
+          v.title AS video_title
         FROM videos v
+        INNER JOIN channels c ON v.channel_id = c.id
         WHERE
           v.status IN (1, 3)
+          AND c.status = 1
         ORDER BY RANDOM()
         LIMIT ?
       `,
@@ -136,35 +129,4 @@ async function saveToKv(kv: KVNamespace, payload: RandomVideoPayload[]): Promise
 
 function resolveDb(env: CronEnv): D1Database | null {
   return env.DB ?? env.lafter_db ?? null;
-}
-
-async function loadActiveChannelMap(kv: KVNamespace): Promise<Map<string, string> | null> {
-  try {
-    const text = await kv.get(ACTIVE_CHANNELS_KEY, "text");
-    if (!text) {
-      console.error("[cron-random-videos] active_channels が KV に存在しません。");
-      return null;
-    }
-    let parsed: ActiveChannelRecord[] = [];
-    try {
-      parsed = JSON.parse(text) as ActiveChannelRecord[];
-    } catch {
-      console.error("[cron-random-videos] active_channels を JSON として解析できませんでした。");
-      return null;
-    }
-    const map = new Map<string, string>();
-    for (const entry of parsed) {
-      if (entry && typeof entry.channel_id === "string" && entry.channel_id) {
-        map.set(entry.channel_id, entry.channel_name ?? "");
-      }
-    }
-    if (map.size === 0) {
-      console.error("[cron-random-videos] active_channels に有効なチャンネルが含まれていません。");
-      return null;
-    }
-    return map;
-  } catch (error) {
-    console.error("[cron-random-videos] active_channels の取得に失敗しました。", error);
-    return null;
-  }
 }
