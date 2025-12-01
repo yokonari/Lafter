@@ -781,15 +781,14 @@ export default function AdminVideosPageContent() {
         searchContext === "shortcut" && activeShortcut ? activeShortcut : "";
 
     const loadSearchPage = useCallback(
-        async (targetPage: number) => {
-            if (!searchContext) return;
+        async (targetPage: number): Promise<AdminVideosResponse | null> => {
+            if (!searchContext) return null;
             setLoading(true);
             try {
                 let data: AdminVideosResponse;
                 if (searchContext === "channel") {
                     if (!activeChannelFilter) {
-                        setLoading(false);
-                        return;
+                        return null;
                     }
                     data = await fetchVideosByChannel(
                         activeChannelFilter.id,
@@ -800,8 +799,7 @@ export default function AdminVideosPageContent() {
                 } else {
                     const keyword = currentSearchKeyword ?? searchKeywordRef.current;
                     if (!keyword) {
-                        setLoading(false);
-                        return;
+                        return null;
                     }
                     searchKeywordRef.current = keyword;
                     setCurrentSearchKeyword(keyword);
@@ -829,10 +827,12 @@ export default function AdminVideosPageContent() {
                 if (data.videos.length === 0) {
                     toast.info("該当する動画が見つかりませんでした。");
                 }
+                return data;
             } catch (error) {
                 const fallback =
                     error instanceof Error ? error.message : "検索結果の取得に失敗しました。";
                 toast.error(fallback);
+                return null;
             } finally {
                 setLoading(false);
             }
@@ -914,11 +914,20 @@ export default function AdminVideosPageContent() {
                 }
                 return next;
             });
-            if (searchContext) {
+            const wasSearchContext = Boolean(searchContext);
+            let latestSearchResult: AdminVideosResponse | null = null;
+            if (wasSearchContext) {
                 // ショートカット等で検索中の場合は同じ条件で丁寧に再読み込みし、設定を維持します。
-                await loadSearchPage(currentPage);
+                latestSearchResult = await loadSearchPage(currentPage);
             } else {
                 await loadVideos(currentPage, videoStatusFilter, reportedOnlyFilter);
+            }
+            if (
+                wasSearchContext &&
+                (!latestSearchResult || !latestSearchResult.hasNext)
+            ) {
+                // 次ページへ進む必要がなくなった場合は、チャンネル一覧中心の画面へ丁寧に戻して作業対象を切り替えやすくいたします。
+                await loadVideos(1, videoStatusFilter, reportedOnlyFilter);
             }
         } catch (error) {
             const fallback =

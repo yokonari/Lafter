@@ -15,6 +15,7 @@ import { registerPostVideosAutoCategorize } from "./routes/post-videos-auto-cate
 import { registerPostVideosReport } from "./routes/post-videos-report";
 import { registerPostVideosCheck } from "./routes/post-videos-check";
 import { registerPostVideosRss } from "./routes/post-videos-rss";
+import { registerGetActiveChannels } from "./routes/get-active-channels";
 import { authMiddleware } from "@/lib/middleware/auth";
 import { apiSecretMiddleware } from "@/lib/middleware/api-secret";
 import type { AdminEnv } from "./types";
@@ -43,6 +44,7 @@ registerPostChannelSearch(app);
 registerPostSearchLogs(app);
 registerPostVideosAutoCategorize(app);
 registerPostVideosReport(app);
+registerGetActiveChannels(app);
 
 export const GET = handle(app);
 export const POST = handle(app);

@@ -284,11 +284,86 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   gap: 1rem;
 }
 
+.syncRow {
+  border-radius: 0.75rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+
+  @media (min-width: 640px) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.syncDescription {
+  font-size: 0.9rem;
+  color: var(--admin-text-muted);
+  margin: 0;
+}
+
+.syncButton {
+  @include primary-button;
+  align-self: flex-start;
+
+  @media (min-width: 640px) {
+    align-self: flex-end;
+  }
+}
+
+.syncSuccessMessage,
+.syncErrorMessage {
+  @include message-card;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.syncSuccessMessage {
+  border-color: rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.1);
+  color: var(--admin-success);
+}
+
+.syncErrorMessage {
+  border-color: var(--admin-error-border);
+  background: var(--admin-error-bg);
+  color: var(--admin-error-text);
+}
+
+/* ステータスボタンと同期ボタンを同じ行で扱う柔軟なレイアウトです。 */
 .filterRow {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-start;
+  gap: 0.75rem;
+  justify-content: space-between;
+}
+
+/* ステータスボタン群を任意の幅で折り返しつつ左側に保持します。 */
+.filterButtons {
+  display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  flex: 1 1 12rem;
+}
+
+/* 同期ボタンと説明文を右側に縦並びで配置し、幅が狭い場合は下段へ丁寧に折り返します。 */
+.syncInlineControls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: min(100%, 18rem);
+  align-items: flex-start;
+  text-align: left;
+
+  @media (min-width: 640px) {
+    align-items: flex-end;
+    text-align: right;
+  }
 }
 
 .filterButton,

@@ -56,10 +56,6 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Script
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7810898957058616"
-          crossOrigin="anonymous"
-        />
-        <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-204FB6PCV8"
         />
         <Script id="google-analytics">
