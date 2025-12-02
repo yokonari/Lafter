@@ -997,7 +997,11 @@ export default function AdminVideosPageContent() {
             if (wasSearchContext) {
                 if (currentSearchMode === "channel") {
                     // チャンネル絞り込みでは全件を都度再取得し、同じチャンネルでの確認作業を継続しやすくします。
-                    await loadSearchPage(1);
+                    const channelResult = await loadSearchPage(1);
+                    if (!channelResult || channelResult.videos.length === 0) {
+                        // 更新後に対象動画がなくなった場合は、チャンネル一覧画面へ戻して仕切り直せるようにします。
+                        await loadVideos(1, videoStatusFilter, reportedOnlyFilter);
+                    }
                 } else {
                     let nextResult: AdminVideosResponse | null = null;
                     if (hasNextPage) {
