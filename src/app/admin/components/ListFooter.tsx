@@ -20,6 +20,7 @@ type ListFooterProps = {
   selectionContent?: ReactNode;
   actionContent?: ReactNode;
   bulkControl?: BulkControl;
+  hidePaging?: boolean;
   paging: {
     currentPage: number;
     hasPrev: boolean;
@@ -31,7 +32,14 @@ type ListFooterProps = {
   };
 };
 
-export function ListFooter({ headerContent, selectionContent, actionContent, bulkControl, paging }: ListFooterProps) {
+export function ListFooter({
+  headerContent,
+  selectionContent,
+  actionContent,
+  bulkControl,
+  paging,
+  hidePaging = false,
+}: ListFooterProps) {
   const renderControl = (
     enabled: boolean,
     href: string | undefined,
@@ -111,27 +119,29 @@ export function ListFooter({ headerContent, selectionContent, actionContent, bul
               </div>
             </div>
           ) : null}
-          <div className={styles.pageInfoBlock}>
-            <span className={styles.pageInfo}>ページ {paging.currentPage}</span>
-            <div className={styles.controls}>
-              {renderControl(
-                paging.hasPrev,
-                paging.prevHref,
-                paging.onPrev,
-                "前のページ",
-                <ArrowLeft aria-hidden="true" size={20} />,
-                styles.control
-              )}
-              {renderControl(
-                paging.hasNext,
-                paging.nextHref,
-                paging.onNext,
-                "次のページ",
-                <ArrowRight aria-hidden="true" size={20} />,
-                styles.control
-              )}
+          {!hidePaging && (
+            <div className={styles.pageInfoBlock}>
+              <span className={styles.pageInfo}>ページ {paging.currentPage}</span>
+              <div className={styles.controls}>
+                {renderControl(
+                  paging.hasPrev,
+                  paging.prevHref,
+                  paging.onPrev,
+                  "前のページ",
+                  <ArrowLeft aria-hidden="true" size={20} />,
+                  styles.control
+                )}
+                {renderControl(
+                  paging.hasNext,
+                  paging.nextHref,
+                  paging.onNext,
+                  "次のページ",
+                  <ArrowRight aria-hidden="true" size={20} />,
+                  styles.control
+                )}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -142,27 +152,29 @@ export function ListFooter({ headerContent, selectionContent, actionContent, bul
               {resolvedSelectionContent}
             </div>
             <div className="flex flex-wrap items-center justify-end gap-4">
-              <div className={styles.pagerSection}>
-                <span>ページ {paging.currentPage}</span>
-                <div className={styles.pagerControls}>
-                  {renderControl(
-                    paging.hasPrev,
-                    paging.prevHref,
-                    paging.onPrev,
-                    "前のページ",
-                    <ArrowLeft aria-hidden="true" size={22} />,
-                    styles.pagerControl
-                  )}
-                  {renderControl(
-                    paging.hasNext,
-                    paging.nextHref,
-                    paging.onNext,
-                    "次のページ",
-                    <ArrowRight aria-hidden="true" size={22} />,
-                    styles.pagerControl
-                  )}
+              {!hidePaging && (
+                <div className={styles.pagerSection}>
+                  <span>ページ {paging.currentPage}</span>
+                  <div className={styles.pagerControls}>
+                    {renderControl(
+                      paging.hasPrev,
+                      paging.prevHref,
+                      paging.onPrev,
+                      "前のページ",
+                      <ArrowLeft aria-hidden="true" size={22} />,
+                      styles.pagerControl
+                    )}
+                    {renderControl(
+                      paging.hasNext,
+                      paging.nextHref,
+                      paging.onNext,
+                      "次のページ",
+                      <ArrowRight aria-hidden="true" size={22} />,
+                      styles.pagerControl
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
               {resolvedActionContent}
             </div>
           </div>

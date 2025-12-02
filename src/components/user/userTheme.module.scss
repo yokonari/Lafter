@@ -60,7 +60,7 @@ $title-font-weight: 400;
   top: 0;
   z-index: 40;
   height: 3.5rem; // 56px
-  background-color: var(--user-card-overlay);
+  background-color: var(--user-bg);
   backdrop-filter: blur(6px);
   border-bottom: 1px solid $user-border; // サンプルと同じ深さの区切り線でヘッダーを丁寧に分けます。
 }
@@ -343,6 +343,13 @@ $title-font-weight: 400;
   margin-bottom: 2rem; // 24px: セクション間隔を半分に調整
 }
 
+.sectionDivider {
+  height: 1px;
+  border: none;
+  background-color: var(--user-border);
+  margin-bottom: 2rem;
+}
+
 .sectionHeadingWrap {
   margin-bottom: 0.75rem; // タイトル下に少し余白を広げ、アイコン付きラベルとの間隔を丁寧に確保します。
   display: flex;
@@ -393,7 +400,7 @@ $title-font-weight: 400;
   height: 2rem; // 見出しを縦に貫く高さで存在感を出します。
   border-radius: 0.25rem;
   background: var(--user-accent);
-  margin-right: 0.5rem; // サンプルの mr-2 相当でタイトルとの距離を揃えます。
+  margin-right: 0.3rem; // サンプルの mr-2 相当でタイトルとの距離を揃えます。
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35); // 立体感をわずかに足します。
 }
 

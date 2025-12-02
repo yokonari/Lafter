@@ -441,6 +441,58 @@ export default function AdminVideosPageContent() {
         return payload as AdminVideosResponse;
     }, [reportedOnlyFilter]);
 
+    const fetchAllChannelVideos = useCallback(async (
+        channelId: string,
+        statusFilter: number,
+        reportedOnly: boolean,
+    ): Promise<AdminVideosResponse> => {
+        if (!channelId) {
+            throw new Error("チャンネルIDが指定されていません。");
+        }
+        // チャンネル絞り込みではページングを廃止するため、全ページを丁寧に走査してまとめます。
+        const mergedVideos = new Map<string, AdminVideo>();
+        const mergedChannels = new Map<string, ChannelSummary>();
+        let totalCount: number | null = null;
+        let limitValue: number | null = null;
+        const maxPages = 50;
+        for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
+            const data = await fetchVideosByChannel(channelId, pageNumber, statusFilter, reportedOnly);
+            if (limitValue === null && typeof data.limit === "number") {
+                limitValue = data.limit;
+            }
+            if (typeof data.totalCount === "number") {
+                totalCount = data.totalCount;
+            }
+            for (const video of data.videos) {
+                if (!mergedVideos.has(video.id)) {
+                    mergedVideos.set(video.id, video);
+                }
+            }
+            if (Array.isArray(data.channels)) {
+                for (const channel of data.channels) {
+                    if (!channel?.id) continue;
+                    if (!mergedChannels.has(channel.id)) {
+                        mergedChannels.set(channel.id, channel);
+                    }
+                }
+            }
+            if (!data.hasNext) {
+                break;
+            }
+            if (pageNumber === maxPages) {
+                toast.warn("対象チャンネルの動画が多いため、全件を取得できませんでした。");
+            }
+        }
+        return {
+            videos: Array.from(mergedVideos.values()),
+            channels: Array.from(mergedChannels.values()),
+            page: 1,
+            limit: limitValue ?? mergedVideos.size,
+            hasNext: false,
+            totalCount: typeof totalCount === "number" ? totalCount : mergedVideos.size,
+        };
+    }, [fetchVideosByChannel]);
+
     const executeVideoSearch = useCallback(
         async (keyword: string) => {
             latestSearchChannelsRef.current = [];
@@ -641,11 +693,11 @@ export default function AdminVideosPageContent() {
                 selected: true,
             };
             try {
-                const data = await fetchVideosByChannel(channelId, 1, videoStatusFilter, reportedOnlyFilter);
+                const data = await fetchAllChannelVideos(channelId, videoStatusFilter, reportedOnlyFilter);
                 const channelList = Array.isArray(data.channels) ? data.channels : [];
                 applySearchResults(
                     data.videos,
-                    { hasNext: Boolean(data.hasNext), totalCount: data.totalCount },
+                    { hasNext: false, totalCount: data.totalCount },
                     { defaults, mode: "channel", channelFilter: { id: channelId, name: channelName } },
                     channelList,
                 );
@@ -664,7 +716,7 @@ export default function AdminVideosPageContent() {
         [
             activeChannelFilter,
             applySearchResults,
-            fetchVideosByChannel,
+            fetchAllChannelVideos,
             loadVideos,
             reportedOnlyFilter,
             resolveStatusValue,
@@ -793,9 +845,8 @@ export default function AdminVideosPageContent() {
                     if (!activeChannelFilter) {
                         return null;
                     }
-                    data = await fetchVideosByChannel(
+                    data = await fetchAllChannelVideos(
                         activeChannelFilter.id,
-                        targetPage,
                         videoStatusFilter,
                         reportedOnlyFilter,
                     );
@@ -812,26 +863,31 @@ export default function AdminVideosPageContent() {
                         videoStatusFilter,
                         reportedOnlyFilter,
                     );
-                }
-                const limitValue =
-                    typeof data.limit === "number" && Number.isFinite(data.limit) && data.limit > 0
-                        ? data.limit
-                        : null;
-                const totalValue =
-                    typeof data.totalCount === "number" && data.totalCount >= 0
-                        ? data.totalCount
-                        : null;
-                if (
-                    options?.fallbackToLast !== false &&
-                    targetPage > 1 &&
-                    limitValue &&
-                    totalValue !== null &&
-                    totalValue > 0
-                ) {
-                    const maxPage = Math.max(1, Math.ceil(totalValue / limitValue));
-                    if (targetPage > maxPage) {
-                        // ページング対象が途中で減った場合でも見落としがないよう、末尾ページを丁寧に再読込します。
-                        return await loadSearchPage(maxPage, { fallbackToLast: false });
+                    if (options?.fallbackToLast !== false) {
+                        const limitValue =
+                            typeof data.limit === "number" && Number.isFinite(data.limit) && data.limit > 0
+                                ? data.limit
+                                : null;
+                        const totalValue =
+                            typeof data.totalCount === "number" && data.totalCount >= 0
+                                ? data.totalCount
+                                : null;
+                        if (
+                            targetPage > 1 &&
+                            limitValue &&
+                            totalValue !== null &&
+                            totalValue > 0
+                        ) {
+                            const maxPage = Math.max(1, Math.ceil(totalValue / limitValue));
+                            if (targetPage > maxPage) {
+                                data = await fetchVideosByKeyword(
+                                    keyword,
+                                    maxPage,
+                                    videoStatusFilter,
+                                    reportedOnlyFilter,
+                                );
+                            }
+                        }
                     }
                 }
                 setVideos(data.videos);
@@ -865,7 +921,7 @@ export default function AdminVideosPageContent() {
             activeChannelFilter,
             currentSearchKeyword,
             searchContext,
-            fetchVideosByChannel,
+            fetchAllChannelVideos,
             fetchVideosByKeyword,
             createInitialSelections,
             searchSelectionDefaults,
@@ -938,16 +994,22 @@ export default function AdminVideosPageContent() {
                 }
                 return next;
             });
-            const wasSearchContext = Boolean(searchContext);
+            const currentSearchMode = searchContext;
+            const wasSearchContext = Boolean(currentSearchMode);
             if (wasSearchContext) {
-                let nextResult: AdminVideosResponse | null = null;
-                if (hasNextPage) {
-                    // API 側の件数が更新により前倒しで減るケースを考慮し、まずは次ページを素直に読み込みます。
-                    nextResult = await loadSearchPage(currentPage + 1);
-                }
-                if (!nextResult || nextResult.videos.length === 0) {
-                    // これ以上処理対象が存在しない場合は、チャンネル一覧中心の初期ビューへ戻して新たなモードを選び直していただきます。
-                    await loadVideos(1, videoStatusFilter, reportedOnlyFilter);
+                if (currentSearchMode === "channel") {
+                    // チャンネル絞り込みでは全件を都度再取得し、同じチャンネルでの確認作業を継続しやすくします。
+                    await loadSearchPage(1);
+                } else {
+                    let nextResult: AdminVideosResponse | null = null;
+                    if (hasNextPage) {
+                        // API 側の件数が更新により前倒しで減るケースを考慮し、まずは次ページを素直に読み込みます。
+                        nextResult = await loadSearchPage(currentPage + 1);
+                    }
+                    if (!nextResult || nextResult.videos.length === 0) {
+                        // これ以上処理対象が存在しない場合は、チャンネル一覧中心の初期ビューへ戻して新たなモードを選び直していただきます。
+                        await loadVideos(1, videoStatusFilter, reportedOnlyFilter);
+                    }
                 }
             } else {
                 await loadVideos(currentPage, videoStatusFilter, reportedOnlyFilter);
@@ -963,6 +1025,10 @@ export default function AdminVideosPageContent() {
 
     const goToPage = (targetPage: number) => {
         if (searchContext) {
+            if (searchContext === "channel") {
+                // チャンネル絞り込みではページングを無効化するため、遷移は行いません。
+                return;
+            }
             void loadSearchPage(targetPage);
             return;
         }
@@ -1282,6 +1348,7 @@ export default function AdminVideosPageContent() {
                         {shouldShowVideoGrid ? (
                             // フッターに専用の一括操作エリアを設け、OK/NG の一括反映をすぐ実行できるようにします。
                             <ListFooter
+                                hidePaging={searchContext === "channel"}
                                 selectionContent={(
                                     <div className="flex flex-wrap items-center gap-3 text-sm">
                                         <label className="inline-flex items-center gap-2">
