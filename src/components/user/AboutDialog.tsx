@@ -96,13 +96,12 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
           >Amazon eギフト</a>,
           <Fragment key="section-support-email">
             {/* 受取人アドレスとコピー導線をまとめ、寄付の前準備を丁寧にサポートします。 */}
-            受取人：{donationRecipientEmail}
             <button
               type="button"
               onClick={handleCopyDonationEmail}
               className={styles.aboutCopyButton}
               aria-label="受取人のメールアドレスをコピー"
-            >アドレスをコピー</button>
+            >受取人のメールアドレスをコピー</button>
           </Fragment>,
         ],
       },
