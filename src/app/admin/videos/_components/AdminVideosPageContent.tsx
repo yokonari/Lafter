@@ -144,7 +144,6 @@ export default function AdminVideosPageContent() {
     const searchKeywordRef = useRef<string | null>(null);
     const latestSearchChannelsRef = useRef<ChannelSummary[]>([]);
     // ショートカット検索 UI は一時停止中ですが、再開を見据えて状態を保持するため lint を抑制します。
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const [activeShortcut, setActiveShortcut] = useState<ShortcutKey | null>(null);
     // 自動分類機能も現在はコメントアウト中のため、状態だけ定義して lint を抑止します。
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -719,7 +718,6 @@ export default function AdminVideosPageContent() {
             fetchAllChannelVideos,
             loadVideos,
             reportedOnlyFilter,
-            resolveStatusValue,
             searchContext,
             videoStatusFilter,
         ],
@@ -1272,9 +1270,8 @@ export default function AdminVideosPageContent() {
                                                             {/* チャンネル名をボタン化し、同一チャンネル絞り込みを素早く実行できるようにします。 */}
                                                             <button
                                                                 type="button"
-                                                                className={`${styles.cardMeta} text-left underline-offset-4 ${
-                                                                    isChannelFilterActive ? "text-amber-200 underline" : "hover:text-slate-200 hover:underline"
-                                                                }`}
+                                                                className={`${styles.cardMeta} text-left underline-offset-4 ${isChannelFilterActive ? "text-amber-200 underline" : "hover:text-slate-200 hover:underline"
+                                                                    }`}
                                                                 onClick={() => handleChannelFilterClick(video.channel_id, video.channel_name)}
                                                                 aria-label={`${video.channel_name} の動画で絞り込む`}
                                                             >

@@ -8,6 +8,7 @@ import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
 const MAX_LIMIT = 20;
+const HOME_CACHE_LIMIT = 10; // ユーザートップ画面用のキャッシュ再抽選時は常に10件だけ返却します。
 
 type CachedVideoItem = {
   channel_id?: string;
@@ -76,6 +77,9 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const includePlaylistsParam = c.req.query("includePlaylists");
     const shouldIncludePlaylists =
       includePlaylistsParam === "false" || includePlaylistsParam === "0" ? false : true;
+    const isHomeParam = c.req.query("isHome");
+    // userHome からの参照時のみ true を受け取り、キャッシュの再シャッフルを許可します。
+    const shouldShuffleCacheForHome = isHomeParam === "true" || isHomeParam === "1";
     const channelIdsMatchingQuery: string[] = [];
     if (normalizedPatternsPerWord.length) {
       const matchedChannelIds = findChannelIdsByKeyword(
@@ -92,7 +96,15 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       // トップ画面の「最近」専用に、最新500件のキャッシュを利用してDBへアクセスせず高速に返します。
       const latestCache = await loadCachedVideos(kv, "latest_active_videos");
       if (latestCache) {
-        return respondWithCache(c, latestCache, safeOffset, safeLimit);
+        // userHome からの要求のみシャッフル+10件に限定し、それ以外は既存順序で返します。
+        const cacheLimit = shouldShuffleCacheForHome ? HOME_CACHE_LIMIT : safeLimit;
+        return respondWithCache(
+          c,
+          latestCache,
+          safeOffset,
+          cacheLimit,
+          shouldShuffleCacheForHome,
+        );
       }
       console.warn("[get-videos] latest_active_videos キャッシュが利用できなかったため DB で処理を継続します。");
     }
@@ -101,7 +113,15 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       // トップ画面の「ランダム」専用に、事前に選定済みの500件をKVから配布します。
       const randomCache = await loadCachedVideos(kv, "random_active_videos");
       if (randomCache) {
-        return respondWithCache(c, randomCache, safeOffset, safeLimit);
+        // ランダムキャッシュも同じく、userHome でのみ即時再抽選+10件を提供します。
+        const cacheLimit = shouldShuffleCacheForHome ? HOME_CACHE_LIMIT : safeLimit;
+        return respondWithCache(
+          c,
+          randomCache,
+          safeOffset,
+          cacheLimit,
+          shouldShuffleCacheForHome,
+        );
       }
       console.warn("[get-videos] random_active_videos キャッシュが利用できなかったため DB で処理を継続します。");
     }
@@ -332,8 +352,18 @@ function respondWithCache(
   cache: LatestVideoCache | RandomVideoCache,
   offset: number,
   limit: number,
+  shouldShuffle: boolean,
 ): Response {
-  const items = cache.items ?? [];
+  const items = [...(cache.items ?? [])];
+
+  if (shouldShuffle) {
+    // userHome 限定の再抽選ロジックでは、受け取ったキャッシュ全体を丁寧にシャッフルします。
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [items[i], items[j]] = [items[j], items[i]];
+    }
+  }
+
   const startIndex = offset;
   const endIndex = offset + limit;
   const sliced = items.slice(startIndex, endIndex);

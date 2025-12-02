@@ -17,7 +17,6 @@ type ClassifyRequestBody = {
 };
 
 const MAX_TITLES = 50; // 過負荷を避けるため、1リクエストあたり/1回のDBバッチ取得件数を丁寧に制限します。
-const MAX_LOOPS = 20; // 無限ループを防止しつつ、最大で 50 * 20 = 1000 件までまとめて判定します。
 
 type LLMResultPayload = {
   title: string;
@@ -68,67 +67,55 @@ export async function POST(request: Request) {
 
     const llmResults: LLMResultPayload[] = [];
     let processed = 0;
-    let loopCount = 0;
-    // 50件ずつ丁寧に繰り返し、exhaustive=true の場合は残件がなくなるまで続けます。
-    while (true) {
-      const pendingVideos = await db
-        .select({ id: videos.id, title: videos.title })
-        .from(videos)
-        .innerJoin(channels, eq(videos.channelId, channels.id))
-        .where(baseCondition)
-        .orderBy(desc(videos.publishedAt))
-        .limit(MAX_TITLES);
+    // channel status=1 & video status=0 の範囲から、公開日の新しい順に 50 件のみ抽出します。
+    const pendingVideos = await db
+      .select({ id: videos.id, title: videos.title })
+      .from(videos)
+      .innerJoin(channels, eq(videos.channelId, channels.id))
+      .where(baseCondition)
+      .orderBy(desc(videos.publishedAt))
+      .limit(MAX_TITLES);
 
-      if (pendingVideos.length === 0) {
-        if (loopCount === 0) {
-          return Response.json({
-            mode: "llm",
-            count: 0,
-            results: [],
-            message: "status=0 の動画が存在しません。",
-          });
-        }
-        break;
+    if (pendingVideos.length === 0) {
+      return Response.json({
+        mode: "llm",
+        count: 0,
+        results: [],
+        message: "status=0 の動画が存在しません。",
+      });
+    }
+
+    for (const video of pendingVideos) {
+      try {
+        const classification = await classifyTitleWithLLM(client, video.title);
+        const nextStatus = resolveStatusFromLabel(classification.label);
+        const checkedAt = new Date().toISOString();
+        await db
+          .update(videos)
+          .set({
+            status: nextStatus,
+            lastCheckedAt: checkedAt,
+          })
+          .where(eq(videos.id, video.id));
+        // confidence/reason は API 応答では不要なため、label のみを動画IDと共に返します。
+        llmResults.push({
+          title: classification.title,
+          label: classification.label,
+          videoId: video.id,
+          nextStatus,
+        });
+      } catch (error) {
+        console.error("[api/classify] LLM 判定中にエラーが発生しました。", error);
+        llmResults.push({
+          title: video.title,
+          label: "false",
+          videoId: video.id,
+          nextStatus: 0,
+        });
       }
-
-      for (const video of pendingVideos) {
-        try {
-          const classification = await classifyTitleWithLLM(client, video.title);
-          const nextStatus = resolveStatusFromLabel(classification.label);
-          const checkedAt = new Date().toISOString();
-          await db
-            .update(videos)
-            .set({
-              status: nextStatus,
-              lastCheckedAt: checkedAt,
-            })
-            .where(eq(videos.id, video.id));
-          // confidence/reason は API 応答では不要なため、label のみを動画IDと共に返します。
-          llmResults.push({
-            title: classification.title,
-            label: classification.label,
-            videoId: video.id,
-            nextStatus,
-          });
-        } catch (error) {
-          console.error("[api/classify] LLM 判定中にエラーが発生しました。", error);
-          llmResults.push({
-            title: video.title,
-            label: "false",
-            videoId: video.id,
-            nextStatus: 0,
-          });
-        }
-        processed += 1;
-        // LLM 判定の進捗を 10 件ごとに丁寧にログへ出し、ロングバッチでも状況を把握しやすくします。
-        if (processed % 10 === 0 || processed === llmResults.length) {
-          console.log(`[api/classify] LLM判定 ${processed} 件処理済み (loop ${loopCount + 1})`);
-        }
-      }
-
-      loopCount += 1;
-      if (!exhaustive || loopCount >= MAX_LOOPS) {
-        break;
+      processed += 1;
+      if (processed % 10 === 0 || processed === llmResults.length) {
+        console.log(`[api/classify] LLM判定 ${processed} 件処理済み (最新50件対象)`);
       }
     }
 
@@ -138,7 +125,7 @@ export async function POST(request: Request) {
       results: llmResults,
       meta: {
         channelId,
-        loops: loopCount,
+        loops: 1,
         exhaustive,
       },
     });

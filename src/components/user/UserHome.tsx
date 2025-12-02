@@ -15,7 +15,13 @@ import { ContactDialog } from "./ContactDialog";
 import { ReportDialog } from "./ReportDialog";
 import { ScrollTopButton } from "./ScrollTopButton";
 import { UsageDialog } from "./UsageDialog";
+import { AboutDialog } from "./AboutDialog";
 import styles from "./userTheme.module.scss";
+
+// トースト通知の外観を統一し、暗色テーマの世界観を崩さないよう共有設定を用意します。
+const userToastAppearanceOptions = {
+  className: "userToast",
+} as const;
 
 export function UserHome() {
   const router = useRouter();
@@ -31,6 +37,8 @@ export function UserHome() {
   const [reportVideo, setReportVideo] = useState<VideoItem | null>(null);
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [isUsageOpen, setIsUsageOpen] = useState(false);
+  // サイトの背景説明モーダルも個別に制御し、ユーザーが安心して情報を確認できるようにします。
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   // URL パラメーターを置換し、検索条件を共有するためのヘルパーです。
   const updateUrl = useCallback(
@@ -143,11 +151,11 @@ export function UserHome() {
   }, []);
 
   const handleReportSuccess = useCallback(() => {
-    toast.success("ご報告ありがとうございました！");
+    toast.success("ご報告ありがとうございました！", userToastAppearanceOptions);
   }, []);
 
   const handleContactSuccess = useCallback(() => {
-    toast.success("お問い合わせありがとうございました！");
+    toast.success("お問い合わせありがとうございました！", userToastAppearanceOptions);
   }, []);
 
   return (
@@ -189,6 +197,7 @@ export function UserHome() {
 
       <UserFooter
         onContactClick={() => setIsContactOpen(true)}
+        onAboutClick={() => setIsAboutOpen(true)}
       />
 
       <VideoDialog
@@ -206,6 +215,7 @@ export function UserHome() {
         onSuccess={handleContactSuccess}
       />
       <UsageDialog open={isUsageOpen} onClose={() => setIsUsageOpen(false)} />
+      <AboutDialog open={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
       <ReportDialog open={Boolean(reportVideo)} video={reportVideo} onClose={handleReportClose} onSuccess={handleReportSuccess} />
       <ToastContainer position="top-center" theme="dark" />
     </div>

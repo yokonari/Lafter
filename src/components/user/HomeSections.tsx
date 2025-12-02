@@ -36,6 +36,8 @@ export function HomeSections({
       mode: "new",
       limit: 10,
       includePlaylists: false, // ホームではプレイリストを表示しないため取得を省きます。
+      // userHome セクションでは API に isHome=true を伝えてキャッシュ再抽選の10件に限定します。
+      isHome: true,
       signal: controller.signal,
     })
       .then(({ videos }) => {
@@ -68,6 +70,8 @@ export function HomeSections({
       mode: "random",
       limit: 10,
       includePlaylists: false, // ホームではプレイリストを表示しないため取得を省きます。
+      // ランダム表示も userHome 扱いのため isHome=true を付与し、サーバ側で丁寧に再シャッフルします。
+      isHome: true,
       signal: controller.signal,
     })
       .then(({ videos }) => {

@@ -78,6 +78,10 @@ export type FetchVideoOptions = {
   limit?: number;
   offset?: number;
   includePlaylists?: boolean;
+  /**
+   * userHome からのアクセス時のみ true を渡し、API 側でキャッシュの再抽選を行います。
+   */
+  isHome?: boolean;
 };
 
 export type FetchVideosResponse = {
@@ -118,6 +122,10 @@ export async function fetchVideoItems(
   }
   if (options?.includePlaylists === false) {
     params.set("includePlaylists", "false");
+  }
+  if (options?.isHome) {
+    // トップ画面専用の最適化フラグです。false 相当時はクエリを付けず既存挙動を保ちます。
+    params.set("isHome", "true");
   }
 
   const url = `/api/videos${params.toString() ? `?${params}` : ""}`;

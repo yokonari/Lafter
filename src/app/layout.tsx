@@ -14,7 +14,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata = {
+// Next.js 側が利用するメタデータの型を明示し、型安全に OGP 情報を配信します。
+export const metadata: Metadata = {
   title: 'Lafter | ネタ動画検索アプリ',
   description:
     'お笑い芸人の公式YouTubeチャンネルから、漫才・コントなどのネタ動画だけを検索できるサービス。',

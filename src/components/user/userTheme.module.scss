@@ -1217,7 +1217,7 @@ $title-font-weight: 400;
 }
 
 .usageIcon {
-  color: var(--user-accent);
+  color: var(--user-accent-strong);
 }
 
 .usageItemTitle {
@@ -1240,6 +1240,78 @@ $title-font-weight: 400;
 .usageActionButton {
   @extend .userButton;
   padding: 0.55rem 1.25rem;
+}
+
+/* ------- このサイトについてダイアログ ------- */
+.aboutDialog {
+  @extend .usageDialog; // 使いかたダイアログとサイズ・配色を揃え、統一感のあるモーダルにします。
+}
+
+.aboutBody {
+  @extend .usageBody; // 背景やスクロール挙動を流用しつつ、項目間隔だけ調整します。
+  gap: 1.25rem;
+}
+
+.aboutItem {
+  @extend .usageItem; // usage と同じレイアウトで、行ごとの枠を設けずフラットに揃えます。
+}
+
+.aboutIconWrap {
+  @extend .usageIconWrap; // usage セクションと同じ丸い背景で、視覚のリズムを合わせます。
+}
+
+.aboutIcon {
+  @extend .usageIcon;
+}
+
+.aboutSectionTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--user-text);
+}
+
+.aboutText {
+  margin: 0;
+  color: var(--user-text-secondary);
+  font-size: 0.88rem;
+  line-height: 1.72;
+}
+
+.aboutLink {
+  color: var(--user-accent);
+}
+
+// コピーボタンを角丸ボーダーのみの軽やかなトーンに整え、寄付体験をさり気なく補佐します。
+.aboutCopyButton {
+  border: 1px solid var(--user-text-secondary);
+  border-radius: 9999px;
+  padding: 0.05rem 0.4rem;
+  color: var(--user-text-secondary);
+  background: transparent;
+  font-size: 0.8rem;
+  margin-top: 0.5rem;
+  transition: background 0.2s ease, color 0.2s ease;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+// トーストのステータスを問わず背景・文字色・フォントサイズを統一し、ユーザー向けの落ち着いた通知に整えます。
+.userLayout :global(.userToast) {
+  background: var(--user-surface);
+  color: var(--user-text);
+  font-size: 0.9rem;
+}
+
+.aboutActions {
+  @extend .usageActions;
+}
+
+.aboutActionButton {
+  @extend .usageActionButton;
 }
 
 /* ------- 利用規約・ポリシー ------- */
