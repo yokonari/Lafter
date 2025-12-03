@@ -154,14 +154,14 @@ async function loadTargetChannels(db: AppDatabase, options: {
   limit: number;
 }): Promise<ChannelRow[]> {
   const oneYearAgoIso = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
-  // チャンネル単位で直近1年以内に status=1 の動画が存在するかを厳密に検査する EXISTS 句です。
+  // 各チャンネルで「公開日が直近1年以内の status=1 動画」を持っているか丁寧に確認する EXISTS 句です。
   const hasRecentActiveVideos = sql`
     EXISTS (
       SELECT 1 FROM ${videos}
       WHERE ${videos.channelId} = ${channels.id}
         AND ${videos.status} = 1
-        AND ${videos.lastCheckedAt} IS NOT NULL
-        AND ${videos.lastCheckedAt} >= ${oneYearAgoIso}
+        AND ${videos.publishedAt} IS NOT NULL
+        AND ${videos.publishedAt} >= ${oneYearAgoIso}
     )
   `;
 
@@ -181,7 +181,7 @@ async function loadTargetChannels(db: AppDatabase, options: {
     return rows;
   }
 
-  // lastCheckedAt が NULL のチャネルは巡回対象から丁寧に除外しつつ、直近1年以内に稼働中の動画を持つチャンネルのみを古い順に処理します。
+  // lastCheckedAt が NULL のチャネルは巡回対象から丁寧に除外しつつ、直近1年以内に公開された動画を持つチャンネルのみを古い順に処理します。
   return db
     .select({ id: channels.id, name: channels.name })
     .from(channels)
