@@ -9,6 +9,8 @@ import cronVideoCheck from "./cron-video-check";
 import cronVideoRss from "./cron-video-rss";
 
 type ScheduledEventParam = Parameters<ExportedHandlerScheduledHandler>[0];
+const MINUTES_PER_DAY = 24 * 60;
+const VIDEO_CHECK_RUNS_PER_DAY = 400;
 
 // OpenNext の fetch を明示的に型付けし、ビルド時の推論抜けを防ぎます。
 const fetchHandler: ExportedHandlerFetchHandler = (request, env, ctx) =>
@@ -42,13 +44,13 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
     } else {
       console.log("[worker] LLM 判定は 31 分周期外のためスキップしました。");
     }
-    // 動画存在チェックは 1 日 10 回 (=144分間隔) で実行し、API クォータを丁寧に保護します。
+    // 動画存在チェックは 1 日 400 回 (約3〜4分間隔) で実行し、API クォータと更新頻度のバランスを丁寧に保ちます。
     if (runVideoCheck) {
       if (typeof cronVideoCheck.scheduled === "function") {
         await cronVideoCheck.scheduled(event, env, ctx);
       }
     } else {
-      console.log("[worker] 動画存在チェックは 144 分周期外のためスキップしました。");
+      console.log("[worker] 動画存在チェックは 1 日 400 回ペースの周期外のためスキップしました。");
     }
     // RSS 同期は毎時 10 分周期で動かし、24 時間以内に各チャンネルを丁寧に巡回します。
     if (runVideoRss) {
@@ -96,9 +98,15 @@ function shouldRunLlmJob(event: ScheduledEventParam): boolean {
 }
 
 function shouldRunVideoCheckJob(event: ScheduledEventParam): boolean {
-  // 1 日 10 回に抑えるため、144 分ごと (24h / 10) に動画チェックを実行します。
+  // エポック分から 1 日あたりのチェック回数を均等に割り当て、約 3〜4 分間隔で実行します。
   const epochMinutes = Math.floor(event.scheduledTime / 60_000);
-  return epochMinutes % 144 === 0;
+  const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const previousMinuteOfDay = minuteOfDay === 0 ? MINUTES_PER_DAY - 1 : minuteOfDay - 1;
+
+  const currentSlot = Math.floor((minuteOfDay * VIDEO_CHECK_RUNS_PER_DAY) / MINUTES_PER_DAY);
+  const previousSlot = Math.floor((previousMinuteOfDay * VIDEO_CHECK_RUNS_PER_DAY) / MINUTES_PER_DAY);
+
+  return currentSlot !== previousSlot;
 }
 
 function shouldRunVideoRssJob(event: ScheduledEventParam): boolean {
