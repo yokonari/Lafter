@@ -163,6 +163,9 @@ export function SearchResults({
     return "検索結果";
   };
 
+  // ヘッド要素の動的メタ情報は App Router の generateMetadata で付与するため、ここでは画面表示に専念します。
+  const titleText = buildTitle();
+
   return (
     // 検索結果ページもダークトーンへ合わせ、各状態メッセージの色味を丁寧に調整します。
     <div className={styles.searchContainer}>
@@ -181,9 +184,10 @@ export function SearchResults({
           <ArrowLeft aria-hidden="true" size={16} />
           <span>トップへ戻る</span>
         </button>
-        <p className={styles.searchTitle}>
-          {buildTitle()}
-        </p>
+        {/* メインタイトルはh1へ切り替え、視覚的な見た目は既存スタイルを活用して変化させません。 */}
+        <h1 className={styles.searchTitle}>
+          {titleText}
+        </h1>
       </div>
 
       {loading && (

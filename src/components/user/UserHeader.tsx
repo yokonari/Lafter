@@ -137,8 +137,8 @@ export function UserHeader({
     <header className={styles.header}>
       <div className={styles.headerInner}>
         <button type="button" onClick={onReset} className={styles.brandButton}>
-          {/* ロゴ一帯を h1 で包み、視覚表現を変えずに見出し構造を丁寧に補完します。 */}
-          <h1 className={styles.brandHeading}>
+          {/* h1 は使わず汎用的なブロックで囲み、視覚デザインを変えずに柔軟なロゴ表現へ丁寧に調整します。 */}
+          <div className={styles.brandHeading}>
             {/* 画面には出さずに SEO や支援技術へアプリ名を丁寧に伝えます。 */}
             <span className="sr-only">Lafter（ラフター）- ネタ動画検索アプリ</span>
             {/* 画面幅が狭くなった際も丁寧にアスペクト比を保ったまま縮小させます。 */}
@@ -150,7 +150,7 @@ export function UserHeader({
               style={{ width: "100%", minWidth: "60px", maxWidth: "90px", height: "auto" }}
               priority
             />
-          </h1>
+          </div>
         </button>
 
         <div className={styles.searchArea} ref={searchAreaRef}>
