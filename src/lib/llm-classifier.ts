@@ -31,7 +31,17 @@ const PROMPT_HEADER = `
 `;
 
 // scripts/classify_titles_with_llm.mjs の fewShots と同一内容に揃え、LLMへの参照例を丁寧に同期させます。
-const FEW_SHOTS = [
+export type FewShotExample = {
+  title: string;
+  label: "true" | "false";
+};
+
+type FewShotOptions = {
+  fewShots?: FewShotExample[];
+};
+
+// scripts/classify_titles_with_llm.mjs の fewShots と同一内容に揃え、LLMへの参照例を丁寧に同期させます。
+const DEFAULT_FEW_SHOTS: FewShotExample[] = [
   { title: "【コント】面白すぎて生徒人気No.1の先生", label: "true" },
   { title: "レインボー【キレイだ】", label: "true" },
   { title: "同棲して10年、会話少ないけどちゃんと仲良しなカップル", label: "true" },
@@ -69,9 +79,11 @@ const FEW_SHOTS = [
   { title: "レイザーラモンのニューラジオ#28 キングオブコント用のネタ仕上がりたての2人", label: "false" },
 ];
 
-const FEW_SHOT_TEXT = FEW_SHOTS.map(
-  (shot, index) => `例${index + 1}: タイトル="${shot.title}" -> label=${shot.label}`,
-).join("\n");
+function formatFewShotText(fewShots: FewShotExample[]): string {
+  return fewShots
+    .map((shot, index) => `例${index + 1}: タイトル="${shot.title}" -> label=${shot.label}`)
+    .join("\n");
+}
 
 export type LLMClassification = {
   title: string;
@@ -82,13 +94,17 @@ export type LLMClassification = {
 export async function classifyTitleWithLLM(
   client: OpenAI,
   title: string,
+  options?: FewShotOptions,
 ): Promise<LLMClassification> {
+  // few-shot が明示的に与えられていればそれを利用し、無ければ既定の参照例に丁寧にフォールバックします。
+  const fewShots = resolveFewShots(options);
+  const fewShotText = formatFewShotText(fewShots);
   const completion = await client.responses.create({
     model: "gpt-5-mini",
     input: [
       {
         role: "system",
-        content: `${PROMPT_HEADER}\n参考例:\n${FEW_SHOT_TEXT}`,
+        content: `${PROMPT_HEADER}\n参考例:\n${fewShotText}`,
       },
       {
         role: "user",
@@ -106,6 +122,13 @@ export async function classifyTitleWithLLM(
     label: parsed.label,
     rawResponse: rawText,
   };
+}
+
+function resolveFewShots(options?: FewShotOptions): FewShotExample[] {
+  if (options?.fewShots && options.fewShots.length > 0) {
+    return options.fewShots;
+  }
+  return DEFAULT_FEW_SHOTS;
 }
 
 function parseJsonOutput(text: string): {

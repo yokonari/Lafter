@@ -2,10 +2,11 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { and, desc, eq } from "drizzle-orm";
 import { CLASSIFIER_THRESHOLD, classifyTitle } from "@/lib/video-classifier";
 import { getOpenAIClient } from "@/lib/openai-client";
-import { classifyTitleWithLLM } from "@/lib/llm-classifier";
+import { classifyTitleWithLLM, type FewShotExample } from "@/lib/llm-classifier";
 import { channels, videos } from "@/lib/schema";
-import { createDatabase } from "@/app/api/[[...hono]]/context";
+import { createDatabase, type AppDatabase } from "@/app/api/[[...hono]]/context";
 import { verifyApiSecret } from "@/lib/api-secret";
+import type { KVNamespace } from "@cloudflare/workers-types";
 
 type ClassifyRequestBody = {
   title?: unknown;
@@ -66,10 +67,12 @@ export async function POST(request: Request) {
     }
 
     const llmResults: LLMResultPayload[] = [];
+    // KV からの few-shot 読み出し頻度を抑えるため、チャンネル単位に丁寧なキャッシュを設けます。
+    const fewShotCache = new Map<string, FewShotExample[]>();
     let processed = 0;
     // channel status=1 & video status=0 の範囲から、公開日の新しい順に 50 件のみ抽出します。
     const pendingVideos = await db
-      .select({ id: videos.id, title: videos.title })
+      .select({ id: videos.id, title: videos.title, channelId: videos.channelId })
       .from(videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(baseCondition)
@@ -86,8 +89,16 @@ export async function POST(request: Request) {
     }
 
     for (const video of pendingVideos) {
+      const channelFewShots = await ensureChannelFewShots({
+        channelId: video.channelId,
+        kv: env.LAFTER,
+        cache: fewShotCache,
+        db,
+      });
       try {
-        const classification = await classifyTitleWithLLM(client, video.title);
+        const classification = await classifyTitleWithLLM(client, video.title, {
+          fewShots: channelFewShots,
+        });
         const nextStatus = resolveStatusFromLabel(classification.label);
         const checkedAt = new Date().toISOString();
         await db
@@ -209,4 +220,136 @@ function shouldLoopExhaustively(body: ClassifyRequestBody): boolean {
 function resolveStatusFromLabel(label: "true" | "false"): number {
   // LLM の結果 true=ネタ/false=それ以外 を、videos.status (3=LLM OK, 4=LLM NG) に丁寧にマッピングします。
   return label === "true" ? 3 : 4;
+}
+
+const CHANNEL_FEW_SHOT_KV_PREFIX = "llm:few-shots:";
+const FEW_SHOT_LIMIT_PER_LABEL = 12;
+const FEW_SHOT_TRUE_STATUS = 1;
+const FEW_SHOT_FALSE_STATUS = 2;
+
+type ChannelFewShotRecord = {
+  channelId: string;
+  fewShots: FewShotExample[];
+  updatedAt: string;
+};
+
+type FewShotCacheParams = {
+  channelId: string;
+  kv?: KVNamespace;
+  cache: Map<string, FewShotExample[]>;
+  db: AppDatabase;
+};
+
+async function ensureChannelFewShots({
+  channelId,
+  kv,
+  cache,
+  db,
+}: FewShotCacheParams): Promise<FewShotExample[] | undefined> {
+  if (cache.has(channelId)) {
+    return cache.get(channelId);
+  }
+  if (kv) {
+    const kvShots = await loadChannelFewShotsFromKv(kv, channelId);
+    if (kvShots) {
+      cache.set(channelId, kvShots);
+      return kvShots;
+    }
+  }
+  const dbShots = await buildFewShotsFromDatabase(db, channelId);
+  if (dbShots.length === 0) {
+    return undefined;
+  }
+  cache.set(channelId, dbShots);
+  if (kv) {
+    await saveChannelFewShotsToKv(kv, channelId, dbShots);
+  }
+  return dbShots;
+}
+
+async function loadChannelFewShotsFromKv(
+  kv: KVNamespace,
+  channelId: string,
+): Promise<FewShotExample[] | null> {
+  const key = `${CHANNEL_FEW_SHOT_KV_PREFIX}${channelId}`;
+  try {
+    // 既に生成済みの few-shot があれば JSON 経由で丁寧に再利用します。
+    const payload = await kv.get<ChannelFewShotRecord>(key, { type: "json" });
+    if (!payload) {
+      return null;
+    }
+    return normalizeFewShots(payload.fewShots);
+  } catch (error) {
+    console.error("[api/classify] KV から few-shot を取得できませんでした。", {
+      channelId,
+      key,
+      error,
+    });
+    return null;
+  }
+}
+
+async function saveChannelFewShotsToKv(
+  kv: KVNamespace,
+  channelId: string,
+  fewShots: FewShotExample[],
+): Promise<void> {
+  const key = `${CHANNEL_FEW_SHOT_KV_PREFIX}${channelId}`;
+  const payload: ChannelFewShotRecord = {
+    channelId,
+    fewShots,
+    updatedAt: new Date().toISOString(),
+  };
+  try {
+    // DB から構築した参照例は KV にも保存し、以降の呼び出しを効率化します。
+    await kv.put(key, JSON.stringify(payload));
+  } catch (error) {
+    console.error("[api/classify] KV への few-shot 保存に失敗しました。", {
+      channelId,
+      key,
+      error,
+    });
+  }
+}
+
+async function buildFewShotsFromDatabase(db: AppDatabase, channelId: string): Promise<FewShotExample[]> {
+  // LLM に確信度の高いシグナルを与えるため、手動で確定済み (status=1,2) の動画タイトルを丁寧に抽出します。
+  const trueSamples = await selectVideoTitlesByStatus(db, channelId, FEW_SHOT_TRUE_STATUS);
+  const falseSamples = await selectVideoTitlesByStatus(db, channelId, FEW_SHOT_FALSE_STATUS);
+  const normalized = [
+    ...trueSamples.map((row) => ({ title: row.title, label: "true" as const })),
+    ...falseSamples.map((row) => ({ title: row.title, label: "false" as const })),
+  ];
+  return normalizeFewShots(normalized) ?? [];
+}
+
+async function selectVideoTitlesByStatus(
+  db: AppDatabase,
+  channelId: string,
+  status: number,
+): Promise<{ title: string }[]> {
+  return db
+    .select({ title: videos.title })
+    .from(videos)
+    .where(and(eq(videos.channelId, channelId), eq(videos.status, status)))
+    .orderBy(desc(videos.publishedAt), desc(videos.createdAt))
+    .limit(FEW_SHOT_LIMIT_PER_LABEL);
+}
+
+function normalizeFewShots(entries: FewShotExample[] | undefined | null): FewShotExample[] | null {
+  if (!Array.isArray(entries)) {
+    return null;
+  }
+  const normalized: FewShotExample[] = [];
+  for (const entry of entries) {
+    if (!entry || typeof entry.title !== "string" || typeof entry.label !== "string") {
+      continue;
+    }
+    const label = entry.label.toLowerCase().trim();
+    if (label !== "true" && label !== "false") {
+      continue;
+    }
+    normalized.push({ title: entry.title, label });
+  }
+  return normalized.length > 0 ? normalized : null;
 }
