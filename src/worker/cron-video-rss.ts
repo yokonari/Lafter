@@ -23,7 +23,7 @@ const cronWorker = {
 
 export default cronWorker;
 
-const DEFAULT_LIMIT = 40;
+const DEFAULT_LIMIT = 50;
 
 async function runVideoRssCron(env: CronEnv) {
   const base = resolveBaseUrl(env);

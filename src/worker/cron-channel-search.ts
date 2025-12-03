@@ -41,10 +41,10 @@ async function runChannelSearchCron(env: CronEnv) {
     return;
   }
 
-  // status=1 かつ 24 時間以上未確認のチャンネルのみを丁寧に抽出し、1日に最大100件まで処理します。
+  // status=1 かつ last_checked_at が設定されていないチャンネルのみを丁寧に抽出し、1日に最大100件まで処理します。
   const channels = await fetchPendingChannels(env, Math.min(batchLimit, DAILY_CHANNEL_LIMIT));
   if (channels.length === 0) {
-    console.log("[cron] status=1 のチャンネルはありませんでした。");
+    console.log("[cron] status=1 かつ last_checked_at IS NULL のチャンネルはありませんでした。");
     return;
   }
 
@@ -188,18 +188,15 @@ async function fetchPendingChannels(env: CronEnv, limit: number): Promise<Channe
     return [];
   }
   try {
-    // lastCheckedAt が 24 時間以上前または未設定のチャンネルのみを丁寧に抽出します。
-    // ORDER BY は last_checked_at, created_at の順に抑え、追加した複合インデックスを素直に活用して処理を軽くします。
+    // lastCheckedAt が NULL のチャンネルのみを丁寧に抽出し、最も古い作成順に巡回していきます。
+    // ORDER BY は last_checked_at, created_at の順に揃え、丁寧に巡回順を安定させます。
     const rows = await db
       .prepare(
         `
         SELECT id, last_checked_at as lastCheckedAt
         FROM channels
         WHERE status = 1
-          AND (
-            last_checked_at IS NULL
-            OR last_checked_at <= datetime('now', '-1 day')
-          )
+          AND last_checked_at IS NULL
         ORDER BY
           last_checked_at ASC,
           created_at ASC

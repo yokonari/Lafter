@@ -72,9 +72,11 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
 
     for (const channel of targetChannels) {
       const now = new Date().toISOString();
+      let parsedChannelTitle: string | undefined;
       try {
         const feed = await fetchChannelFeed(channel.id);
         const parsed = parseChannelFeed(feed);
+        parsedChannelTitle = parsed.channelTitle;
         const entries = parsed.entries.slice(0, MAX_ITEMS_PER_CHANNEL);
         summary.itemsFetched += entries.length;
 
@@ -99,21 +101,22 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
           summary.itemsSkipped += upsertResult.skipped;
         }
 
-        const channelUpdate: Partial<typeof channels.$inferInsert> = {};
-        if (parsed.channelTitle && parsed.channelTitle !== channel.name) {
-          channelUpdate.name = parsed.channelTitle;
-        }
-        if (Object.keys(channelUpdate).length > 0) {
-          await db
-            .update(channels)
-            .set(channelUpdate)
-            .where(eq(channels.id, channel.id));
-        }
-
         summary.channelsProcessed += 1;
       } catch (error) {
         console.error("[videos/rss-sync] RSS 取得に失敗しました", channel.id, error);
         summary.errors.push(`${channel.id}: ${(error as Error)?.message ?? "RSS 取得に失敗しました。"}`);
+      } finally {
+        // 巡回完了後は必ず lastCheckedAt を更新し、次回巡回対象の決定に反映させます。
+        const channelUpdate: Partial<typeof channels.$inferInsert> = {
+          lastCheckedAt: now,
+        };
+        if (parsedChannelTitle && parsedChannelTitle !== channel.name) {
+          channelUpdate.name = parsedChannelTitle;
+        }
+        await db
+          .update(channels)
+          .set(channelUpdate)
+          .where(eq(channels.id, channel.id));
       }
     }
 
@@ -150,21 +153,46 @@ async function loadTargetChannels(db: AppDatabase, options: {
   channelId?: string;
   limit: number;
 }): Promise<ChannelRow[]> {
+  const oneYearAgoIso = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+  // チャンネル単位で直近1年以内に status=1 の動画が存在するかを厳密に検査する EXISTS 句です。
+  const hasRecentActiveVideos = sql`
+    EXISTS (
+      SELECT 1 FROM ${videos}
+      WHERE ${videos.channelId} = ${channels.id}
+        AND ${videos.status} = 1
+        AND ${videos.lastCheckedAt} IS NOT NULL
+        AND ${videos.lastCheckedAt} >= ${oneYearAgoIso}
+    )
+  `;
+
   if (options.channelId) {
     const rows = await db
       .select({ id: channels.id, name: channels.name })
       .from(channels)
-      .where(and(eq(channels.id, options.channelId), eq(channels.status, 1)))
+      .where(
+        and(
+          eq(channels.id, options.channelId),
+          eq(channels.status, 1),
+          sql`${channels.lastCheckedAt} IS NOT NULL`,
+          hasRecentActiveVideos,
+        ),
+      )
       .limit(1);
     return rows;
   }
 
-  const orderByNullsFirst = sql`CASE WHEN ${channels.lastCheckedAt} IS NULL THEN 0 ELSE 1 END`;
+  // lastCheckedAt が NULL のチャネルは巡回対象から丁寧に除外しつつ、直近1年以内に稼働中の動画を持つチャンネルのみを古い順に処理します。
   return db
     .select({ id: channels.id, name: channels.name })
     .from(channels)
-    .where(eq(channels.status, 1))
-    .orderBy(orderByNullsFirst, asc(channels.lastCheckedAt), asc(channels.createdAt))
+    .where(
+      and(
+        eq(channels.status, 1),
+        sql`${channels.lastCheckedAt} IS NOT NULL`,
+        hasRecentActiveVideos,
+      ),
+    )
+    .orderBy(asc(channels.lastCheckedAt), asc(channels.createdAt))
     .limit(options.limit);
 }
 
