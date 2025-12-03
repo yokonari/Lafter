@@ -137,15 +137,20 @@ export function UserHeader({
     <header className={styles.header}>
       <div className={styles.headerInner}>
         <button type="button" onClick={onReset} className={styles.brandButton}>
-          {/* 画面幅が狭くなった際も丁寧にアスペクト比を保ったまま縮小させます。 */}
-          <Image
-            src="/Lafter.png"
-            alt="Lafter"
-            width={195}
-            height={49}
-            style={{ width: "100%", minWidth: "60px", maxWidth: "90px", height: "auto" }}
-            priority
-          />
+          {/* ロゴ一帯を h1 で包み、視覚表現を変えずに見出し構造を丁寧に補完します。 */}
+          <h1 className={styles.brandHeading}>
+            {/* 画面には出さずに SEO や支援技術へアプリ名を丁寧に伝えます。 */}
+            <span className="sr-only">Lafter（ラフター）- ネタ動画検索アプリ</span>
+            {/* 画面幅が狭くなった際も丁寧にアスペクト比を保ったまま縮小させます。 */}
+            <Image
+              src="/Lafter.png"
+              alt="Lafter"
+              width={195}
+              height={49}
+              style={{ width: "100%", minWidth: "60px", maxWidth: "90px", height: "auto" }}
+              priority
+            />
+          </h1>
         </button>
 
         <div className={styles.searchArea} ref={searchAreaRef}>

@@ -50,6 +50,7 @@ body {
   text-underline-offset: 4px;
 }
 
+/* SR 向けのテキストを視覚的に隠しつつ支援技術では丁寧に読ませます。 */
 .sr-only {
   position: absolute;
   width: 1px;

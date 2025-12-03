@@ -42,9 +42,8 @@ export function registerPostVideosCheck(app: Hono<AdminEnv>) {
         id: videos.id,
       })
       .from(videos)
-      .innerJoin(channels, eq(videos.channelId, channels.id))
-      // 公開済み(status=1)の動画のみを対象にし、ユーザーに見える一覧を安全に保ちます。
-      .where(and(eq(videos.status, 1), eq(channels.status, 1)))
+      // 公開済み(status=1)と一時的に調整が必要な動画(status=3)を丁寧に対象へ含め、利用者向け一覧の健全性を守ります。
+      .where(inArray(videos.status, [1, 3]))
       .orderBy(orderByNullsFirst, asc(videos.lastCheckedAt), asc(videos.createdAt))
       .limit(limit);
 

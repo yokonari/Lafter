@@ -122,6 +122,17 @@ $title-font-weight: 400;
   justify-self: flex-start;
 }
 
+// h1 を使っても横並びのまま維持できるよう柔軟なインラインレイアウトを丁寧に整えます。
+// h1 を使っても横並びのまま維持できるよう柔軟なインラインレイアウトを丁寧に整えます。
+.brandHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+}
+
 .brandLabel {
   font-size: 1.25rem;
   font-weight: 600;
@@ -1286,7 +1297,7 @@ $title-font-weight: 400;
 .aboutCopyButton {
   border: 1px solid var(--user-text-secondary);
   border-radius: 9999px;
-  padding: 0.05rem 0.4rem;
+  padding: 0.1rem 0.8rem;
   color: var(--user-text-secondary);
   background: transparent;
   font-size: 0.8rem;
