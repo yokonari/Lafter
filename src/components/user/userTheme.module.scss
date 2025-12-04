@@ -22,6 +22,58 @@ $dialog-max-width: 420px; // 問い合わせ・報告・使い方ダイアログ
 $title-font-size: 1.2rem;
 $title-font-weight: 400;
 
+/* ------- テキストリンク共通スタイル ------- */
+@mixin section-title-link() {
+  // セクション見出し周りのリンクはボタン要素でも境界線を排除し、フォーカス時の視認性を丁寧に確保します。
+  border: none;
+  background: none;
+  color: var(--user-text);
+  text-decoration: none;
+  transition: color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--user-accent);
+    background: none;
+    cursor: pointer;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--user-accent);
+    outline-offset: 2px;
+  }
+}
+
+@mixin subtle-user-link() {
+  // チャンネル名やフッターの静かなリンクはベース色を共有し、ホバーでのみ明瞭さを高めます。
+  border: none;
+  background: none;
+  color: var(--user-text-secondary);
+  text-decoration: none;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--user-text);
+    cursor: pointer;
+  }
+}
+
+@mixin accent-action-link() {
+  // 「もっと見る」ボタンやポリシー文中のリンクはアクセントカラーを基調に、ホバーで柔らかく発光させます。
+  border: none;
+  background: none;
+  color: var(--user-accent);
+  text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: color-mix(in srgb, var(--user-accent) 85%, var(--user-text));
+    cursor: pointer;
+  }
+}
+
 .userLayout {
   --user-bg: #{$user-bg};
   --user-surface: #{$user-surface};
@@ -373,13 +425,11 @@ $title-font-weight: 400;
   display: inline-flex;
   align-items: center;
   gap: 0.3rem; // 矢印アイコンとの距離をコンパクトに保ちます。
-  border: none;
-  background: none;
   padding: 0;
-  color: var(--user-accent); // プライマリーカラーでテキストボタンとして強調します。
+  // プライマリーカラーでテキストボタンとして強調します。
+  @include accent-action-link();
   font-size: 0.95rem;
   cursor: pointer;
-  transition: color 0.2s ease;
 }
 
 .sectionHeading {
@@ -416,24 +466,9 @@ $title-font-weight: 400;
 }
 
 .sectionHeadingLink {
-  border: none;
-  background: none;
-  color: var(--user-text);
+  @include section-title-link();
   font-size: 0.95rem;
-  cursor: pointer;
   padding: 0;
-  transition: color 0.15s ease;
-
-  &:hover,
-  &:focus-visible {
-    color: var(--user-accent);
-    background: none;
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--user-accent);
-    outline-offset: 2px;
-  }
 }
 
 .sectionGrid {
@@ -664,10 +699,9 @@ $title-font-weight: 400;
 }
 
 .cardChannel {
-  color: var(--user-link); // チャンネル名などのテキストリンクはon-surface系の柔らかなリンク色で示します。
+  // チャンネル名などのテキストリンクはon-surface系の柔らかなリンク色で示します。
+  @include subtle-user-link();
   font-size: clamp(0.6rem, 0.6rem + 0.25vw, 0.8rem);
-  text-decoration: none;
-  cursor: pointer;
   display: inline-block;
   transition: color 0.2s ease, text-decoration-color 0.2s ease;
   max-width: 100%;
@@ -675,11 +709,6 @@ $title-font-weight: 400;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
-
-  &:hover {
-    // 下線を排除し、ホバー時は明るい文字色で優しく強調します。
-    color: var(--user-text);
-  }
 }
 
 .playlistBadge {
@@ -728,32 +757,16 @@ $title-font-weight: 400;
 }
 
 .footerLink {
-  color: var(--user-link);
-  text-decoration: none;
-  transition: color 0.2s ease;
+  @include subtle-user-link();
   display: inline-flex;
   align-items: center;
   gap: 0.35rem; // アイコンとテキストの間隔を丁寧に確保します。
-
-  &:hover {
-    // 下線をなくし、ホバーで読みやすい明度に切り替えます。
-    color: var(--user-text);
-  }
 }
 
 .footerLinkButton {
-  border: none;
-  background: none;
+  @include subtle-user-link();
   padding: 0;
-  color: var(--user-link);
   font: inherit;
-  cursor: pointer;
-  transition: color 0.2s ease;
-
-  &:hover {
-    // 下線をなくし、ホバーで読みやすい明度に切り替えます。
-    color: var(--user-text);
-  }
 }
 
 .footerBadge {
@@ -817,18 +830,11 @@ $title-font-weight: 400;
 
 .dialogClose,
 .dialogFlag {
-  border: none;
-  background: transparent;
+  @include subtle-user-link();
   padding: 0; // 余白をなくし、必要なボタンだけ個別にサイズ調整します。
-  color: var(--user-text);
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
-  &:hover {
-    color: var(--user-accent);
-  }
 }
 
 .dialogIcon {
@@ -956,6 +962,7 @@ $title-font-weight: 400;
 }
 
 .contactClose {
+  @include subtle-user-link();
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -964,18 +971,8 @@ $title-font-weight: 400;
   min-width: 0;
   min-height: 0;
   border-radius: 10px;
-  border: none;
-  background: none;
   padding: 0; // 閉じるボタンの余白をなくし、周囲とのズレを防ぎます。
   margin: 0; // 外側の余白もなくして、ヘッダーのレイアウトを安定させます。
-  color: var(--user-text);
-  cursor: pointer;
-  transition: color 0.15s ease;
-
-  &:focus-visible {
-    outline: 2px solid rgba(251, 191, 36, 0.35);
-    outline-offset: 2px;
-  }
 }
 
 .contactForm {
@@ -1180,13 +1177,9 @@ $title-font-weight: 400;
 }
 
 .contactCancel {
-  color: var(--user-text-muted); // キャンセル操作は補助的なため、落ち着いた文字色で常に一定のトーンを保ちます。
-
-  &:hover,
-  &:focus-visible {
-    color: var(--user-text-muted); // 利用規約やポリシー関連のダイアログでもホバー時の色変化を抑え、ニュートラルさを崩しません。
-    background: none;
-  }
+  // キャンセル操作も subtle-user-link を適用し、リンクトーンで静かに表示します。
+  @include subtle-user-link();
+  // キャンセル操作は補助的なため、落ち着いた文字色で常に一定のトーンを保つ狙いは subtle なリンク色でも維持します。
 }
 
 .contactSubmit {
@@ -1250,7 +1243,8 @@ $title-font-weight: 400;
 
 .usageActionButton {
   @extend .userButton;
-  padding: 0.55rem 1.25rem;
+  // 使い方ダイアログの閉じるボタンにも subtle-user-link を適用し、閉じる/キャンセル系を統一します。
+  @include subtle-user-link();
 }
 
 /* ------- このサイトについてダイアログ ------- */
@@ -1295,18 +1289,15 @@ $title-font-weight: 400;
 
 // コピーボタンを角丸ボーダーのみの軽やかなトーンに整え、寄付体験をさり気なく補佐します。
 .aboutCopyButton {
-  border: 1px solid var(--user-text-secondary);
-  border-radius: 9999px;
-  padding: 0.1rem 0.8rem;
-  color: var(--user-text-secondary);
-  background: transparent;
-  font-size: 0.8rem;
-  margin-top: 0.5rem;
-  transition: background 0.2s ease, color 0.2s ease;
-  cursor: pointer;
+  color: var(--user-link);
+  text-decoration: none;
+  transition: color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
 
   &:hover {
-    background: rgba(255, 255, 255, 0.06);
+    color: var(--user-text);
+    cursor: pointer;
   }
 }
 
@@ -1363,6 +1354,7 @@ $title-font-weight: 400;
 
   &:hover {
     color: $user-text;
+    cursor: pointer;
   }
 }
 
@@ -1474,6 +1466,5 @@ $title-font-weight: 400;
 
 .termsLink,
 .policyLink {
-  color: $user-accent;
-  text-decoration: none;
+  @include accent-action-link();
 }

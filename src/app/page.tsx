@@ -52,22 +52,25 @@ type HomePageProps = {
 };
 
 // メタ生成時に API へアクセスするためのベース URL を丁寧に算出します。
-function resolveBaseUrl(): string {
-  const envUrl =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    process.env.SITE_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined);
-  return envUrl ?? "http://localhost:3000";
+function resolveBaseUrl(): string | null {
+  // まず API_BASE を優先し、末尾のスラッシュを落として常に安定したベース URL を取得します。
+  if (typeof process.env.API_BASE === "string" && process.env.API_BASE.trim()) {
+    return process.env.API_BASE.trim().replace(/\/$/, "");
+  }
+  // NEXT_PUBLIC_SITE_URL などは存在しないため、API_BASE が無い場合は null を返し API 呼び出しを行いません。
+  return null;
 }
 
 const baseUrl = resolveBaseUrl();
 
-const absoluteFetch: typeof fetch = (input, init) => {
-  if (typeof input === "string" && input.startsWith("/")) {
-    return fetch(`${baseUrl}${input}`, init);
-  }
-  return fetch(input, init);
-};
+const absoluteFetch: typeof fetch | null = baseUrl
+  ? (input, init) => {
+      if (typeof input === "string" && input.startsWith("/")) {
+        return fetch(`${baseUrl}${input}`, init);
+      }
+      return fetch(input, init);
+    }
+  : null;
 
 // App Router の generateMetadata でタイトルと説明を検索条件に合わせて細やかに更新します。
 export async function generateMetadata(
@@ -86,7 +89,7 @@ export async function generateMetadata(
   const mode = rawMode === "new" || rawMode === "random" ? rawMode : undefined;
   let channelName: string | undefined;
 
-  if (channelId) {
+  if (channelId && absoluteFetch) {
     try {
       // メタ情報用にチャンネル名を取得し、OG タイトルへ丁寧に反映します。
       const { videos, playlists } = await fetchVideoItems(absoluteFetch, {
@@ -97,6 +100,8 @@ export async function generateMetadata(
     } catch {
       // API 取得に失敗してもページ表示は継続し、既定タイトルへフォールバックします。
     }
+  } else if (channelId && !absoluteFetch) {
+    // API_BASE が無い場合は API 呼び出し自体を控え、既定のタイトル処理に任せます。
   }
 
   const heading = buildSearchHeading({ query, channelId, channelName, mode });
