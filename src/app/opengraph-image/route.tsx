@@ -1,6 +1,4 @@
 import { ImageResponse } from "next/og";
-
-export const runtime = "edge";
 // Next.js の通常の Route では size や contentType を export せず、ローカル定数として扱います。
 const size = {
   width: 1200,
