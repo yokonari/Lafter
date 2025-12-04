@@ -66,7 +66,10 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
     const db = createDatabase(env);
     // KV を経由せず channels.status=1 をその都度参照し、常に DB と同じアクティブ判定結果を共有します。
 
-    const whereConditions = [eq(videos.status, effectiveVideoStatus)];
+    // 報告済みのみの検索時はステータス 1 と 3 の両方を含め、通常時は指定されたステータスのみに絞ります。
+    const whereConditions = [
+      reportedOnly ? inArray(videos.status, [1, 3]) : eq(videos.status, effectiveVideoStatus),
+    ];
     const rawChannelId = c.req.query("channel_id") ?? "";
     const channelIdFilter = rawChannelId.trim();
     if (reportedOnly) {

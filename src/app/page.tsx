@@ -5,7 +5,7 @@ import { UserHome } from "@/components/user/UserHome";
 
 const BASE_TITLE = "Lafter | ネタ動画検索アプリ";
 const BASE_DESCRIPTION =
-  "お笑い芸人の公式YouTubeチャンネルから、漫才・コントなどのネタ動画だけを検索できるサービス。";
+  "お笑い芸人の公式YouTubeチャンネルから、漫才・コントなどのネタ動画だけを検索できるアプリ。";
 
 type SearchMetadataContext = {
   query?: string;
@@ -41,6 +41,24 @@ function buildSearchDescription({ query, channelId, channelName, mode }: SearchM
     return `「${query}」に一致するネタ動画を検索できます。${BASE_DESCRIPTION}`;
   }
   return BASE_DESCRIPTION;
+}
+
+// OGP 画像にも検索キーワードやチャンネル名を載せるための URL を丁寧に構築します。
+function buildSearchImageUrl(heading: string, metadataBase?: URL): string | null {
+  if (!heading) {
+    return null;
+  }
+  const params = new URLSearchParams();
+  params.set("heading", heading);
+  const relativePath = `/opengraph-image?${params.toString()}`;
+  if (metadataBase) {
+    try {
+      return new URL(relativePath, metadataBase).toString();
+    } catch {
+      // metadataBase が万一不正でも相対パスを返し、少なくともアセット自体は動作します。
+    }
+  }
+  return relativePath;
 }
 
 type HomePageProps = {
@@ -109,17 +127,22 @@ export async function generateMetadata(
   const description = buildSearchDescription({ query, channelId, channelName, mode });
 
   const resolvedParent = await parent;
+  const metadataBase = resolvedParent.metadataBase ?? new URL("https://lafter.day");
+  const ogImageUrl = buildSearchImageUrl(heading, metadataBase);
   const parentOpenGraph = resolvedParent.openGraph ?? undefined;
+  const ogImages = ogImageUrl ? [{ url: ogImageUrl }] : parentOpenGraph?.images;
   const mergedOpenGraph = parentOpenGraph
     ? {
         ...parentOpenGraph,
         url: parentOpenGraph.url ?? undefined,
         title,
         description,
+        images: ogImages,
       }
     : {
         title,
         description,
+        images: ogImages,
       };
 
   const parentTwitter = resolvedParent.twitter ?? undefined;
@@ -132,13 +155,22 @@ export async function generateMetadata(
         creatorId: parentTwitter.creatorId ?? undefined,
       }
     : undefined;
+  const twitterImages = ogImageUrl ? [ogImageUrl] : sanitizedTwitter?.images;
   const mergedTwitter = sanitizedTwitter
     ? {
         ...sanitizedTwitter,
         title,
         description,
+        images: twitterImages,
       }
-    : undefined;
+    : twitterImages
+      ? {
+          card: "summary_large_image",
+          title,
+          description,
+          images: twitterImages,
+        }
+      : undefined;
 
   return {
     title,
