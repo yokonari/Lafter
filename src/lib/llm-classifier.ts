@@ -112,7 +112,7 @@ export async function classifyTitleWithLLM(
       },
     ],
     top_p: 1,
-    text: { verbosity: "low" },
+    text: { verbosity: "medium" },
     // reasoning: { effort: "medium" },
   });
   const rawText = completion.output_text ?? "";
