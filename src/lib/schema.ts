@@ -52,16 +52,19 @@ export const videos = sqliteTable(
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
   },
   (table) => ({
-    idxVideosStatusCreatedAt: index("idx_videos_status_created_at").on(table.status, table.createdAt),
-    idxVideosChannelStatus: index("idx_videos_channel_status").on(table.channelId, table.status),
-    idxVideosStatusPublishedAt: index("idx_videos_status_published_at").on(table.status, table.publishedAt),
-    // ステータス絞り込みのみを想定したクエリで活用できるよう、status 単独インデックスを丁寧に追加します。
-    idxVideosStatus: index("idx_videos_status").on(table.status),
     // status → channelId の順で参照する JOIN 集計にも対応するための複合インデックスです。
     idxVideosStatusChannel: index("idx_videos_status_channel").on(table.status, table.channelId),
     // 公開ステータスで絞りつつ published_at 降順+channelId での並び替えを行うクエリを最適化するためのカバリングインデックスです。
     idxVideosStatusPublishedChannel: index("idx_videos_status_published_channel")
       .on(table.status, table.publishedAt, table.channelId),
+    idxVideosStatusPublished: index("idx_videos_status_published").on(
+      table.status,
+      table.publishedAt,
+    ),
+    // WHERE channel_id = ? AND status = 1 AND published_at >= ?
+    idxVideosChannelStatusPublished: index(
+      "idx_videos_channel_status_published",
+    ).on(table.channelId, table.status, table.publishedAt),
   }),
 );
 
