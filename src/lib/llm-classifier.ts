@@ -100,7 +100,7 @@ export async function classifyTitleWithLLM(
   const fewShots = resolveFewShots(options);
   const fewShotText = formatFewShotText(fewShots);
   const completion = await client.responses.create({
-    model: "gpt-4.1-nano",
+    model: "gpt-5-mini",
     input: [
       {
         role: "system",
@@ -112,8 +112,8 @@ export async function classifyTitleWithLLM(
       },
     ],
     top_p: 1,
-    text: { verbosity: "medium" },
-    // reasoning: { effort: "medium" },
+    text: { verbosity: "low" },
+    reasoning: { effort: "medium" },
   });
   const rawText = completion.output_text ?? "";
   const parsed = parseJsonOutput(rawText);

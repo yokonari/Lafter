@@ -83,13 +83,22 @@ function sanitizeHeading(rawHeading: string | null): string | null {
   if (!trimmed) {
     return null;
   }
-  return trimmed.length > headingInputHardLimit ? trimmed.slice(0, headingInputHardLimit) : trimmed;
+  // 「〇〇」の検索結果 といったパターンで送られてくる場合はチャンネル名だけを丁寧に抽出します。
+  const searchResultMatch = trimmed.match(/^「(.+?)」の検索結果$/);
+  const normalizedHeading = searchResultMatch ? searchResultMatch[1] : trimmed;
+  return normalizedHeading.length > headingInputHardLimit
+    ? normalizedHeading.slice(0, headingInputHardLimit)
+    : normalizedHeading;
 }
 
 export async function GET(request: Request) {
   // OGP 画像生成時に渡された heading を整形し、検索クエリやチャンネル名を優先的に表示します。
   const heading = sanitizeHeading(new URL(request.url).searchParams.get("heading"));
   const headingForDisplay = heading ? clampHeadingText(heading) : null;
+  // heading が 1 行に収まるかどうかを概算し、1 行なら中央寄せにするためのフラグを丁寧に管理します。
+  const isLikelySingleLineHeading = Boolean(
+    headingForDisplay && headingForDisplay.length + headingSuffix.length <= approximateCharsPerLine,
+  );
   const backgroundImageUrl = (await baseImageDataUrlPromise) ?? "";
   // 太字と通常ウェイトのフォントをまとめて読み込み、ImageResponse fonts オプションで再利用します。
   const [notoRegular, notoBold] = await Promise.all([notoSansJpRegularPromise, notoSansJpBoldPromise]);
@@ -125,7 +134,8 @@ export async function GET(request: Request) {
             style={{
               width: textMaxWidth,
               maxWidth: textMaxWidth,
-              textAlign: "left",
+              // 1 行で収まる場合は中央寄せ、それ以外は左寄せにします。
+              textAlign: isLikelySingleLineHeading ? "center" : "left",
               fontSize: headingFontSize,
               lineHeight: headingLineHeight,
               color: "#ffffff",
@@ -133,8 +143,8 @@ export async function GET(request: Request) {
               whiteSpace: "pre-wrap",
               display: "flex",
               flexDirection: "column",
-              alignItems: "flex-start",
-              justifyContent: "flex-start",
+              alignItems: isLikelySingleLineHeading ? "center" : "flex-start",
+              justifyContent: isLikelySingleLineHeading ? "center" : "flex-start",
             }}
           >
             {/* heading と「のネタ動画」を同じ行で描画しつつ、flex wrap + 文字数制限で高さ 400px に収めます。 */}
@@ -146,6 +156,7 @@ export async function GET(request: Request) {
                 maxHeight: textMaxHeight,
                 // heading テキストとサフィックスを同じ行のベースラインに合わせ、縦方向にずれが出ないよう baseline を指定します。
                 alignItems: "baseline",
+                justifyContent: isLikelySingleLineHeading ? "center" : "flex-start",
               }}
             >
               <span

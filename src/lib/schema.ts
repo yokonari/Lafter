@@ -65,6 +65,9 @@ export const videos = sqliteTable(
     idxVideosChannelStatusPublished: index(
       "idx_videos_channel_status_published",
     ).on(table.channelId, table.status, table.publishedAt),
+    idxVideosStatusLastCheckedCreated: index(
+      "idx_videos_status_last_checked_created",
+    ).on(table.status, table.lastCheckedAt, table.createdAt),
   }),
 );
 

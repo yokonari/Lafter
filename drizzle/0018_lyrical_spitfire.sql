@@ -1,0 +1,1 @@
+CREATE INDEX `idx_videos_status_last_checked_created` ON `videos` (`status`,`last_checked_at`,`created_at`);
