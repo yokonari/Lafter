@@ -1,7 +1,7 @@
 import { ImageResponse } from "next/og";
 
-// ImageResponse は Edge Runtime 前提のため、明示的に Edge 指定して動作差異をなくします。
-export const runtime = "edge";
+// OpenNext の制約に合わせ、ランタイムは Node.js として扱い安定したビルドを優先します。
+export const runtime = "nodejs";
 // Next.js の通常の Route では size や contentType を export せず、ローカル定数として扱います。
 const size = {
   width: 1200,
