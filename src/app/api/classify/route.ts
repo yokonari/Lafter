@@ -226,11 +226,18 @@ const CHANNEL_FEW_SHOT_KV_PREFIX = "llm:few-shots:";
 const FEW_SHOT_LIMIT_PER_LABEL = 12;
 const FEW_SHOT_TRUE_STATUS = 1;
 const FEW_SHOT_FALSE_STATUS = 2;
+// KV にキャッシュした few-shot は 30 日に 1 度の頻度で丁寧に更新し、新鮮なサンプルを使い続けます。
+const FEW_SHOT_REFRESH_INTERVAL_MS = 1000 * 60 * 60 * 24 * 30;
 
 type ChannelFewShotRecord = {
   channelId: string;
   fewShots: FewShotExample[];
   updatedAt: string;
+};
+
+type LoadedFewShotRecord = {
+  fewShots: FewShotExample[];
+  updatedAt?: string;
 };
 
 type FewShotCacheParams = {
@@ -249,15 +256,22 @@ async function ensureChannelFewShots({
   if (cache.has(channelId)) {
     return cache.get(channelId);
   }
+  let kvShots: LoadedFewShotRecord | null = null;
   if (kv) {
-    const kvShots = await loadChannelFewShotsFromKv(kv, channelId);
-    if (kvShots) {
-      cache.set(channelId, kvShots);
-      return kvShots;
+    kvShots = await loadChannelFewShotsFromKv(kv, channelId);
+    if (kvShots && !isFewShotRecordStale(kvShots.updatedAt)) {
+      cache.set(channelId, kvShots.fewShots);
+      return kvShots.fewShots;
     }
   }
+  // KV に存在しない、もしくは期限切れの場合は DB から最新の few-shot を丁寧に再構築します。
   const dbShots = await buildFewShotsFromDatabase(db, channelId);
   if (dbShots.length === 0) {
+    if (kvShots) {
+      // DB に十分な確定サンプルが無い場合は、期限切れでも過去の few-shot を一時的に再利用し、判定不能を避けます。
+      cache.set(channelId, kvShots.fewShots);
+      return kvShots.fewShots;
+    }
     return undefined;
   }
   cache.set(channelId, dbShots);
@@ -270,7 +284,7 @@ async function ensureChannelFewShots({
 async function loadChannelFewShotsFromKv(
   kv: KVNamespace,
   channelId: string,
-): Promise<FewShotExample[] | null> {
+): Promise<LoadedFewShotRecord | null> {
   const key = `${CHANNEL_FEW_SHOT_KV_PREFIX}${channelId}`;
   try {
     // 既に生成済みの few-shot があれば JSON 経由で丁寧に再利用します。
@@ -278,7 +292,11 @@ async function loadChannelFewShotsFromKv(
     if (!payload) {
       return null;
     }
-    return normalizeFewShots(payload.fewShots);
+    const normalized = normalizeFewShots(payload.fewShots);
+    if (!normalized) {
+      return null;
+    }
+    return { fewShots: normalized, updatedAt: payload.updatedAt };
   } catch (error) {
     console.error("[api/classify] KV から few-shot を取得できませんでした。", {
       channelId,
@@ -352,4 +370,16 @@ function normalizeFewShots(entries: FewShotExample[] | undefined | null): FewSho
     normalized.push({ title: entry.title, label });
   }
   return normalized.length > 0 ? normalized : null;
+}
+
+function isFewShotRecordStale(updatedAt: string | undefined): boolean {
+  if (!updatedAt) {
+    return true;
+  }
+  const timestamp = Date.parse(updatedAt);
+  if (Number.isNaN(timestamp)) {
+    return true;
+  }
+  // 期限を過ぎていない場合のみ fresh とみなします。それ以外は再構築対象です。
+  return Date.now() - timestamp >= FEW_SHOT_REFRESH_INTERVAL_MS;
 }

@@ -67,7 +67,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
         icon: <Info size={24} className={styles.aboutIcon} aria-hidden="true" />,
         title: "Lafter?",
         paragraphs: [
-          "お笑い芸人や劇場の公式チャンネルからネタ動画を探せる個人運営のアプリです。",
+          "お笑い芸人や劇場の公式チャンネルからネタ動画を探せる個人運営のサイトです。",
         ],
       },
       {
