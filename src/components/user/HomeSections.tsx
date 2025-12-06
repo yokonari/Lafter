@@ -109,7 +109,7 @@ export function HomeSections({
       ) : (
         <>
           {/* 視覚的には非表示にしつつ、sr-only で支援技術へトップページの説明を丁寧に伝えます。 */}
-          <h1 className="sr-only">ネタ動画検索アプリ「Lafter」トップページ</h1>
+          <h1 className="sr-only">ネタ動画検索サイト「Lafter」トップページ</h1>
           {/* 新着動画セクションはデータ取得完了後に表示します。 */}
           <section className={styles.section}>
             <div className={styles.sectionHeadingWrap}>

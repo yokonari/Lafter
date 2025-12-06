@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { fetchVideoItems, type VideoItem, type PlaylistItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
 import { PlaylistCard } from "./PlaylistCard";
+import { XShareButton } from "./XShareButton";
 import styles from "./userTheme.module.scss";
 
 type SearchResultsProps = {
@@ -185,9 +186,12 @@ export function SearchResults({
           <span>トップへ戻る</span>
         </button>
         {/* メインタイトルはh1へ切り替え、視覚的な見た目は既存スタイルを活用して変化させません。 */}
-        <h1 className={styles.searchTitle}>
-          {titleText}
-        </h1>
+        <div className={styles.sectionHeadingWrap}>
+          <h1 className={styles.searchTitle}>
+            {titleText}
+          </h1>
+          <XShareButton className={styles.footerInlineShareButton} />
+        </div>
       </div>
 
       {loading && (

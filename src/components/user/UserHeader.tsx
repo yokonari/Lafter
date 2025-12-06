@@ -139,8 +139,8 @@ export function UserHeader({
         <button type="button" onClick={onReset} className={styles.brandButton}>
           {/* h1 は使わず汎用的なブロックで囲み、視覚デザインを変えずに柔軟なロゴ表現へ丁寧に調整します。 */}
           <div className={styles.brandHeading}>
-            {/* 画面には出さずに SEO や支援技術へアプリ名を丁寧に伝えます。 */}
-            <span className="sr-only">Lafter（ラフター）- ネタ動画検索アプリ</span>
+            {/* 画面には出さずに SEO や支援技術へサイト名を丁寧に伝えます。 */}
+            <span className="sr-only">Lafter（ラフター）- ネタ動画検索サイト</span>
             {/* 画面幅が狭くなった際も丁寧にアスペクト比を保ったまま縮小させます。 */}
             <Image
               src="/Lafter.png"

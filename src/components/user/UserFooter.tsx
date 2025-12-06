@@ -1,5 +1,8 @@
+'use client';
+
 import Image from "next/image";
 import Link from "next/link";
+import { XShareButton } from "./XShareButton";
 import styles from "./userTheme.module.scss";
 
 type UserFooterProps = {
@@ -29,7 +32,9 @@ export function UserFooter({ onContactClick, onAboutClick }: UserFooterProps) {
           <Link href="/policy" className={styles.footerLink}>
             プライバシーポリシー
           </Link>
+          <XShareButton className={styles.footerInlineShareButton} />
         </div>
+
         <div className={styles.footerBadge}>
           <a href="https://youtube.com/" target="_blank" rel="noreferrer" aria-label="YouTube">
             <Image

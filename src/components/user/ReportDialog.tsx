@@ -153,7 +153,7 @@ export function ReportDialog({ open, video, onClose, onSuccess }: ReportDialogPr
 
       <div className={styles.contactActions}>
         <button type="button" onClick={onClose} className={styles.contactCancel}>
-          キャンセル
+          閉じる
         </button>
         <button
           type="button"

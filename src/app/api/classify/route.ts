@@ -332,6 +332,7 @@ async function saveChannelFewShotsToKv(
 
 async function buildFewShotsFromDatabase(db: AppDatabase, channelId: string): Promise<FewShotExample[]> {
   // LLM に確信度の高いシグナルを与えるため、手動で確定済み (status=1,2) の動画タイトルを丁寧に抽出します。
+  // publishedAt 降順で取得するため、自然と直近公開動画から候補が優先されます。
   const trueSamples = await selectVideoTitlesByStatus(db, channelId, FEW_SHOT_TRUE_STATUS);
   const falseSamples = await selectVideoTitlesByStatus(db, channelId, FEW_SHOT_FALSE_STATUS);
   const normalized = [
@@ -346,6 +347,7 @@ async function selectVideoTitlesByStatus(
   channelId: string,
   status: number,
 ): Promise<{ title: string }[]> {
+  // 公開日順で降順取得することで、最近公開されたデータが常にfew-shot先頭になるよう配慮しています。
   return db
     .select({ title: videos.title })
     .from(videos)

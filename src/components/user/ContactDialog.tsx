@@ -161,7 +161,7 @@ export function ContactDialog({ open, onClose, onSuccess }: ContactDialogProps) 
 
         <div className={styles.contactActions}>
           <button type="button" onClick={handleClose} className={styles.contactCancel}>
-            キャンセル
+            閉じる
           </button>
           <button type="submit" disabled={sending || messageDraft.trim().length === 0} className={styles.contactSubmit}>
             {sending ? (

@@ -128,7 +128,7 @@ export const searchLogs = sqliteTable(
   },
 );
 
-// アプリのユーザー（管理者のみ運用でも可）
+// サイトのユーザー（管理者のみ運用でも可）
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),                         // UUID（Better AuthのuserIdでもOK）
   email: text("email").notNull().unique(),             // ログイン用メール

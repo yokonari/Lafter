@@ -16,13 +16,13 @@ const geistMono = Geist_Mono({
 
 // Next.js 側が利用するメタデータの型を明示し、型安全に OGP 情報を配信します。
 export const metadata: Metadata = {
-  title: 'Lafter | ネタ動画検索アプリ',
+  title: 'Lafter | ネタ動画検索サイト',
   description:
     'お笑い芸人の公式YouTubeチャンネルから、漫才・コントなどのネタ動画だけを検索できるサービス。',
   metadataBase: new URL('https://lafter.day'),
 
   openGraph: {
-    title: 'Lafter | ネタ動画検索アプリ',
+    title: 'Lafter | ネタ動画検索サイト',
     description: 'お笑い芸人の公式YouTubeチャンネルのネタ動画だけを集めて検索できるサービス。',
     url: 'https://lafter.day',
     siteName: 'Lafter',
@@ -32,7 +32,7 @@ export const metadata: Metadata = {
         url: 'https://lafter.day/ogp.png',
         width: 1200,
         height: 630,
-        alt: 'Lafter | ネタ動画検索アプリ',
+        alt: 'Lafter | ネタ動画検索サイト',
       },
     ],
   },

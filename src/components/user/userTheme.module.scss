@@ -145,6 +145,7 @@ $title-font-weight: 400;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  gap: 0.5rem; // 複数のコントロールを並べても窮屈にならないよう余白を設けます。
 }
 
 .usageButton {
@@ -761,6 +762,24 @@ $title-font-weight: 400;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem; // アイコンとテキストの間隔を丁寧に確保します。
+}
+
+.footerInlineShareButton {
+  border: 1px solid $user-border;
+  background: var(--user-surface);
+  color: var(--user-text-secondary);
+  border-radius: 9999px;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+
+  span {
+    position: relative;
+    top: 1px; // ラベルをわずかに下げ、アイコンとのベースライン差を丁寧に整えます。
+  }
 }
 
 .footerLinkButton {
