@@ -1,10 +1,11 @@
 'use client';
 
 import { Gift, Info, Megaphone, X } from "lucide-react";
-import { Fragment, useCallback, useEffect, useId, useMemo } from "react";
+import { Fragment, useCallback, useId, useMemo } from "react";
 import { toast } from "react-toastify";
 import type { ReactNode } from "react";
 import styles from "./userTheme.module.scss";
+import { UserDialogBase } from "./UserDialogBase";
 
 type AboutDialogProps = {
   open: boolean;
@@ -109,86 +110,57 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
     [donationRecipientEmail, handleCopyDonationEmail],
   );
 
-  // エスケープキーで閉じられるようにして、キーボード操作でもストレスなく扱えるようにします。
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [open, onClose]);
-
-  // モーダル表示中は背面スクロールを抑えて、情報へ集中できるように丁寧に制御します。
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const { overflow } = document.body.style;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = overflow;
-    };
-  }, [open]);
-
-  if (!open) {
-    return null;
-  }
-
+  // 共通ダイアログベースに処理を委譲し、モーションやESC対応・背面スクロール抑止を丁寧に共通化します。
   return (
-    <div className={styles.contactOverlay} role="presentation" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className={styles.aboutDialog}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={styles.contactHeader}>
-          <h2 id={titleId} className={styles.contactTitle}>
-            このサイトについて
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className={styles.contactClose}
-            aria-label="ダイアログを閉じる"
-          >
-            <X size={20} aria-hidden="true" />
-          </button>
-        </div>
-
-        <div className={styles.aboutBody}>
-          {/* usage ダイアログと同じく、各ブロックでアイコン＋テキストを横並びにし、視線誘導を丁寧に揃えます。 */}
-          {sections.map((section) => (
-            <section key={section.title} className={styles.aboutItem}>
-              <div className={styles.aboutIconWrap}>{section.icon}</div>
-              <div>
-                <h3 className={styles.aboutSectionTitle}>{section.title}</h3>
-                {section.paragraphs.map((paragraph, index) => (
-                  <p key={`${section.title}-${index}`} className={styles.aboutText}>
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            </section>
-          ))}
-        </div>
-
-        <div className={styles.aboutActions}>
-          <button
-            type="button"
-            onClick={onClose}
-            className={styles.aboutActionButton}
-          >
-            閉じる
-          </button>
-        </div>
+    <UserDialogBase
+      open={open}
+      onClose={onClose}
+      dialogClassName={styles.aboutDialog}
+      overlayClassName={styles.contactOverlay}
+      ariaLabelledby={titleId}
+      disableBodyScroll
+      closeOnEsc
+    >
+      <div className={styles.contactHeader}>
+        <h2 id={titleId} className={styles.contactTitle}>
+          このサイトについて
+        </h2>
+        <button
+          type="button"
+          onClick={onClose}
+          className={styles.contactClose}
+          aria-label="ダイアログを閉じる"
+        >
+          <X size={20} aria-hidden="true" />
+        </button>
       </div>
-    </div>
+
+      <div className={styles.aboutBody}>
+        {/* usage ダイアログと同じく、各ブロックでアイコン＋テキストを横並びにし、視線誘導を丁寧に揃えます。 */}
+        {sections.map((section) => (
+          <section key={section.title} className={styles.aboutItem}>
+            <div className={styles.aboutIconWrap}>{section.icon}</div>
+            <div>
+              <h3 className={styles.aboutSectionTitle}>{section.title}</h3>
+              {section.paragraphs.map((paragraph, index) => (
+                <p key={`${section.title}-${index}`} className={styles.aboutText}>
+                  {paragraph}
+                </p>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+
+      <div className={styles.aboutActions}>
+        <button
+          type="button"
+          onClick={onClose}
+          className={styles.aboutActionButton}
+        >
+          閉じる
+        </button>
+      </div>
+    </UserDialogBase>
   );
 }

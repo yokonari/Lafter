@@ -1,8 +1,9 @@
 'use client';
 
 import { Flag, Info, Lightbulb, PlaySquare, Search, X } from "lucide-react";
-import { useEffect, useId, useMemo } from "react";
+import { useId, useMemo } from "react";
 import styles from "./userTheme.module.scss";
+import { UserDialogBase } from "./UserDialogBase";
 
 type UsageDialogProps = {
   open: boolean;
@@ -11,18 +12,6 @@ type UsageDialogProps = {
 
 export function UsageDialog({ open, onClose }: UsageDialogProps) {
   const titleId = useId();
-
-  // エスケープキーで閉じられるようにして、操作性を丁寧に高めます。
-  useEffect(() => {
-    if (!open) return;
-    const handleEsc = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [open, onClose]);
 
   const features = useMemo(() => [
     {
@@ -57,59 +46,53 @@ export function UsageDialog({ open, onClose }: UsageDialogProps) {
     },
   ], []);
 
-  if (!open) return null;
-
+  // 共通ダイアログベースへopen状態を渡し、アニメーション中のDOM保持やESC対応を丁寧に委譲します。
   return (
-    <div
-      className={styles.contactOverlay}
-      role="presentation"
-      onClick={onClose}
+    <UserDialogBase
+      open={open}
+      onClose={onClose}
+      dialogClassName={styles.usageDialog}
+      overlayClassName={styles.contactOverlay}
+      ariaLabelledby={titleId}
+      closeOnEsc
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        className={styles.usageDialog}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={styles.contactHeader}>
-          <h2 id={titleId} className={styles.contactTitle}>
-            使いかた
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className={styles.contactClose}
-            aria-label="ダイアログを閉じる"
-          >
-            <X size={20} aria-hidden="true" />
-          </button>
-        </div>
-
-        <div className={styles.usageBody}>
-          {features.map((feature) => (
-            <div key={feature.title} className={styles.usageItem}>
-              <div className={styles.usageIconWrap}>
-                {feature.icon}
-              </div>
-              <div>
-                <h3 className={styles.usageItemTitle}>{feature.title}</h3>
-                <p className={styles.usageItemDesc}>{feature.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className={`${styles.contactActions} ${styles.usageActions}`}>
-          <button
-            type="button"
-            onClick={onClose}
-            className={styles.usageActionButton}
-          >
-            閉じる
-          </button>
-        </div>
+      <div className={styles.contactHeader}>
+        <h2 id={titleId} className={styles.contactTitle}>
+          使いかた
+        </h2>
+        <button
+          type="button"
+          onClick={onClose}
+          className={styles.contactClose}
+          aria-label="ダイアログを閉じる"
+        >
+          <X size={20} aria-hidden="true" />
+        </button>
       </div>
-    </div>
+
+      <div className={styles.usageBody}>
+        {features.map((feature) => (
+          <div key={feature.title} className={styles.usageItem}>
+            <div className={styles.usageIconWrap}>
+              {feature.icon}
+            </div>
+            <div>
+              <h3 className={styles.usageItemTitle}>{feature.title}</h3>
+              <p className={styles.usageItemDesc}>{feature.description}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className={`${styles.contactActions} ${styles.usageActions}`}>
+        <button
+          type="button"
+          onClick={onClose}
+          className={styles.usageActionButton}
+        >
+          閉じる
+        </button>
+      </div>
+    </UserDialogBase>
   );
 }
