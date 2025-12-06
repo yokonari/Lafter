@@ -16,12 +16,12 @@ type SearchMetadataContext = {
 
 // 検索条件に応じたページ見出しを共通関数で丁寧に生成します。
 function buildSearchHeading({ query, channelId, channelName, mode }: SearchMetadataContext): string {
-  if (mode === "new") return "最近";
-  if (mode === "random") return "ランダム";
+  if (mode === "new") return "最近のネタ動画";
+  if (mode === "random") return "ランダムなネタ動画";
   if (channelId) {
-    return channelName ? `「${channelName}」の検索結果` : "チャンネル内の検索結果";
+    return channelName ? `「${channelName}」のネタ動画` : "特定チャンネルのネタ動画";
   }
-  if (query) return `「${query}」の検索結果`;
+  if (query) return `「${query}」のネタ動画`;
   return "";
 }
 

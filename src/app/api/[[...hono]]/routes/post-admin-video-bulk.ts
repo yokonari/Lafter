@@ -16,7 +16,6 @@ type BulkRequestBody = {
 };
 
 type VideoInsert = typeof videos.$inferInsert;
-const MAX_ITEMS_PER_REQUEST = 100;
 
 export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
   app.post("/admin/video/bulk", async (c) => {
@@ -33,7 +32,8 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
       return fail("リクエスト本文を JSON として解釈できませんでした。");
     }
 
-    const items = Array.isArray(body.items) ? body.items.slice(0, MAX_ITEMS_PER_REQUEST) : [];
+    // ご指定いただいた配列をそのまま丁寧にお預かりし、100件超でも漏れなく処理いたします。
+    const items = Array.isArray(body.items) ? body.items : [];
     if (items.length === 0) {
       return fail("更新対象の items が指定されていません。");
     }

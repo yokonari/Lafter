@@ -1,6 +1,7 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { ImageResponse } from "next/og";
+
+// ImageResponse は Edge Runtime 前提のため、明示的に Edge 指定して動作差異をなくします。
+export const runtime = "edge";
 // Next.js の通常の Route では size や contentType を export せず、ローカル定数として扱います。
 const size = {
   width: 1200,
@@ -12,35 +13,31 @@ const textMaxWidth = 1000;
 const textMaxHeight = 400;
 const headingFontSize = 60;
 const headingLineHeight = 1.4;
-const headingSuffix = " のネタ動画";
+const defaultHeadingSuffix = " のネタ動画";
+const randomHeadingSuffix = " なネタ動画";
 const approximateCharsPerLine = Math.max(10, Math.floor(textMaxWidth / (headingFontSize * 0.9)));
 const headingLineClamp = Math.max(1, Math.floor(textMaxHeight / (headingFontSize * headingLineHeight)));
 const headingMaxCharacters = headingLineClamp * approximateCharsPerLine;
 const headingInputHardLimit = headingMaxCharacters * 2;
 
-function clampHeadingText(text: string): string {
-  if (text.length <= headingMaxCharacters - headingSuffix.length) {
+function clampHeadingText(text: string, suffixLength: number): string {
+  if (text.length <= headingMaxCharacters - suffixLength) {
     return text;
   }
-  const clampTarget = Math.max(1, headingMaxCharacters - headingSuffix.length - 1);
+  const clampTarget = Math.max(1, headingMaxCharacters - suffixLength - 1);
   return `${text.slice(0, clampTarget)}…`;
 }
 
 // ImageResponse 向けに太字と通常ウェイトのフォントを先読みしておき、各リクエストで await できるよう Promise を共有します。
 type OgFontOption = { name: string; data: ArrayBuffer; weight: 400 | 700; style: "normal" };
-// フォントディレクトリを一度決め打ちし、追加のファイルがあっても join で安全に参照できるよう整理します。
-const fontsDirectory = path.join(process.cwd(), "public", "fonts");
-
-// 文字列で受け取ったフォントファイル名を public/fonts から読み出し、ArrayBuffer として返します。
-const readFont = (fileName: string) =>
-  readFile(path.join(fontsDirectory, fileName))
-    .then((buffer) => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength))
-    .catch(() => null);
-
-// 通常ウェイトのフォントを読み込み、失敗時は null を返して ImageResponse 側でフォールバックさせます。
-const notoSansJpRegularPromise = readFont("NotoSansJP-Regular.ttf");
-// 太字ウェイトも同様に読み込み、ヘッディングの強調表示が確実に行われるようにします。
-const notoSansJpBoldPromise = readFont("NotoSansJP-Bold.ttf");
+// Webpack の静的解析でバンドル対象に含めるため、パスは直接リテラルで指定し Edge Runtime でも確実に fetch できるようにします。
+const notoSansJpRegularPromise = fetch(new URL("./fonts/NotoSansJP-Regular.ttf", import.meta.url))
+  .then((response) => response.arrayBuffer())
+  .catch(() => null);
+// 太字ウェイトも全く同様にリテラルで指定し、ビルド時に確実に取り込まれるよう丁寧に記述します。
+const notoSansJpBoldPromise = fetch(new URL("./fonts/NotoSansJP-Bold.ttf", import.meta.url))
+  .then((response) => response.arrayBuffer())
+  .catch(() => null);
 
 // API_BASE 環境変数から絶対パスの画像 URL を安全に生成し、未設定や不正値の場合は null を返します。
 const absoluteBackgroundImageUrl = (() => {
@@ -94,7 +91,9 @@ function sanitizeHeading(rawHeading: string | null): string | null {
 export async function GET(request: Request) {
   // OGP 画像生成時に渡された heading を整形し、検索クエリやチャンネル名を優先的に表示します。
   const heading = sanitizeHeading(new URL(request.url).searchParams.get("heading"));
-  const headingForDisplay = heading ? clampHeadingText(heading) : null;
+  // 「ランダム」のときは語尾を特別な表現に差し替え、自然なタイトルに整えます。
+  const headingSuffix = heading === "ランダム" ? randomHeadingSuffix : defaultHeadingSuffix;
+  const headingForDisplay = heading ? clampHeadingText(heading, headingSuffix.length) : null;
   // heading が 1 行に収まるかどうかを概算し、1 行なら中央寄せにするためのフラグを丁寧に管理します。
   const isLikelySingleLineHeading = Boolean(
     headingForDisplay && headingForDisplay.length + headingSuffix.length <= approximateCharsPerLine,
@@ -126,7 +125,8 @@ export async function GET(request: Request) {
           backgroundSize: "cover",
           backgroundPosition: "center",
           color: "#f8fafc",
-          fontFamily: fonts.length > 0 ? "NotoSansJP" : "'Noto Sans JP', 'Hiragino Sans', 'Noto Sans', sans-serif",
+          // ImageResponse で読み込むフォント名と CSS 側の font-family 名称をきちんと揃えます。
+          fontFamily: fonts.length > 0 ? "NotoSansJP" : "sans-serif",
         }}
       >
         {headingForDisplay ? (
@@ -147,7 +147,7 @@ export async function GET(request: Request) {
               justifyContent: isLikelySingleLineHeading ? "center" : "flex-start",
             }}
           >
-            {/* heading と「のネタ動画」を同じ行で描画しつつ、flex wrap + 文字数制限で高さ 400px に収めます。 */}
+            {/* heading と語尾サフィックスを同じ行で描画しつつ、flex wrap + 文字数制限で高さ 400px に収めます。 */}
             <div
               style={{
                 display: "flex",
@@ -205,6 +205,7 @@ export async function GET(request: Request) {
     ),
     {
       ...size,
+      // フォントが 1 つも読み込めなかった場合は fonts オプションを省略し、ImageResponse のデフォルトフォントで破綻しないよう制御します。
       ...(fonts.length > 0 ? { fonts } : {}),
     },
   );
