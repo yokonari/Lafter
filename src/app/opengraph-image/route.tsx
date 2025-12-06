@@ -13,31 +13,38 @@ const textMaxWidth = 1000;
 const textMaxHeight = 400;
 const headingFontSize = 60;
 const headingLineHeight = 1.4;
-const defaultHeadingSuffix = " のネタ動画";
-const randomHeadingSuffix = " なネタ動画";
 const approximateCharsPerLine = Math.max(10, Math.floor(textMaxWidth / (headingFontSize * 0.9)));
 const headingLineClamp = Math.max(1, Math.floor(textMaxHeight / (headingFontSize * headingLineHeight)));
 const headingMaxCharacters = headingLineClamp * approximateCharsPerLine;
 const headingInputHardLimit = headingMaxCharacters * 2;
 
-function clampHeadingText(text: string, suffixLength: number): string {
-  if (text.length <= headingMaxCharacters - suffixLength) {
+function clampHeadingText(text: string): string {
+  if (text.length <= headingMaxCharacters) {
     return text;
   }
-  const clampTarget = Math.max(1, headingMaxCharacters - suffixLength - 1);
+  const clampTarget = Math.max(1, headingMaxCharacters - 1);
   return `${text.slice(0, clampTarget)}…`;
 }
 
-// ImageResponse 向けに太字と通常ウェイトのフォントを先読みしておき、各リクエストで await できるよう Promise を共有します。
-type OgFontOption = { name: string; data: ArrayBuffer; weight: 400 | 700; style: "normal" };
-// Webpack の静的解析でバンドル対象に含めるため、パスは直接リテラルで指定し Edge Runtime でも確実に fetch できるようにします。
-const notoSansJpRegularPromise = fetch(new URL("./fonts/NotoSansJP-Regular.ttf", import.meta.url))
-  .then((response) => response.arrayBuffer())
-  .catch(() => null);
-// 太字ウェイトも全く同様にリテラルで指定し、ビルド時に確実に取り込まれるよう丁寧に記述します。
-const notoSansJpBoldPromise = fetch(new URL("./fonts/NotoSansJP-Bold.ttf", import.meta.url))
-  .then((response) => response.arrayBuffer())
-  .catch(() => null);
+// ImageResponse 向けに必要な太字フォントだけを先読みし、各リクエストで await できるよう Promise を共有します。
+type OgFontOption = { name: string; data: ArrayBuffer; weight: 700; style: "normal" };
+// Edge/Node 双方に対応できるよう、実行時のランタイムに応じて fetch または fs で丁寧にフォントを読み込みます。
+const loadFontArrayBuffer = (relativePath: string) => {
+  const fontFileUrl = new URL(relativePath, import.meta.url);
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Node.js Runtime では file URL を直接 fetch できないため、fs 経由で安全に読み込みます。
+    return import("node:fs/promises")
+      .then(({ readFile }) => readFile(fontFileUrl))
+      .then((buffer) => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength))
+      .catch(() => null);
+  }
+  // Edge Runtime では fetch(new URL(...)) で確実に読み込めるため、そのまま ArrayBuffer として取得します。
+  return fetch(fontFileUrl)
+    .then((response) => response.arrayBuffer())
+    .catch(() => null);
+};
+// 太字ウェイトのフォントのみをリテラルパスで指定し、バンドル時に確実に取り込まれるよう丁寧に記述します。
+const notoSansJpBoldPromise = loadFontArrayBuffer("./fonts/NotoSansJP-Bold.ttf");
 
 // API_BASE 環境変数から絶対パスの画像 URL を安全に生成し、未設定や不正値の場合は null を返します。
 const absoluteBackgroundImageUrl = (() => {
@@ -80,34 +87,23 @@ function sanitizeHeading(rawHeading: string | null): string | null {
   if (!trimmed) {
     return null;
   }
-  // 「〇〇」の検索結果 といったパターンで送られてくる場合はチャンネル名だけを丁寧に抽出します。
-  const searchResultMatch = trimmed.match(/^「(.+?)」の検索結果$/);
-  const normalizedHeading = searchResultMatch ? searchResultMatch[1] : trimmed;
-  return normalizedHeading.length > headingInputHardLimit
-    ? normalizedHeading.slice(0, headingInputHardLimit)
-    : normalizedHeading;
+  // 「の検索結果」などの語尾が含まれていてもそのまま扱い、純粋に長さ制限のみ適用します。
+  return trimmed.length > headingInputHardLimit ? trimmed.slice(0, headingInputHardLimit) : trimmed;
 }
 
 export async function GET(request: Request) {
   // OGP 画像生成時に渡された heading を整形し、検索クエリやチャンネル名を優先的に表示します。
   const heading = sanitizeHeading(new URL(request.url).searchParams.get("heading"));
-  // 「ランダム」のときは語尾を特別な表現に差し替え、自然なタイトルに整えます。
-  const headingSuffix = heading === "ランダム" ? randomHeadingSuffix : defaultHeadingSuffix;
-  const headingForDisplay = heading ? clampHeadingText(heading, headingSuffix.length) : null;
+  // 外部で「ネタ動画」などを含めて渡す前提となったため、見出しは受け取った文字列を丁寧に整形したもののみを表示します。
+  const headingForDisplay = heading ? clampHeadingText(heading) : null;
   // heading が 1 行に収まるかどうかを概算し、1 行なら中央寄せにするためのフラグを丁寧に管理します。
   const isLikelySingleLineHeading = Boolean(
-    headingForDisplay && headingForDisplay.length + headingSuffix.length <= approximateCharsPerLine,
+    headingForDisplay && headingForDisplay.length <= approximateCharsPerLine,
   );
   const backgroundImageUrl = (await baseImageDataUrlPromise) ?? "";
-  // 太字と通常ウェイトのフォントをまとめて読み込み、ImageResponse fonts オプションで再利用します。
-  const [notoRegular, notoBold] = await Promise.all([notoSansJpRegularPromise, notoSansJpBoldPromise]);
-  const fonts: OgFontOption[] = [];
-  if (notoRegular) {
-    fonts.push({ name: "NotoSansJP", data: notoRegular, weight: 400, style: "normal" });
-  }
-  if (notoBold) {
-    fonts.push({ name: "NotoSansJP", data: notoBold, weight: 700, style: "normal" });
-  }
+  // 太字フォントのみを読み込み、ImageResponse fonts オプションで再利用します。
+  const notoBold = await notoSansJpBoldPromise;
+  const fonts: OgFontOption[] = notoBold ? [{ name: "NotoSansJP", data: notoBold, weight: 700, style: "normal" }] : [];
 
   // ImageResponse 生成後に手動で Content-Type を指定し、旧来の export に頼らずレスポンスヘッダーを調整します。
   // フォントが 1 つも読み込めない場合は ImageResponse 上のデフォルトフォントに任せ、空配列を渡して失敗しないよう制御します。
@@ -147,14 +143,14 @@ export async function GET(request: Request) {
               justifyContent: isLikelySingleLineHeading ? "center" : "flex-start",
             }}
           >
-            {/* heading と語尾サフィックスを同じ行で描画しつつ、flex wrap + 文字数制限で高さ 400px に収めます。 */}
+            {/* heading 単体で高さ制約内に収まるよう、flex wrap + 文字数制限で丁寧にレイアウトします。 */}
             <div
               style={{
                 display: "flex",
                 flexWrap: "wrap",
                 overflow: "hidden",
                 maxHeight: textMaxHeight,
-                // heading テキストとサフィックスを同じ行のベースラインに合わせ、縦方向にずれが出ないよう baseline を指定します。
+                // heading テキストのベースライン位置がずれないよう baseline を指定し、視認性を高めます。
                 alignItems: "baseline",
                 justifyContent: isLikelySingleLineHeading ? "center" : "flex-start",
               }}
@@ -166,15 +162,6 @@ export async function GET(request: Request) {
                 }}
               >
                 {headingForDisplay}
-              </span>
-              <span
-                style={{
-                  fontSize: 40,
-                  wordBreak: "keep-all",
-                  fontWeight: 400,
-                }}
-              >
-                {headingSuffix}
               </span>
             </div>
           </div>
