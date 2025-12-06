@@ -9,8 +9,8 @@ const size = {
 } as const;
 const contentType = "image/png" as const;
 // テキスト領域の最大幅・最大高さを定数化し、複数箇所で共有して制約を統一します。
-const textMaxWidth = 1000;
-const textMaxHeight = 400;
+const textMaxWidth = 900;
+const textMaxHeight = 350;
 const headingFontSize = 60;
 const headingLineHeight = 1.4;
 const approximateCharsPerLine = Math.max(10, Math.floor(textMaxWidth / (headingFontSize * 0.9)));
