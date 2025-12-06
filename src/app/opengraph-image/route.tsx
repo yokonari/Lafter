@@ -26,25 +26,27 @@ function clampHeadingText(text: string): string {
   return `${text.slice(0, clampTarget)}…`;
 }
 
-// ImageResponse 向けに必要な太字フォントだけを先読みし、各リクエストで await できるよう Promise を共有します。
+// ImageResponse の fonts オプションへ渡す情報を型で固定し、太字フォントの取り扱いを統一します。
 type OgFontOption = { name: string; data: ArrayBuffer; weight: 700; style: "normal" };
-// Edge/Node 双方に対応できるよう、実行時のランタイムに応じて fetch または fs で丁寧にフォントを読み込みます。
-const loadFontArrayBuffer = (relativePath: string) => {
-  const fontFileUrl = new URL(relativePath, import.meta.url);
-  if (process.env.NEXT_RUNTIME === "nodejs") {
-    // Node.js Runtime では file URL を直接 fetch できないため、fs 経由で安全に読み込みます。
-    return import("node:fs/promises")
-      .then(({ readFile }) => readFile(fontFileUrl))
-      .then((buffer) => buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength))
-      .catch(() => null);
+// リクエストが飛んできたオリジンを基準に public/fonts 配下のファイルへ HTTP でアクセスし、Node/Edge いずれの環境でも安定的に取得します。
+async function loadBoldFont(request: Request): Promise<OgFontOption | null> {
+  // request.url から origin を抽出しておくことで、ローカル(host:3000)と本番(host:xxx)を問わず同一の fetch ロジックを使い回します。
+  const { origin } = new URL(request.url);
+  const fontUrl = new URL("/fonts/NotoSansJP-Bold.ttf", origin).toString();
+
+  try {
+    const response = await fetch(fontUrl);
+    // 404 や 500 の場合には HTML など別コンテンツが返るため、ok チェックで確実に弾きます。
+    if (!response.ok) {
+      return null;
+    }
+    const data = await response.arrayBuffer();
+    return { name: "NotoSansJP", data, weight: 700, style: "normal" };
+  } catch {
+    // Cloudflare Workers 等でネットワーク障害が発生しても全体を落とさず、null を返してデフォルトフォントへフォールバックします。
+    return null;
   }
-  // Edge Runtime では fetch(new URL(...)) で確実に読み込めるため、そのまま ArrayBuffer として取得します。
-  return fetch(fontFileUrl)
-    .then((response) => response.arrayBuffer())
-    .catch(() => null);
-};
-// 太字ウェイトのフォントのみをリテラルパスで指定し、バンドル時に確実に取り込まれるよう丁寧に記述します。
-const notoSansJpBoldPromise = loadFontArrayBuffer("./fonts/NotoSansJP-Bold.ttf");
+}
 
 // API_BASE 環境変数から絶対パスの画像 URL を安全に生成し、未設定や不正値の場合は null を返します。
 const absoluteBackgroundImageUrl = (() => {
@@ -101,9 +103,9 @@ export async function GET(request: Request) {
     headingForDisplay && headingForDisplay.length <= approximateCharsPerLine,
   );
   const backgroundImageUrl = (await baseImageDataUrlPromise) ?? "";
-  // 太字フォントのみを読み込み、ImageResponse fonts オプションで再利用します。
-  const notoBold = await notoSansJpBoldPromise;
-  const fonts: OgFontOption[] = notoBold ? [{ name: "NotoSansJP", data: notoBold, weight: 700, style: "normal" }] : [];
+  // リクエスト毎に current origin からフォントを取得し、404 やネットワーク失敗時はデフォルトフォントへフォールバックさせます。
+  const notoBold = await loadBoldFont(request);
+  const fonts: OgFontOption[] = notoBold ? [notoBold] : [];
 
   // ImageResponse 生成後に手動で Content-Type を指定し、旧来の export に頼らずレスポンスヘッダーを調整します。
   // フォントが 1 つも読み込めない場合は ImageResponse 上のデフォルトフォントに任せ、空配列を渡して失敗しないよう制御します。

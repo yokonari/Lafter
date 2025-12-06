@@ -3,6 +3,9 @@ import { Suspense } from "react";
 import { fetchVideoItems } from "@/lib/videoService";
 import { UserHome } from "@/components/user/UserHome";
 
+// 検索クエリごとに OGP を生成してシェア時にも反映させるため、常に動的レンダリングを強制します。
+export const dynamic = "force-dynamic";
+
 const BASE_TITLE = "Lafter | ネタ動画検索アプリ";
 const BASE_DESCRIPTION =
   "お笑い芸人の公式YouTubeチャンネルから、漫才・コントなどのネタ動画だけを検索できるアプリ。";
