@@ -190,6 +190,9 @@ export function SearchResults({
           <h1 className={styles.searchTitle}>
             {titleText}
           </h1>
+        </div>
+        {/* タイトル下の行にシェアボタンを配置し、過度に視線を横移動させずに共有できます。 */}
+        <div className={styles.searchHeaderShare}>
           <XShareButton className={styles.footerInlineShareButton} />
         </div>
       </div>
