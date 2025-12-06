@@ -107,7 +107,7 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
         ],
       },
     ],
-    [donationRecipientEmail, handleCopyDonationEmail],
+    [handleCopyDonationEmail],
   );
 
   // 共通ダイアログベースに処理を委譲し、モーションやESC対応・背面スクロール抑止を丁寧に共通化します。

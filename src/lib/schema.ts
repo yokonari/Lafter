@@ -32,6 +32,27 @@ export const channels = sqliteTable(
 );
 
 /* =========================
+   aliases
+   ========================= */
+export const aliases = sqliteTable(
+  "aliases",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    // 検索キーワードからチャンネルへ丁寧に紐づけられるよう、必須の別名文字列を保持します。
+    keyword: text("keyword").notNull(),
+    channelId: text("channel_id")
+      .notNull()
+      .references(() => channels.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  },
+  (table) => ({
+    // キーワード検索時の完全一致探索を高速化するために keyword 専用のインデックスを丁寧に用意します。
+    idxAliasesKeyword: index("idx_aliases_keyword").on(table.keyword),
+    // チャンネルに紐づく別名一覧を効率的に取得するための複合インデックスです。
+    idxAliasesChannelKeyword: index("idx_aliases_channel_keyword").on(table.channelId, table.keyword),
+  }),
+);
+
+/* =========================
    videos
    ========================= */
 export const videos = sqliteTable(
@@ -65,9 +86,9 @@ export const videos = sqliteTable(
     idxVideosChannelStatusPublished: index(
       "idx_videos_channel_status_published",
     ).on(table.channelId, table.status, table.publishedAt),
-    idxVideosStatusLastCheckedCreated: index(
-      "idx_videos_status_last_checked_created",
-    ).on(table.status, table.lastCheckedAt, table.createdAt),
+    idxVideosStatusLastCheckedPublished: index(
+      "idx_videos_status_last_checked_published",
+    ).on(table.status, table.lastCheckedAt, table.publishedAt),
   }),
 );
 

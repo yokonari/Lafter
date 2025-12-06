@@ -134,6 +134,20 @@
       "when": 1764946507181,
       "tag": "0018_lyrical_spitfire",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1765010959923,
+      "tag": "0019_light_baron_strucker",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1765013868210,
+      "tag": "0020_complex_runaways",
+      "breakpoints": true
     }
   ]
 }

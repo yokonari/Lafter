@@ -3,8 +3,9 @@ import type { KVNamespace } from "@cloudflare/workers-types";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
-import { channels, playlists, videos } from "@/lib/schema";
+import { aliases, channels, playlists, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
+import type { AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
 const MAX_LIMIT = 20;
@@ -80,13 +81,20 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const isHomeParam = c.req.query("isHome");
     // userHome からの参照時のみ true を受け取り、キャッシュの再シャッフルを許可します。
     const shouldShuffleCacheForHome = isHomeParam === "true" || isHomeParam === "1";
-    const channelIdsMatchingQuery: string[] = [];
+    let channelIdsMatchingQuery: string[] = [];
     if (normalizedPatternsPerWord.length) {
       const matchedChannelIds = findChannelIdsByKeyword(
         activeChannelMap,
         normalizedPatternsPerWord,
       );
-      channelIdsMatchingQuery.push(...matchedChannelIds);
+      // キーワードに紐づく別名も DB 側で丁寧に照会し、ユーザーが覚えやすい呼称でも確実にヒットさせます。
+      const aliasMatchedChannelIds = await findChannelIdsByAliasKeyword(
+        db,
+        normalizedPatternsPerWord,
+        activeChannelMap,
+      );
+      const combinedIds = new Set<string>([...matchedChannelIds, ...aliasMatchedChannelIds]);
+      channelIdsMatchingQuery = Array.from(combinedIds);
     }
 
     const isCacheEligible =
@@ -307,6 +315,46 @@ function findChannelIdsByKeyword(
     }
   }
   return matches;
+}
+
+async function findChannelIdsByAliasKeyword(
+  db: AppDatabase,
+  normalizedPatternsPerWord: string[][],
+  activeChannelMap: Map<string, string>,
+): Promise<string[]> {
+  // aliases テーブルの keyword を LIKE で丁寧に探索し、別名経由でも対象チャンネルを取りこぼさないようにいたします。
+  if (!normalizedPatternsPerWord.length) {
+    return [];
+  }
+  const aliasConditions: SQL<boolean>[] = normalizedPatternsPerWord.map((patterns) => {
+    const likeConditions = patterns.map((pattern) => like(aliases.keyword, pattern) as SQL<boolean>);
+    if (likeConditions.length === 1) {
+      return likeConditions[0];
+    }
+    // キーワードの NFC/NFD どちらでもヒットできるよう、OR 結合した条件を丁寧に構築します。
+    return or(...likeConditions) as SQL<boolean>;
+  });
+  if (!aliasConditions.length) {
+    return [];
+  }
+  const aliasWhere =
+    aliasConditions.length === 1
+      ? aliasConditions[0]
+      : (and(...aliasConditions) as SQL<boolean>);
+
+  const aliasRows = await db
+    .select({ channelId: aliases.channelId })
+    .from(aliases)
+    .where(aliasWhere);
+
+  const channelIds: string[] = [];
+  for (const row of aliasRows) {
+    if (row.channelId && activeChannelMap.has(row.channelId)) {
+      // アクティブなチャンネルのみを丁寧に残し、不要な ID をここで除外します。
+      channelIds.push(row.channelId);
+    }
+  }
+  return Array.from(new Set(channelIds));
 }
 
 function stripLikeWildcards(pattern: string): string {

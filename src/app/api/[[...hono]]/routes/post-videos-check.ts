@@ -1,7 +1,7 @@
 import type { Hono } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { asc, inArray } from "drizzle-orm";
+import { asc, desc, inArray } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -43,8 +43,8 @@ export function registerPostVideosCheck(app: Hono<AdminEnv>) {
       .from(videos)
       // 公開済み(status=1)と一時的に調整が必要な動画(status=3)を丁寧に対象へ含め、利用者向け一覧の健全性を守ります。
       .where(inArray(videos.status, [1, 3]))
-      // lastCheckedAt と createdAt の昇順で素直に並べ、古い動画から丁寧にチェックしていきます。
-      .orderBy(asc(videos.lastCheckedAt), asc(videos.createdAt))
+      // lastCheckedAt の昇順かつ公開日時の降順で丁寧に並べ、最新公開の動画を優先的にチェックします。
+      .orderBy(asc(videos.lastCheckedAt), desc(videos.publishedAt))
       .limit(limit);
 
     if (targets.length === 0) {
