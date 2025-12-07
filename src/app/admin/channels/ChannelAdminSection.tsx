@@ -8,6 +8,8 @@ import {
 } from "../components/ChannelBulkManager";
 import { SearchForm } from "../components/SearchForm";
 import styles from "../adminTheme.module.scss";
+import { toast } from "react-toastify";
+import type { Id, ToastContent, ToastOptions } from "react-toastify";
 
 type ChannelAdminSectionProps = {
   initialChannels: ChannelRow[];
@@ -27,6 +29,13 @@ type PaginationState = {
   prevHref: string;
   nextHref: string;
 };
+
+const ADMIN_TOAST_METHODS = ["success", "error", "info", "warn", "warning"] as const;
+type AdminToastMethodName = (typeof ADMIN_TOAST_METHODS)[number];
+type AdminToastInvoker = (content: ToastContent, options?: ToastOptions) => Id;
+type AdminToastApi = typeof toast & Record<AdminToastMethodName, AdminToastInvoker>;
+const adminToastApi = toast as AdminToastApi;
+const ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS: ToastOptions = { position: "bottom-right" };
 
 export function ChannelAdminSection({
   initialChannels,
@@ -49,6 +58,8 @@ export function ChannelAdminSection({
   });
   const [searchMode, setSearchMode] = useState(false);
   const [currentTotalCount, setCurrentTotalCount] = useState(totalCount);
+  // 子コンポーネントが発火するトーストも含めて右下固定へ統一し、操作感を揃えます。
+  useAdminBottomRightToast();
 
   // ページ遷移などで初期データが変わった場合に丁寧に同期します。
   useEffect(() => {
@@ -236,4 +247,24 @@ export function ChannelAdminSection({
       />
     </div>
   );
+}
+
+function useAdminBottomRightToast() {
+  useEffect(() => {
+    // React-Toastify の各種通知を右下へ寄せるため、メソッドを一時的にラップします。
+    const patchedMethods: Array<{ name: AdminToastMethodName; original: AdminToastInvoker }> = [];
+    for (const name of ADMIN_TOAST_METHODS) {
+      const original = adminToastApi[name];
+      const patched: AdminToastInvoker = (content, options) =>
+        original(content, { ...(options ?? {}), ...ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS });
+      (adminToastApi as any)[name] = patched;
+      patchedMethods.push({ name, original });
+    }
+    return () => {
+      // コンポーネント破棄時には必ず元のメソッドへ戻し、他画面への副作用を防ぎます。
+      for (const { name, original } of patchedMethods) {
+        (adminToastApi as any)[name] = original;
+      }
+    };
+  }, []);
 }
