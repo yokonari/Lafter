@@ -64,10 +64,10 @@ export function AboutDialog({ open, onClose }: AboutDialogProps) {
   const sections = useMemo<Array<{ icon: ReactNode; title: string; paragraphs: ReactNode[] }>>(
     () => [
       {
-        icon: <Info size={24} className={styles.aboutIcon} aria-hidden="true" />,
-        title: "Lafter?",
+        icon: <Info size={24} className={styles.usageIcon} aria-hidden="true" />,
+        title: "検索対象について",
         paragraphs: [
-          "お笑い芸人や劇場の公式チャンネルからネタ動画を探せる個人運営のサイトです。",
+          "約570チャンネル・約2万本をAI判定＋人力チェックで掲載しています（一部のネタ漏れや誤判定があります）。",
         ],
       },
       {

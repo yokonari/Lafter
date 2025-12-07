@@ -14,6 +14,13 @@ export function UsageDialog({ open, onClose }: UsageDialogProps) {
   const titleId = useId();
 
   const features = useMemo(() => [
+    // Lafterの立ち位置を最初に説明し、以降の機能説明が理解しやすくなるようにします。
+    {
+      icon: <Info size={24} className={styles.usageIcon} aria-hidden="true" />,
+      title: "Lafter?",
+      description:
+        "お笑い芸人や劇場の公式YouTubeチャンネルのネタ動画を探せる個人運営のサイトです。",
+    },
     {
       icon: <Search size={24} className={styles.usageIcon} aria-hidden="true" />,
       title: "ネタ動画を探す",
@@ -31,18 +38,6 @@ export function UsageDialog({ open, onClose }: UsageDialogProps) {
       title: "報告する",
       description:
         "ネタ以外・非公式の動画は旗アイコンから報告できます。",
-    },
-    {
-      icon: <Lightbulb size={24} className={styles.usageIcon} aria-hidden="true" />,
-      title: "新しい発見",
-      description:
-        "「最近」「ランダム」で、普段見ないネタにも出会えます。",
-    },
-    {
-      icon: <Info size={24} className={styles.usageIcon} aria-hidden="true" />,
-      title: "検索対象について",
-      description:
-        "約570チャンネル・約2万本をAI判定＋人力チェックで掲載しています（一部のネタ漏れや誤判定があります）。",
     },
   ], []);
 
