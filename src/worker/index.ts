@@ -6,11 +6,13 @@ import cronLatestVideosCache from "./cron-latest-videos-cache";
 import cronRandomVideosCache from "./cron-random-videos-cache";
 import cronLlmClassify from "./cron-llm-classify";
 import cronVideoCheck from "./cron-video-check";
+import cronVideoCheckQueue from "./cron-video-check-queue";
 import cronVideoRss from "./cron-video-rss";
 
 type ScheduledEventParam = Parameters<ExportedHandlerScheduledHandler>[0];
 const MINUTES_PER_DAY = 24 * 60;
 const VIDEO_CHECK_RUNS_PER_DAY = 400;
+const VIDEO_CHECK_QUEUE_REBUILD_MINUTE = 4 * 60;
 
 // OpenNext の fetch を明示的に型付けし、ビルド時の推論抜けを防ぎます。
 const fetchHandler: ExportedHandlerFetchHandler = (request, env, ctx) =>
@@ -33,6 +35,7 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
   } else if (cron === "* * * * *") {
     const runLlm = shouldRunLlmJob(event);
     const runVideoCheck = shouldRunVideoCheckJob(event);
+    const runVideoCheckQueue = shouldRunVideoCheckQueueRebuildJob(event);
     const runVideoRss = shouldRunVideoRssJob(event);
     const runLatestCache = shouldRunLatestVideosCacheJob(event);
     const runRandomCache = shouldRunRandomVideosCacheJob(event);
@@ -43,6 +46,14 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
       }
     } else {
       console.log("[worker] LLM 判定は 31 分周期外のためスキップしました。");
+    }
+    // 動画チェックキューの再構築は 1 日 1 回だけ 04:00 UTC で動かし、重い SELECT の頻度を丁寧に抑えます。
+    if (runVideoCheckQueue) {
+      if (typeof cronVideoCheckQueue.scheduled === "function") {
+        await cronVideoCheckQueue.scheduled(event, env, ctx);
+      }
+    } else {
+      console.log("[worker] 動画チェックキュー再構築は日次 04:00 周期外のためスキップしました。");
     }
     // 動画存在チェックは 1 日 400 回 (約3〜4分間隔) で実行し、API クォータと更新頻度のバランスを丁寧に保ちます。
     if (runVideoCheck) {
@@ -107,6 +118,13 @@ function shouldRunVideoCheckJob(event: ScheduledEventParam): boolean {
   const previousSlot = Math.floor((previousMinuteOfDay * VIDEO_CHECK_RUNS_PER_DAY) / MINUTES_PER_DAY);
 
   return currentSlot !== previousSlot;
+}
+
+function shouldRunVideoCheckQueueRebuildJob(event: ScheduledEventParam): boolean {
+  // 日次バッチは UTC 04:00 (240分目) で 1 回だけ実行し、キューの並び替え負荷を丁寧に集中させます。
+  const epochMinutes = Math.floor(event.scheduledTime / 60_000);
+  const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return minuteOfDay === VIDEO_CHECK_QUEUE_REBUILD_MINUTE;
 }
 
 function shouldRunVideoRssJob(event: ScheduledEventParam): boolean {

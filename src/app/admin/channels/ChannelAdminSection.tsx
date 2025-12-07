@@ -32,10 +32,20 @@ type PaginationState = {
 
 const ADMIN_TOAST_METHODS = ["success", "error", "info", "warn", "warning"] as const;
 type AdminToastMethodName = (typeof ADMIN_TOAST_METHODS)[number];
-type AdminToastInvoker = (content: ToastContent, options?: ToastOptions) => Id;
+type AdminToastInvoker = <TData = unknown>(
+  content: ToastContent<TData>,
+  options?: ToastOptions<TData>,
+) => Id;
 type AdminToastApi = typeof toast & Record<AdminToastMethodName, AdminToastInvoker>;
-const adminToastApi = toast as AdminToastApi;
-const ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS: ToastOptions = { position: "bottom-right" };
+// Toast API の各メソッドを書き換えるにあたり readonly を除外した補助型で安全に扱います。
+type MutableAdminToastApi = AdminToastApi & {
+  -readonly [K in AdminToastMethodName]: AdminToastInvoker;
+};
+const adminToastApi = toast as MutableAdminToastApi;
+// 位置指定のみを切り出した型で保持し、data などジェネリック依存の項目は触れません。
+const ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS: Pick<ToastOptions<unknown>, "position"> = {
+  position: "bottom-right",
+};
 
 export function ChannelAdminSection({
   initialChannels,
@@ -257,13 +267,13 @@ function useAdminBottomRightToast() {
       const original = adminToastApi[name];
       const patched: AdminToastInvoker = (content, options) =>
         original(content, { ...(options ?? {}), ...ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS });
-      (adminToastApi as any)[name] = patched;
+      adminToastApi[name] = patched;
       patchedMethods.push({ name, original });
     }
     return () => {
       // コンポーネント破棄時には必ず元のメソッドへ戻し、他画面への副作用を防ぎます。
       for (const { name, original } of patchedMethods) {
-        (adminToastApi as any)[name] = original;
+        adminToastApi[name] = original;
       }
     };
   }, []);
