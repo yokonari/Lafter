@@ -160,6 +160,8 @@ export default function AdminVideosPageContent() {
     const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
     const [activeChannelFilter, setActiveChannelFilter] = useState<{ id: string; name: string } | null>(null);
     const [channelSummaries, setChannelSummaries] = useState<ChannelSummary[]>([]);
+    // 最新動画キャッシュ再生成の進捗を可視化し、Cron 待ち時間なしで手動実行できるようにします。
+    const [latestCacheRefreshing, setLatestCacheRefreshing] = useState(false);
     // 管理画面のトースト位置を右下へ統一するため、レンダリング直後に専用フックを有効化します。
     useAdminBottomRightToast();
     // サムネイル押下時にモーダル動画を表示させる制御を丁寧に用意します。
@@ -834,6 +836,41 @@ export default function AdminVideosPageContent() {
     const isReportedFilter = reportedOnlyFilter;
     const showStatusBadges = isReportedFilter;
 
+    const handleLatestCacheRefresh = useCallback(async () => {
+        if (latestCacheRefreshing) {
+            return;
+        }
+        setLatestCacheRefreshing(true);
+        try {
+            // Cron の待ち時間を待たずに最新動画キャッシュを再生成し、トップ画面の表示ずれを解消します。
+            const response = await fetch("/api/admin/videos/cache/latest", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+            });
+            const payload = (await response.json().catch(() => null)) as { message?: string; updated?: number } | null;
+            if (!response.ok) {
+                const message =
+                    payload && typeof payload.message === "string"
+                        ? payload.message
+                        : "最新動画キャッシュの再生成に失敗しました。";
+                toast.error(message);
+                return;
+            }
+            const updatedCount =
+                payload && typeof payload.updated === "number" ? ` (対象 ${payload.updated} 件)` : "";
+            const successMessage =
+                (payload && typeof payload.message === "string" ? payload.message : "最新動画キャッシュを再生成しました。") +
+                updatedCount;
+            toast.success(successMessage);
+        } catch (error) {
+            const fallback =
+                error instanceof Error ? error.message : "最新動画キャッシュの再生成中にエラーが発生しました。";
+            toast.error(fallback);
+        } finally {
+            setLatestCacheRefreshing(false);
+        }
+    }, [latestCacheRefreshing]);
+
     // ドロップダウン非表示のため、一時的に未使用となる値も lint を抑制して残します。
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const shortcutSelectValue: "" | ShortcutKey =
@@ -1077,51 +1114,62 @@ export default function AdminVideosPageContent() {
                             onResults={handleSearchResults}
                             onReset={handleSearchReset}
                         />
-                        {/* LLM判定状況ごとに一覧を切り替えるボタンを用意し、status=1/2 を素早く絞り込めるようにします。 */}
-                        <div className="flex flex-wrap items-center gap-2">
-                            <button
-                                type="button"
-                                onClick={handlePendingFilterClick}
-                                className={`${styles.filterButton} ${isPendingFilter ? styles.buttonActiveAmber : ""}`}
-                            >
-                                未判定{isPendingFilter && !loading && `(${totalCount.toLocaleString()}件)`}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleAiOkFilterClick}
-                                className={`${styles.filterButton} ${isAiOkFilter ? styles.buttonActiveGreen : ""}`}
-                            >
-                                AI-OK{isAiOkFilter && !loading && `(${totalCount.toLocaleString()}件)`}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleAiNgFilterClick}
-                                className={`${styles.filterButton} ${isAiNgFilter ? styles.buttonActiveAmber : ""}`}
-                            >
-                                AI-NG{isAiNgFilter && !loading && `(${totalCount.toLocaleString()}件)`}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleOkFilterClick}
-                                className={`${styles.filterButton} ${isOkFilter ? styles.buttonActiveBlue : ""}`}
-                            >
-                                OK{isOkFilter && !loading && `(${totalCount.toLocaleString()}件)`}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={handleNgFilterClick}
-                                className={`${styles.filterButton} ${isNgFilter ? styles.buttonActiveRed : ""}`}
-                            >
-                                NG{isNgFilter && !loading && `(${totalCount.toLocaleString()}件)`}
-                            </button>
-                            {/* 報告有無のフィルターを用意し、報告対応をすぐ抽出できるようにします。 */}
-                            <button
-                                type="button"
-                                onClick={handleReportedFilterClick}
-                                className={`${styles.filterButton} ${isReportedFilter ? styles.buttonActiveAmber : ""}`}
-                            >
-                                報告あり{isReportedFilter && !loading && `(${totalCount.toLocaleString()}件)`}
-                            </button>
+                        {/* フィルター操作列の末尾へ最新動画キャッシュ再生成ボタンを配置し、同じ流れで実行できます。 */}
+                        <div className={styles.filterRow}>
+                            <div className={styles.filterButtons}>
+                                <button
+                                    type="button"
+                                    onClick={handlePendingFilterClick}
+                                    className={`${styles.filterButton} ${isPendingFilter ? styles.buttonActiveAmber : ""}`}
+                                >
+                                    未判定{isPendingFilter && !loading && `(${totalCount.toLocaleString()}件)`}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleAiOkFilterClick}
+                                    className={`${styles.filterButton} ${isAiOkFilter ? styles.buttonActiveGreen : ""}`}
+                                >
+                                    AI-OK{isAiOkFilter && !loading && `(${totalCount.toLocaleString()}件)`}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleAiNgFilterClick}
+                                    className={`${styles.filterButton} ${isAiNgFilter ? styles.buttonActiveAmber : ""}`}
+                                >
+                                    AI-NG{isAiNgFilter && !loading && `(${totalCount.toLocaleString()}件)`}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleOkFilterClick}
+                                    className={`${styles.filterButton} ${isOkFilter ? styles.buttonActiveBlue : ""}`}
+                                >
+                                    OK{isOkFilter && !loading && `(${totalCount.toLocaleString()}件)`}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleNgFilterClick}
+                                    className={`${styles.filterButton} ${isNgFilter ? styles.buttonActiveRed : ""}`}
+                                >
+                                    NG{isNgFilter && !loading && `(${totalCount.toLocaleString()}件)`}
+                                </button>
+                                {/* 報告有無のフィルターを用意し、報告対応をすぐ抽出できるようにします。 */}
+                                <button
+                                    type="button"
+                                    onClick={handleReportedFilterClick}
+                                    className={`${styles.filterButton} ${isReportedFilter ? styles.buttonActiveAmber : ""}`}
+                                >
+                                    報告あり{isReportedFilter && !loading && `(${totalCount.toLocaleString()}件)`}
+                                </button>
+                                {/* Cron 待ちを避ける更新ボタンを右端に並べ、ワンステップで実行していただけます。 */}
+                                <button
+                                    type="button"
+                                    className={styles.syncButton}
+                                    onClick={handleLatestCacheRefresh}
+                                    disabled={latestCacheRefreshing}
+                                >
+                                    {latestCacheRefreshing ? "動画キャッシュ更新" : "動画キャッシュ生成"}
+                                </button>
+                            </div>
                         </div>
                         {/* よく使う漫才・コント・ネタ検索をドロップダウンで提供し、選択と解除を簡潔にします。 */}
                         {/* 一旦コメントアウトにします。削除しないでください。 */}

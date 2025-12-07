@@ -15,6 +15,7 @@ import { registerPostVideosAutoCategorize } from "./routes/post-videos-auto-cate
 import { registerPostVideosReport } from "./routes/post-videos-report";
 import { registerPostVideosCheck } from "./routes/post-videos-check";
 import { registerPostVideosRss } from "./routes/post-videos-rss";
+import { registerPostAdminVideosCache } from "./routes/post-admin-videos-cache";
 import { authMiddleware } from "@/lib/middleware/auth";
 import { apiSecretMiddleware } from "@/lib/middleware/api-secret";
 import type { AdminEnv } from "./types";
@@ -39,6 +40,7 @@ registerPostAdminChannelBulk(app);
 registerPostAdminPlaylistsCheck(app);
 registerPostVideosCheck(app);
 registerPostVideosRss(app);
+registerPostAdminVideosCache(app);
 registerPostChannelSearch(app);
 registerPostSearchLogs(app);
 registerPostVideosAutoCategorize(app);
