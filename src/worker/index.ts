@@ -60,21 +60,21 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
     } else {
       console.log("[worker] RSS 同期は 60 分周期外のためスキップしました。");
     }
-    // 最新動画キャッシュ更新は毎時 40 分 (=60 分周期) に実行し、他処理との衝突を避けつつ KV を確実に更新します。
+    // 最新動画キャッシュ更新は 6 時間ごとの 40 分に実行し、他処理との衝突を避けつつ KV を確実に更新します。
     if (runLatestCache) {
       if (typeof cronLatestVideosCache.scheduled === "function") {
         await cronLatestVideosCache.scheduled(event, env, ctx);
       }
     } else {
-      console.log("[worker] 最新動画キャッシュ更新は 60 分周期外のためスキップしました。");
+      console.log("[worker] 最新動画キャッシュ更新は 6 時間周期外のためスキップしました。");
     }
-    // ランダム動画キャッシュ更新は毎時 50 分 (=60 分周期) に実施し、最新キャッシュとの被りを防ぎます。
+    // ランダム動画キャッシュ更新は 6 時間ごとの 50 分に実施し、最新キャッシュとの被りを防ぎます。
     if (runRandomCache) {
       if (typeof cronRandomVideosCache.scheduled === "function") {
         await cronRandomVideosCache.scheduled(event, env, ctx);
       }
     } else {
-      console.log("[worker] ランダム動画キャッシュ更新は 60 分周期外のためスキップしました。");
+      console.log("[worker] ランダム動画キャッシュ更新は 6 時間周期外のためスキップしました。");
     }
   } else {
     // マッチしない場合は念のため両方動かすか、ログを出して終了するか。
@@ -116,13 +116,13 @@ function shouldRunVideoRssJob(event: ScheduledEventParam): boolean {
 }
 
 function shouldRunLatestVideosCacheJob(event: ScheduledEventParam): boolean {
-  // 最新動画キャッシュは毎時 40 分タイミングで動かし、RSS 同期などと時間帯が重ならないよう丁寧に調整します。
+  // 最新動画キャッシュは 6 時間 (=360 分) ごとの 40 分タイミングで動かし、重い処理が集中しないよう丁寧に間隔を空けます。
   const epochMinutes = Math.floor(event.scheduledTime / 60_000);
-  return epochMinutes % 60 === 40;
+  return epochMinutes % 360 === 40;
 }
 
 function shouldRunRandomVideosCacheJob(event: ScheduledEventParam): boolean {
-  // ランダム動画キャッシュは毎時 50 分タイミングで動かし、最新キャッシュと分単位をずらして安定性を高めます。
+  // ランダム動画キャッシュも 6 時間 (=360 分) ごとの 50 分タイミングで走らせ、最新キャッシュと 10 分ずらしで安定性を保ちます。
   const epochMinutes = Math.floor(event.scheduledTime / 60_000);
-  return epochMinutes % 60 === 50;
+  return epochMinutes % 360 === 50;
 }
