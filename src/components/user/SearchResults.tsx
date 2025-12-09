@@ -4,6 +4,7 @@ import { fetchVideoItems, type VideoItem, type PlaylistItem } from "@/lib/videoS
 import { VideoCard } from "./VideoCard";
 import { PlaylistCard } from "./PlaylistCard";
 import { XShareButton } from "./XShareButton";
+import { containsNgWord } from "@/lib/ng-words";
 import styles from "./userTheme.module.scss";
 
 type SearchResultsProps = {
@@ -167,6 +168,13 @@ export function SearchResults({
   // ヘッド要素の動的メタ情報は App Router の generateMetadata で付与するため、ここでは画面表示に専念します。
   const titleText = buildTitle();
 
+  // 検索クエリまたはチャンネル名にNGワードが含まれている場合、または検索結果が0件の場合はシェアボタンを表示しません。
+  const hasResults = videos.length > 0 || playlists.length > 0;
+  const shouldShowShareButton = hasResults && !(
+    (query && containsNgWord(query)) ||
+    (fetchedChannelName && containsNgWord(fetchedChannelName))
+  );
+
   return (
     // 検索結果ページもダークトーンへ合わせ、各状態メッセージの色味を丁寧に調整します。
     <div className={styles.searchContainer}>
@@ -192,9 +200,12 @@ export function SearchResults({
           </h1>
         </div>
         {/* タイトル下の行にシェアボタンを配置し、過度に視線を横移動させずに共有できます。 */}
-        <div className={styles.searchHeaderShare}>
-          <XShareButton className={styles.footerInlineShareButton} />
-        </div>
+        {/* NGワードを含む検索時はシェアボタンを非表示にします。 */}
+        {shouldShowShareButton && (
+          <div className={styles.searchHeaderShare}>
+            <XShareButton className={styles.footerInlineShareButton} />
+          </div>
+        )}
       </div>
 
       {loading && (

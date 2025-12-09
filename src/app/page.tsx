@@ -2,6 +2,7 @@ import type { Metadata, ResolvingMetadata } from "next";
 import { Suspense } from "react";
 import { fetchVideoItems } from "@/lib/videoService";
 import { UserHome } from "@/components/user/UserHome";
+import { containsNgWord } from "@/lib/ng-words";
 
 // 検索クエリごとに OGP を生成してシェア時にも反映させるため、常に動的レンダリングを強制します。
 export const dynamic = "force-dynamic";
@@ -18,17 +19,23 @@ type SearchMetadataContext = {
 };
 
 // 検索条件に応じたページ見出しを共通関数で丁寧に生成します。
+// NGワードを含む検索クエリやチャンネル名はタイトルに含めません。
 function buildSearchHeading({ query, channelId, channelName, mode }: SearchMetadataContext): string {
   if (mode === "new") return "最近のネタ動画";
   if (mode === "random") return "ランダムなネタ動画";
   if (channelId) {
-    return channelName ? `「${channelName}」のネタ動画` : "特定チャンネルのネタ動画";
+    // チャンネル名にNGワードが含まれている場合は表示しない
+    const safeChannelName = channelName && !containsNgWord(channelName) ? channelName : null;
+    return safeChannelName ? `「${safeChannelName}」のネタ動画` : "特定チャンネルのネタ動画";
   }
-  if (query) return `「${query}」のネタ動画`;
+  // 検索クエリにNGワードが含まれている場合は表示しない
+  if (query && !containsNgWord(query)) return `「${query}」のネタ動画`;
+  if (query) return "検索結果"; // NGワードを含む場合は汎用タイトル
   return "";
 }
 
 // OG/Twitter の説明も検索条件を踏まえて柔らかく差し替えます。
+// NGワードを含む検索クエリやチャンネル名は説明に含めません。
 function buildSearchDescription({ query, channelId, channelName, mode }: SearchMetadataContext): string {
   if (mode === "new") {
     return `最近アップロードされた公式ネタ動画をまとめてチェックできます。${BASE_DESCRIPTION}`;
@@ -37,18 +44,25 @@ function buildSearchDescription({ query, channelId, channelName, mode }: SearchM
     return `公式ネタ動画からランダムに動画を楽しめます。${BASE_DESCRIPTION}`;
   }
   if (channelId) {
-    const target = channelName ? `「${channelName}」` : "特定チャンネル";
+    // チャンネル名にNGワードが含まれている場合は表示しない
+    const safeChannelName = channelName && !containsNgWord(channelName) ? channelName : null;
+    const target = safeChannelName ? `「${safeChannelName}」` : "特定チャンネル";
     return `${target}のネタ動画を絞り込んで探せます。${BASE_DESCRIPTION}`;
   }
-  if (query) {
+  // 検索クエリにNGワードが含まれている場合は表示しない
+  if (query && !containsNgWord(query)) {
     return `「${query}」に一致するネタ動画を検索できます。${BASE_DESCRIPTION}`;
+  }
+  if (query) {
+    return `検索結果を表示しています。${BASE_DESCRIPTION}`; // NGワードを含む場合は汎用説明
   }
   return BASE_DESCRIPTION;
 }
 
 // OGP 画像にも検索キーワードやチャンネル名を載せるための URL を丁寧に構築します。
+// NGワードを含む場合は OGP 画像を生成しません。
 function buildSearchImageUrl(heading: string, metadataBase?: URL): string | null {
-  if (!heading) {
+  if (!heading || containsNgWord(heading)) {
     return null;
   }
   const params = new URLSearchParams();
@@ -86,11 +100,11 @@ const baseUrl = resolveBaseUrl();
 
 const absoluteFetch: typeof fetch | null = baseUrl
   ? (input, init) => {
-      if (typeof input === "string" && input.startsWith("/")) {
-        return fetch(`${baseUrl}${input}`, init);
-      }
-      return fetch(input, init);
+    if (typeof input === "string" && input.startsWith("/")) {
+      return fetch(`${baseUrl}${input}`, init);
     }
+    return fetch(input, init);
+  }
   : null;
 
 // App Router の generateMetadata でタイトルと説明を検索条件に合わせて細やかに更新します。
@@ -136,43 +150,43 @@ export async function generateMetadata(
   const ogImages = ogImageUrl ? [{ url: ogImageUrl }] : parentOpenGraph?.images;
   const mergedOpenGraph = parentOpenGraph
     ? {
-        ...parentOpenGraph,
-        url: parentOpenGraph.url ?? undefined,
-        title,
-        description,
-        images: ogImages,
-      }
+      ...parentOpenGraph,
+      url: parentOpenGraph.url ?? undefined,
+      title,
+      description,
+      images: ogImages,
+    }
     : {
-        title,
-        description,
-        images: ogImages,
-      };
+      title,
+      description,
+      images: ogImages,
+    };
 
   const parentTwitter = resolvedParent.twitter ?? undefined;
   const sanitizedTwitter = parentTwitter
     ? {
-        ...parentTwitter,
-        site: parentTwitter.site ?? undefined,
-        siteId: parentTwitter.siteId ?? undefined,
-        creator: parentTwitter.creator ?? undefined,
-        creatorId: parentTwitter.creatorId ?? undefined,
-      }
+      ...parentTwitter,
+      site: parentTwitter.site ?? undefined,
+      siteId: parentTwitter.siteId ?? undefined,
+      creator: parentTwitter.creator ?? undefined,
+      creatorId: parentTwitter.creatorId ?? undefined,
+    }
     : undefined;
   const twitterImages = ogImageUrl ? [ogImageUrl] : sanitizedTwitter?.images;
   const mergedTwitter = sanitizedTwitter
     ? {
-        ...sanitizedTwitter,
+      ...sanitizedTwitter,
+      title,
+      description,
+      images: twitterImages,
+    }
+    : twitterImages
+      ? {
+        card: "summary_large_image",
         title,
         description,
         images: twitterImages,
       }
-    : twitterImages
-      ? {
-          card: "summary_large_image",
-          title,
-          description,
-          images: twitterImages,
-        }
       : undefined;
 
   return {

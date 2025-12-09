@@ -32,7 +32,7 @@ export function UserFooter({ onContactClick, onAboutClick }: UserFooterProps) {
           <Link href="/policy" className={styles.footerLink}>
             プライバシーポリシー
           </Link>
-          <XShareButton className={styles.footerInlineShareButton} />
+          <XShareButton className={styles.footerInlineShareButton} useStaticTopShare={true} />
         </div>
 
         <div className={styles.footerBadge}>
