@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, asc, count, desc, eq, inArray, like } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, like, max, sql } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -69,17 +69,98 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       ? and(statusCondition, like(channels.name, `%${keyword}%`))
       : statusCondition;
 
-    const baseQuery = db
+    // キーワード検索時は名前順、それ以外は最新動画追加順でソート
+    if (keyword) {
+      // キーワード検索時は名前順
+      const rows = await db
+        .select({
+          id: channels.id,
+          name: channels.name,
+          status: channels.status,
+        })
+        .from(channels)
+        .where(whereExpression)
+        .orderBy(asc(channels.name))
+        .limit(limit)
+        .offset((page - 1) * limit);
+
+      const [{ count: totalCount }] = await db
+        .select({ count: count() })
+        .from(channels)
+        .where(whereExpression);
+
+      const hasNext = rows.length === limit;
+
+      const latestVideoByChannel = new Map<string, { title: string; videoId: string | null }>();
+      if (rows.length > 0) {
+        const channelIds = rows.map((row) => row.id);
+        const videoRows = await db
+          .select({
+            channelId: videos.channelId,
+            title: videos.title,
+            videoId: videos.id,
+          })
+          .from(videos)
+          .where(inArray(videos.channelId, channelIds))
+          .orderBy(desc(videos.createdAt));
+        for (const video of videoRows) {
+          if (!video.channelId) continue;
+          if (!latestVideoByChannel.has(video.channelId)) {
+            latestVideoByChannel.set(video.channelId, {
+              title: video.title ?? "",
+              videoId: video.videoId ?? null,
+            });
+          }
+        }
+      }
+
+      const payload = rows.map((row) => ({
+        id: row.id,
+        url: `https://www.youtube.com/channel/${row.id}`,
+        name: row.name,
+        status: row.status ?? 2,
+        latest_video_title: latestVideoByChannel.get(row.id)?.title ?? null,
+        latest_video_id: latestVideoByChannel.get(row.id)?.videoId ?? null,
+      }));
+
+      return c.json(
+        {
+          channels: payload,
+          page,
+          limit,
+          hasNext,
+          totalCount,
+        },
+        200,
+      );
+    }
+
+    // デフォルト: 最新動画が追加されたチャンネルを上位に表示
+    // チャンネルごとの最新動画のcreatedAtをサブクエリで取得してLEFT JOIN
+    const latestVideoSubquery = db
+      .select({
+        channelId: videos.channelId,
+        latestVideoCreatedAt: max(videos.createdAt).as("latest_video_created_at"),
+      })
+      .from(videos)
+      .groupBy(videos.channelId)
+      .as("latest_video");
+
+    const rows = await db
       .select({
         id: channels.id,
         name: channels.name,
         status: channels.status,
+        latestVideoCreatedAt: latestVideoSubquery.latestVideoCreatedAt,
       })
       .from(channels)
-      .where(whereExpression);
-
-    const rows = await baseQuery
-      .orderBy(keyword ? asc(channels.name) : desc(channels.createdAt))
+      .leftJoin(latestVideoSubquery, eq(channels.id, latestVideoSubquery.channelId))
+      .where(whereExpression)
+      .orderBy(
+        // 最新動画がないチャンネルは末尾に、ある場合は新しい順
+        sql`CASE WHEN ${latestVideoSubquery.latestVideoCreatedAt} IS NULL THEN 1 ELSE 0 END`,
+        desc(latestVideoSubquery.latestVideoCreatedAt)
+      )
       .limit(limit)
       .offset((page - 1) * limit);
 
@@ -120,6 +201,7 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
       status: row.status ?? 2,
       latest_video_title: latestVideoByChannel.get(row.id)?.title ?? null,
       latest_video_id: latestVideoByChannel.get(row.id)?.videoId ?? null,
+      latest_video_created_at: row.latestVideoCreatedAt ?? null,
     }));
 
     // 管理画面向けチャンネル一覧を丁寧にご提供いたします。
@@ -135,3 +217,4 @@ export function registerGetAdminChannels(app: Hono<AdminEnv>) {
     );
   });
 }
+
