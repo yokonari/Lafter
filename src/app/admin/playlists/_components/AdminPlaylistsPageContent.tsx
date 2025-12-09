@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AdminTabsLayout } from "../../components/AdminTabsLayout";
 import { ListFooter } from "../../components/ListFooter";
 import { toast } from "react-toastify";
-import type { Id, ToastContent, ToastOptions } from "react-toastify";
+import { useAdminToast } from "../../hooks/useAdminToast";
 import styles from "../../adminTheme.module.scss";
 
 type AdminPlaylist = {
@@ -36,12 +36,6 @@ const PLAYLIST_STATUS_OPTIONS = [
 ];
 
 const defaultPlaylistStatus = 0;
-const ADMIN_TOAST_METHODS = ["success", "error", "info", "warn", "warning"] as const;
-type AdminToastMethodName = (typeof ADMIN_TOAST_METHODS)[number];
-type AdminToastInvoker = <TData = unknown>(content: ToastContent<TData>, options?: ToastOptions<TData>) => Id;
-type AdminToastApi = typeof toast & Record<AdminToastMethodName, AdminToastInvoker>;
-const adminToastApi = toast as AdminToastApi;
-const ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS: ToastOptions = { position: "bottom-right" };
 
 export default function AdminPlaylistsPageContent() {
     const router = useRouter();
@@ -64,7 +58,7 @@ export default function AdminPlaylistsPageContent() {
     const [hasNext, setHasNext] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     // 管理画面の通知位置を右下へ統一し、以降のトーストが常に同じ視線移動で確認できるよう調整します。
-    useAdminBottomRightToast();
+    useAdminToast();
 
     const createInitialSelections = useCallback((rows: AdminPlaylist[]) => {
         const next: Record<string, PlaylistSelection> = {};
@@ -482,27 +476,7 @@ export default function AdminPlaylistsPageContent() {
     );
 }
 
-function useAdminBottomRightToast() {
-    useEffect(() => {
-        // React-Toastify の通知メソッドへ右下の配置指定を一括で差し込み、煩雑なオプション指定を防ぎます。
-        const patchedMethods: Array<{ name: AdminToastMethodName; original: AdminToastInvoker }> = [];
-        for (const name of ADMIN_TOAST_METHODS) {
-            const original = adminToastApi[name];
-            const patched: AdminToastInvoker = <TData = unknown>(
-                content: ToastContent<TData>,
-                options?: ToastOptions<TData>,
-            ) => original(content, { ...(options ?? {}), ...ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS } as ToastOptions<TData>);
-            adminToastApi[name] = patched;
-            patchedMethods.push({ name, original });
-        }
-        return () => {
-            // ページ遷移などでアンマウントされた際は即座に元へ戻し、他画面の表示位置を乱さないようにします。
-            for (const { name, original } of patchedMethods) {
-                adminToastApi[name] = original;
-            }
-        };
-    }, []);
-}
+
 
 function renderPlaylistThumbnail(playlist: AdminPlaylist) {
     if (playlist.top_video_id) {

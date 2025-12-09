@@ -18,7 +18,7 @@ import { AdminTabsLayout } from "../../components/AdminTabsLayout";
 import { SearchForm } from "../../components/SearchForm";
 import { ListFooter } from "../../components/ListFooter";
 import { toast } from "react-toastify";
-import type { Id, ToastContent, ToastOptions } from "react-toastify";
+import { useAdminToast } from "../../hooks/useAdminToast";
 import styles from "../../adminTheme.module.scss";
 
 export type AdminVideo = {
@@ -90,12 +90,6 @@ type ShortcutKey = keyof typeof SHORTCUT_CONFIG;
 type SearchContextMode = "form" | "shortcut" | "channel" | null;
 
 const defaultVideoStatus = 3; // 初期表示では AI OK 判定済みの動画を優先して確認できるようにします。
-const ADMIN_TOAST_METHODS = ["success", "error", "info", "warn", "warning"] as const;
-type AdminToastMethodName = (typeof ADMIN_TOAST_METHODS)[number];
-type AdminToastInvoker = <TData = unknown>(content: ToastContent<TData>, options?: ToastOptions<TData>) => Id;
-type AdminToastApi = typeof toast & Record<AdminToastMethodName, AdminToastInvoker>;
-const adminToastApi = toast as AdminToastApi;
-const ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS: ToastOptions = { position: "bottom-right" };
 
 // OK/NG の内部値が混在しないよう、表示用の値を丁寧に正規化します。
 const resolveStatusValue = (value?: number | string | null) => {
@@ -163,7 +157,7 @@ export default function AdminVideosPageContent() {
     // 最新動画キャッシュ再生成の進捗を可視化し、Cron 待ち時間なしで手動実行できるようにします。
     const [latestCacheRefreshing, setLatestCacheRefreshing] = useState(false);
     // 管理画面のトースト位置を右下へ統一するため、レンダリング直後に専用フックを有効化します。
-    useAdminBottomRightToast();
+    useAdminToast();
     // サムネイル押下時にモーダル動画を表示させる制御を丁寧に用意します。
     const handleThumbnailDialogOpen = useCallback((video: AdminVideo, videoId: string) => {
         const thumbnailUrl = `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
@@ -1473,22 +1467,3 @@ export default function AdminVideosPageContent() {
     );
 }
 
-function useAdminBottomRightToast() {
-    useEffect(() => {
-        // React-Toastify の各通知メソッドへ右下固定オプションを差し込み、操作中の視線移動を抑えます。
-        const patchedMethods: Array<{ name: AdminToastMethodName; original: AdminToastInvoker }> = [];
-        for (const name of ADMIN_TOAST_METHODS) {
-            const original = adminToastApi[name];
-            const patched: AdminToastInvoker = <TData = unknown>(content: ToastContent<TData>, options?: ToastOptions<TData>) =>
-                original(content, { ...(options ?? {}), ...ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS } as ToastOptions<TData>);
-            adminToastApi[name] = patched;
-            patchedMethods.push({ name, original });
-        }
-        return () => {
-            // ページ離脱時には元のメソッドへ戻し、他画面への影響を残さないよう丁寧にクリーンアップします。
-            for (const { name, original } of patchedMethods) {
-                adminToastApi[name] = original;
-            }
-        };
-    }, []);
-}

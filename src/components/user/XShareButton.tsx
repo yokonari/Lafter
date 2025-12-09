@@ -21,7 +21,7 @@ export function XShareButton({ className, showLabel = true }: XShareButtonProps)
     if (typeof window === "undefined") {
       return;
     }
-    const pageTitle = document.title;
+    const pageTitle = document.title.replace(/\s*\|\s*Lafter/gi, '').trim();
     const targetUrl = window.location.href;
     const shareText = `${pageTitle} #Lafter`;
     const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(targetUrl)}`;

@@ -23,7 +23,7 @@ export const metadata: Metadata = {
 
   openGraph: {
     title: 'Lafter | ネタ動画検索サイト',
-    description: 'お笑い芸人の公式YouTubeチャンネルのネタ動画だけを集めて検索できるサービス。',
+    description: 'お笑い芸人の公式YouTubeチャンネルから、漫才・コントなどのネタ動画だけを検索できるサービス。',
     url: 'https://lafter.day',
     siteName: 'Lafter',
     type: 'website',

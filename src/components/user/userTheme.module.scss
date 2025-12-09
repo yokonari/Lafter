@@ -208,7 +208,7 @@ $title-font-weight: 400;
   border-radius: 9999px;
   border: 1px solid $user-border; // サンプルの枠線色に合わせ、輪郭を落ち着かせます。
   color: $user-text;
-  font-size: 0.95rem;
+  font-size: 1rem;
   padding: 0 1rem 0 2.6rem; // 左にアイコン分のスペースを確保しつつ、右はコンパクトに。
   outline: none;
   transition:
@@ -1024,7 +1024,7 @@ $title-font-weight: 400;
   background: var(--user-surface-hover);
   color: var(--user-text);
   padding: 0.65rem 0.75rem;
-  font-size: 0.95rem;
+  font-size: 1rem;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 
   &::placeholder {

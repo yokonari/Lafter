@@ -8,8 +8,7 @@ import {
 } from "../components/ChannelBulkManager";
 import { SearchForm } from "../components/SearchForm";
 import styles from "../adminTheme.module.scss";
-import { toast } from "react-toastify";
-import type { Id, ToastContent, ToastOptions } from "react-toastify";
+import { useAdminToast } from "../hooks/useAdminToast";
 
 type ChannelAdminSectionProps = {
   initialChannels: ChannelRow[];
@@ -28,23 +27,6 @@ type PaginationState = {
   hasNext: boolean;
   prevHref: string;
   nextHref: string;
-};
-
-const ADMIN_TOAST_METHODS = ["success", "error", "info", "warn", "warning"] as const;
-type AdminToastMethodName = (typeof ADMIN_TOAST_METHODS)[number];
-type AdminToastInvoker = <TData = unknown>(
-  content: ToastContent<TData>,
-  options?: ToastOptions<TData>,
-) => Id;
-type AdminToastApi = typeof toast & Record<AdminToastMethodName, AdminToastInvoker>;
-// Toast API の各メソッドを書き換えるにあたり readonly を除外した補助型で安全に扱います。
-type MutableAdminToastApi = AdminToastApi & {
-  -readonly [K in AdminToastMethodName]: AdminToastInvoker;
-};
-const adminToastApi = toast as MutableAdminToastApi;
-// 位置指定のみを切り出した型で保持し、data などジェネリック依存の項目は触れません。
-const ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS: Pick<ToastOptions<unknown>, "position"> = {
-  position: "bottom-right",
 };
 
 export function ChannelAdminSection({
@@ -69,7 +51,7 @@ export function ChannelAdminSection({
   const [searchMode, setSearchMode] = useState(false);
   const [currentTotalCount, setCurrentTotalCount] = useState(totalCount);
   // 子コンポーネントが発火するトーストも含めて右下固定へ統一し、操作感を揃えます。
-  useAdminBottomRightToast();
+  useAdminToast();
 
   // ページ遷移などで初期データが変わった場合に丁寧に同期します。
   useEffect(() => {
@@ -259,22 +241,3 @@ export function ChannelAdminSection({
   );
 }
 
-function useAdminBottomRightToast() {
-  useEffect(() => {
-    // React-Toastify の各種通知を右下へ寄せるため、メソッドを一時的にラップします。
-    const patchedMethods: Array<{ name: AdminToastMethodName; original: AdminToastInvoker }> = [];
-    for (const name of ADMIN_TOAST_METHODS) {
-      const original = adminToastApi[name];
-      const patched: AdminToastInvoker = (content, options) =>
-        original(content, { ...(options ?? {}), ...ADMIN_BOTTOM_RIGHT_TOAST_OPTIONS });
-      adminToastApi[name] = patched;
-      patchedMethods.push({ name, original });
-    }
-    return () => {
-      // コンポーネント破棄時には必ず元のメソッドへ戻し、他画面への副作用を防ぎます。
-      for (const { name, original } of patchedMethods) {
-        adminToastApi[name] = original;
-      }
-    };
-  }, []);
-}
