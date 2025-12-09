@@ -1,6 +1,11 @@
 // Resend SDK を利用してお問い合わせ内容をメール送信するエンドポイントです。
 import { Resend } from "resend";
 
+// フィールドごとの文字数制限
+const MAX_NAME_LENGTH = 100;
+const MAX_EMAIL_LENGTH = 254; // RFC 5321 で規定されたメールアドレスの最大長
+const MAX_MESSAGE_LENGTH = 5000;
+
 type ContactPayload = {
   name?: unknown;
   email?: unknown;
@@ -10,6 +15,90 @@ type ContactPayload = {
 type ContactResponse = {
   ok: true;
 };
+
+/**
+ * 単一行テキストをサニタイズする関数
+ * - UTF-8 NFC に正規化
+ * - 制御文字（改行、タブ等）を除去（メールヘッダーインジェクション対策）
+ * - 連続スペースを単一スペースに置換
+ * - 文字数制限を適用
+ */
+function sanitizeSingleLine(raw: string, maxLength: number): string {
+  if (!raw) {
+    return "";
+  }
+
+  // 1. UTF-8 NFC に正規化
+  let sanitized = raw.normalize("NFC");
+
+  // 2. 制御文字を除去（改行、タブ、NULL文字など）
+  // メールヘッダーインジェクション対策として改行・キャリッジリターンも除去
+  sanitized = sanitized.replace(/[\x00-\x1F\x7F]/g, "");
+
+  // 3. 連続スペース（半角・全角）を単一スペースに置換
+  sanitized = sanitized.replace(/[\s\u3000]+/g, " ");
+
+  // 4. 前後の空白を除去
+  sanitized = sanitized.trim();
+
+  // 5. 文字数制限
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.slice(0, maxLength);
+  }
+
+  return sanitized;
+}
+
+/**
+ * 複数行テキスト（メッセージ本文）をサニタイズする関数
+ * - UTF-8 NFC に正規化
+ * - 危険な制御文字を除去（改行・タブは許可）
+ * - 極端な連続改行を制限
+ * - 文字数制限を適用
+ */
+function sanitizeMultiLine(raw: string, maxLength: number): string {
+  if (!raw) {
+    return "";
+  }
+
+  // 1. UTF-8 NFC に正規化
+  let sanitized = raw.normalize("NFC");
+
+  // 2. 危険な制御文字を除去（改行 \n, キャリッジリターン \r, タブ \t は許可）
+  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+
+  // 3. キャリッジリターンを統一（CRLF → LF, CR → LF）
+  sanitized = sanitized.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+  // 4. 極端な連続改行を最大2つに制限
+  sanitized = sanitized.replace(/\n{3,}/g, "\n\n");
+
+  // 5. 行内の連続スペースを単一スペースに置換（全角スペース含む）
+  sanitized = sanitized.replace(/[^\S\n]+/g, " ");
+
+  // 6. 前後の空白を除去
+  sanitized = sanitized.trim();
+
+  // 7. 文字数制限
+  if (sanitized.length > maxLength) {
+    sanitized = sanitized.slice(0, maxLength);
+  }
+
+  return sanitized;
+}
+
+/**
+ * メールアドレスの基本的な形式チェック
+ * 厳密な RFC 準拠ではなく、一般的なメールアドレスパターンを検証
+ */
+function isValidEmail(email: string): boolean {
+  if (!email) {
+    return true; // 空は許可（任意入力のため）
+  }
+  // 基本的なメールアドレス形式チェック
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailPattern.test(email);
+}
 
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
@@ -46,13 +135,23 @@ export async function POST(req: Request) {
     return json(400, { message: "JSON ボディを解析できませんでした。" });
   }
 
-  // 空白のみの値を避けるためにトリムを行います。
-  const name = typeof payload.name === "string" ? payload.name.trim() : "";
-  const emailRaw = typeof payload.email === "string" ? payload.email.trim() : "";
-  const messageRaw = typeof payload.message === "string" ? payload.message.trim() : "";
+  // サニタイズ処理: UTF-8正規化、制御文字除去、文字数制限
+  const nameRaw = typeof payload.name === "string" ? payload.name : "";
+  const emailInputRaw = typeof payload.email === "string" ? payload.email : "";
+  const messageInputRaw = typeof payload.message === "string" ? payload.message : "";
 
-  if (!messageRaw) {
+  const name = sanitizeSingleLine(nameRaw, MAX_NAME_LENGTH);
+  const email = sanitizeSingleLine(emailInputRaw, MAX_EMAIL_LENGTH);
+  const message = sanitizeMultiLine(messageInputRaw, MAX_MESSAGE_LENGTH);
+
+  // バリデーション: メッセージは必須
+  if (!message) {
     return json(400, { message: "お問い合わせ内容を入力してください。" });
+  }
+
+  // バリデーション: メールアドレス形式チェック
+  if (email && !isValidEmail(email)) {
+    return json(400, { message: "メールアドレスの形式が正しくありません。" });
   }
 
   const ensuredApiKey = apiKey as string;
@@ -63,10 +162,10 @@ export async function POST(req: Request) {
   const subject = "【Lafter】お問い合わせ";
   const summary = [
     `お名前: ${name || "未入力"}`,
-    `メールアドレス: ${emailRaw || "未入力"}`,
+    `メールアドレス: ${email || "未入力"}`,
     "",
     "お問い合わせ内容:",
-    messageRaw,
+    message,
   ].join("\n");
 
   const resend = new Resend(ensuredApiKey);
@@ -75,7 +174,7 @@ export async function POST(req: Request) {
     await resend.emails.send({
       from: `Lafter <${ensuredFrom}>`,
       to: ensuredTo.split(",").map((address) => address.trim()).filter(Boolean),
-      replyTo: emailRaw || undefined,
+      replyTo: email || undefined,
       subject,
       text: summary,
     });

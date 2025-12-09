@@ -17,6 +17,9 @@ type BulkRequestBody = {
 
 type VideoInsert = typeof videos.$inferInsert;
 
+// few-shot キャッシュのキープレフィックス。classify/route.ts と同期を保つ必要があります。
+const CHANNEL_FEW_SHOT_KV_PREFIX = "llm:few-shots:";
+
 export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
   app.post("/admin/video/bulk", async (c) => {
     const { env } = getCloudflareContext();
@@ -39,6 +42,9 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
     }
 
     let processed = 0;
+    // ステータス 3→1 変更時に few-shot キャッシュ更新が必要なチャンネルIDを収集します。
+    const channelsNeedingFewShotRefresh = new Set<string>();
+
     for (const [index, item] of items.entries()) {
       const path = `items[${index}]`;
       const videoId = typeof item.id === "string" ? item.id.trim() : "";
@@ -49,6 +55,8 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
       const [videoRow] = await db
         .select({
           id: videos.id,
+          status: videos.status,
+          channelId: videos.channelId,
         })
         .from(videos)
         .where(eq(videos.id, videoId))
@@ -66,6 +74,11 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
       }
       videoUpdates.status = videoStatus;
 
+      // ステータスが 3→1 に変更された場合、few-shot 更新対象としてチャンネルを記録します。
+      if (videoRow.status === 3 && videoStatus === 1 && videoRow.channelId) {
+        channelsNeedingFewShotRefresh.add(videoRow.channelId);
+      }
+
       if (Object.keys(videoUpdates).length > 0) {
         await db.update(videos).set(videoUpdates).where(eq(videos.id, videoId));
       }
@@ -73,8 +86,25 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
       processed += 1;
     }
 
+    // 3→1 に変更されたチャンネルの few-shot キャッシュを KV から削除し、次回 classify 時に再構築させます。
+    if (channelsNeedingFewShotRefresh.size > 0 && env.LAFTER) {
+      for (const channelId of channelsNeedingFewShotRefresh) {
+        const key = `${CHANNEL_FEW_SHOT_KV_PREFIX}${channelId}`;
+        try {
+          await env.LAFTER.delete(key);
+          console.log(`[admin/video/bulk] few-shot キャッシュを削除しました: ${key}`);
+        } catch (error) {
+          console.error(`[admin/video/bulk] few-shot キャッシュ削除に失敗: ${key}`, error);
+        }
+      }
+    }
+
     // まとめて更新した件数を丁寧にお知らせいたします。
-    return c.json({ success: true, processed }, 200);
+    return c.json({
+      success: true,
+      processed,
+      fewShotRefreshedChannels: Array.from(channelsNeedingFewShotRefresh),
+    }, 200);
   });
 }
 

@@ -10,6 +10,7 @@ import type { AdminEnv } from "../types";
 
 const MAX_LIMIT = 20;
 const HOME_CACHE_LIMIT = 10; // ユーザートップ画面用のキャッシュ再抽選時は常に10件だけ返却します。
+const MAX_QUERY_LENGTH = 256; // 検索クエリの最大文字数制限
 
 type CachedVideoItem = {
   channel_id?: string;
@@ -27,6 +28,39 @@ type RandomVideoCache = {
   updated_at?: string;
   items?: CachedVideoItem[];
 };
+
+/**
+ * 検索クエリを安全にサニタイズする関数
+ * - 文字コードを UTF-8 NFC 形式に正規化
+ * - 制御文字（改行、タブ等）を除去
+ * - 極端な連続スペースを単一スペースに置換
+ * - 最大文字数を制限
+ */
+function sanitizeSearchQuery(rawQuery: string): string {
+  if (!rawQuery) {
+    return "";
+  }
+
+  // 1. UTF-8 NFC に正規化（合成形式に統一）
+  let sanitized = rawQuery.normalize("NFC");
+
+  // 2. 制御文字を除去（改行、タブ、NULL文字など）
+  // Unicode 制御文字カテゴリ (Cc) を除去しますが、通常の空白は残します
+  sanitized = sanitized.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
+
+  // 3. 極端な連続スペース（半角・全角）を単一スペースに置換
+  sanitized = sanitized.replace(/[\s\u3000]+/g, " ");
+
+  // 4. 前後の空白を除去
+  sanitized = sanitized.trim();
+
+  // 5. 文字数制限（最大 256 文字）
+  if (sanitized.length > MAX_QUERY_LENGTH) {
+    sanitized = sanitized.slice(0, MAX_QUERY_LENGTH);
+  }
+
+  return sanitized;
+}
 
 export function registerGetVideos(app: Hono<AdminEnv>) {
   app.get("/videos", async (c) => {
@@ -61,7 +95,8 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     }
 
     const qRaw = c.req.query("q") ?? "";
-    const q = qRaw.trim();
+    // サニタイズ処理: UTF-8正規化、制御文字除去、連続スペース除去、文字数制限
+    const q = sanitizeSearchQuery(qRaw);
     // 複数キーワードは半角・全角スペースで区切り、すべてを AND で満たすように扱います。
     // 「ダ/ダ」などの正規化差異も吸収するため、NFC/NFD 両方のパターンを用意します。
     const keywords = q ? q.split(/\s+/u).filter(Boolean) : [];
