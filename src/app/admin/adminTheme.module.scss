@@ -106,12 +106,10 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 @mixin primary-button {
   border: none;
   border-radius: 9999px;
-  background: linear-gradient(135deg, var(--admin-accent), var(--admin-accent-strong));
-  color: var(--admin-primary-text);
+  color: var(--admin-text);
   padding: 0.5rem 1.5rem;
   font-size: 0.9rem;
-  font-weight: 600;
-  transition: filter 0.2s ease, opacity 0.2s ease;
+  border: 1px solid var(--admin-border);
 
   &:hover {
     filter: brightness(1.05);
@@ -227,7 +225,7 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
     position: relative;
     display: flex;
     flex: 1;
-    font-size: 0.875rem;
+    font-size: 1rem;
     color: var(--admin-text-muted);
   }
 
@@ -446,9 +444,13 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 }
 
 .channelPillList {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(8, 1fr);
+  }
 }
 
 .channelPill {
@@ -460,6 +462,10 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   background-color: var(--admin-surface-muted);
   font-size: 0.8rem;
   max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .channelPillActive {

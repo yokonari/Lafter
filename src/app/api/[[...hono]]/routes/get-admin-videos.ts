@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { desc, eq, and, like, count, inArray, asc } from "drizzle-orm";
+import { desc, eq, and, like, count, inArray, max } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -102,24 +102,24 @@ export function registerGetAdminVideos(app: Hono<AdminEnv>) {
       .limit(limit)
       .offset((page - 1) * limit);
 
-    // 条件に合致する動画を保有するチャンネルを JOIN で抽出し、DB に保存された名称を丁寧に付与します。
+    // 条件に合致する動画を保有するチャンネルを JOIN で抽出し、最新動画の更新日時で降順ソートします。
     const channelRows = await db
       .select({
         channelId: videos.channelId,
         channelName: channels.name,
+        latestPublishedAt: max(videos.publishedAt),
       })
       .from(videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(whereExpression)
       .groupBy(videos.channelId, channels.name)
-      .orderBy(asc(videos.channelId));
+      .orderBy(desc(max(videos.publishedAt)));
 
     const channelList = channelRows
       .map((row) => ({
         id: row.channelId,
         name: row.channelName ?? "",
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      }));
 
     const [{ count: totalCount }] = await db
       .select({ count: count() })

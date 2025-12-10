@@ -1256,9 +1256,7 @@ export default function AdminVideosPageContent() {
                             loading ? (
                                 <p className={styles.feedbackCard}>読み込み中です…</p>
                             ) : (
-                                <p className={styles.feedbackCard}>
-                                    チャンネル一覧から対象を選ぶと動画が表示されます。検索機能も従来どおりご利用いただけます。
-                                </p>
+                                <p></p>
                             )
                         ) : loading ? (
                             <p className={styles.feedbackCard}>読み込み中です…</p>
