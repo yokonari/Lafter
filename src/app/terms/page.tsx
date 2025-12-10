@@ -1,6 +1,12 @@
 import MarkdownPageLayout from "../../components/user/MarkdownPageLayout";
+import type { Metadata } from "next";
 
 export const runtime = "nodejs";
+
+export const metadata: Metadata = {
+  title: "利用規約 | Lafter",
+  description: "Lafterの利用規約について説明しています。",
+};
 
 export default async function TermsPage() {
   // 外部読み込みを避け、ビルド同梱の Markdown 本文を直接埋め込みます。

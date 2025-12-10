@@ -1036,6 +1036,17 @@ $title-font-weight: 400;
     border-color: var(--user-accent);
     box-shadow: 0 0 0 1px var(--user-accent);
   }
+
+  // ブラウザのオートフィル時にダークトーンを維持します
+  &:-webkit-autofill,
+  &:-webkit-autofill:hover,
+  &:-webkit-autofill:focus,
+  &:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px var(--user-surface-hover) inset !important;
+    -webkit-text-fill-color: var(--user-text) !important;
+    caret-color: var(--user-text);
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }
 
 .contactTextarea {
@@ -1330,6 +1341,13 @@ $title-font-weight: 400;
   font-size: 0.9rem;
 }
 
+// 静的ページでも同じトーストスタイルを適用します。
+.staticPageLayout :global(.userToast) {
+  background: var(--user-surface);
+  color: var(--user-text);
+  font-size: 0.9rem;
+}
+
 .aboutActions {
   @extend .usageActions;
 }
@@ -1338,41 +1356,62 @@ $title-font-weight: 400;
   @extend .usageActionButton;
 }
 
-/* ------- 利用規約・ポリシー ------- */
-.termsLayout,
-.policyLayout {
-  // 規約とポリシーの全体レイアウトを同じ配色でまとめ、閲覧体験のバラつきを丁寧に抑えます。
+/* ------- 静的ページ共通レイアウト ------- */
+// 規約・ポリシー・お問い合わせなど静的ページで共通のレイアウトを定義します。
+.staticPageLayout {
   --user-bg: #{$user-bg};
   --user-surface: #{$user-surface};
+  --user-surface-hover: #{$user-surface-hover};
   --user-text: #{$user-text};
   --user-text-muted: #{$user-text-muted};
+  --user-text-secondary: #{$user-text-secondary};
   --user-border: #{$user-border};
   --user-accent: #{$user-accent};
+  --user-accent-strong: #{$user-accent-strong};
 
   min-height: 100vh;
   background: $user-bg !important;
   color: $user-text !important;
-  padding: 16px 1rem; // 上側の余白を16pxに調整し、コンテンツを手前に引き寄せて情報到達を早めます。
+  padding: 16px 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 
   @media (max-width: 640px) {
-    padding: 16px 0.5rem; // モバイルでも同じ上余白を保ち、左右のみ半分へ調整します。
+    padding: 16px 0.5rem;
   }
 }
 
-.termsBackWrap,
-.policyBackWrap {
+// 静的ページの共通カードスタイル
+.staticPageCard {
+  background: $terms-policy-surface;
+  border-radius: 16px;
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
+  margin: 8px auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 24px;
+
+  @media (max-width: 640px) {
+    padding: 16px;
+  }
 }
 
-.termsBackLink,
-.policyBackLink {
+// 静的ページの共通戻るリンクラップ
+.staticPageBackWrap {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+// 静的ページの共通戻るリンク
+.staticPageBackLink {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   color: $user-text-secondary;
   transition: color 0.2s ease;
+  font-size: 0.9rem;
 
   &:hover {
     color: $user-text;
@@ -1380,23 +1419,35 @@ $title-font-weight: 400;
   }
 }
 
-.termsBackIcon {
+.staticPageBackIcon {
   width: 20px;
   height: 20px;
-  // 戻る用のアイコンサイズを固定し、テキストとの高さを丁寧に揃えます。
+}
+
+.termsLayout,
+.policyLayout {
+  @extend .staticPageLayout;
 }
 
 .termsCard {
-  flex: 1;
-  background: $terms-policy-surface;
-  border-radius: 16px;
+  @extend .staticPageCard;
   max-width: 800px;
-  width: 100%;
-  margin: 8px auto;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
   padding: 16px 4px 16px 16px; // 右側に少し余白を残してスクロールバーを内側に配置します。
+}
+
+.termsBackWrap,
+.policyBackWrap {
+  @extend .staticPageBackWrap;
+  max-width: 800px;
+}
+
+.termsBackLink,
+.policyBackLink {
+  @extend .staticPageBackLink;
+}
+
+.termsBackIcon {
+  @extend .staticPageBackIcon;
 }
 
 .termsScrollArea {
@@ -1489,4 +1540,156 @@ $title-font-weight: 400;
 .termsLink,
 .policyLink {
   @include accent-action-link();
+}
+
+/* ------- お問い合わせページ ------- */
+.contactPageLayout {
+  @extend .staticPageLayout;
+}
+
+.contactPageCard {
+  @extend .staticPageCard;
+  max-width: 600px;
+}
+
+.contactPageBackWrap {
+  @extend .staticPageBackWrap;
+  max-width: 600px;
+}
+
+.contactPageBackLink {
+  @extend .staticPageBackLink;
+}
+
+.contactPageBackIcon {
+  @extend .staticPageBackIcon;
+}
+
+.contactPageHeader {
+  margin-bottom: 8px;
+}
+
+.contactPageTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: $title-font-weight;
+  color: $user-text;
+}
+
+.contactPageActions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.contactPageSubmit {
+  @extend .userButton;
+  @extend .primaryButton;
+  padding: 0.75rem 2rem;
+  height: auto;
+  font-size: 1rem;
+}
+
+.contactError {
+  color: #ef4444;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+// 送信成功画面
+.contactSuccessContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1rem;
+  gap: 1rem;
+}
+
+.contactSuccessIcon {
+  color: var(--user-accent);
+}
+
+.contactSuccessTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: $title-font-weight;
+  color: $user-text;
+}
+
+.contactSuccessMessage {
+  margin: 0;
+  color: $user-text-secondary;
+  font-size: 0.95rem;
+}
+
+.contactBackButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: $user-text-secondary;
+  margin-top: 1rem;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: $user-text;
+  }
+}
+
+/* ------- このサイトについてページ ------- */
+.aboutPageLayout {
+  @extend .staticPageLayout;
+}
+
+.aboutPageCard {
+  @extend .staticPageCard;
+  max-width: 600px;
+}
+
+.aboutPageBackWrap {
+  @extend .staticPageBackWrap;
+  max-width: 600px;
+}
+
+.aboutPageBackLink {
+  @extend .staticPageBackLink;
+}
+
+.aboutPageBackIcon {
+  @extend .staticPageBackIcon;
+}
+
+.aboutPageHeader {
+  margin-bottom: 16px;
+}
+
+.aboutPageTitle {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: $title-font-weight;
+  color: $user-text;
+}
+
+.aboutPageSubtitle {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: $title-font-weight;
+  color: $user-text;
+}
+
+.aboutPageBody {
+  // ダイアログのスタイルを継承しつつ、ページ用に調整します
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  // ページでは overflow や flex: 1 は不要なので省略
+}
+
+.aboutPageDivider {
+  height: 1px;
+  background: $user-border;
+  margin: 1.5rem 0;
 }

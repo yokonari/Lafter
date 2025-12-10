@@ -1,6 +1,12 @@
 import MarkdownPageLayout from "../../components/user/MarkdownPageLayout";
+import type { Metadata } from "next";
 
 export const runtime = "nodejs";
+
+export const metadata: Metadata = {
+   title: "プライバシーポリシー | Lafter",
+   description: "Lafterのプライバシーポリシーについて説明しています。",
+};
 
 export default async function PolicyPage() {
    // 外部読み込みを避け、ビルドに同梱したMarkdown本文を直接埋め込みます。

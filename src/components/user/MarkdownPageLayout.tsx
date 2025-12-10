@@ -1,19 +1,16 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import styles from "./userTheme.module.scss";
-import { ContactDialog } from "./ContactDialog";
 
 interface MarkdownPageLayoutProps {
     markdownContent: string;
 }
 
 export default function MarkdownPageLayout({ markdownContent }: MarkdownPageLayoutProps) {
-    const [isContactOpen, setIsContactOpen] = useState(false);
-
     const markdownComponents = {
         h1: (props: React.HTMLAttributes<HTMLHeadingElement>) => (
             <h1 className={styles.termsHeading1} {...props} />
@@ -42,17 +39,9 @@ export default function MarkdownPageLayout({ markdownContent }: MarkdownPageLayo
         a: (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => {
             if (props.href === "#contact") {
                 return (
-                    <button
-                        type="button"
-                        className={styles.termsLink}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            setIsContactOpen(true);
-                        }}
-                        style={{ background: "none", border: "none", padding: 0, font: "inherit", cursor: "pointer", textDecoration: "underline" }}
-                    >
+                    <Link href="/contact" className={styles.termsLink}>
                         {props.children}
-                    </button>
+                    </Link>
                 );
             }
             return <a className={styles.termsLink} {...props} />;
@@ -60,7 +49,7 @@ export default function MarkdownPageLayout({ markdownContent }: MarkdownPageLayo
     };
 
     return (
-        <main className={styles.termsLayout} style={{ height: "100vh", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+        <main className={styles.termsLayout}>
             <div className={styles.termsBackWrap}>
                 <Link href="/" className={styles.termsBackLink}>
                     <ArrowLeft aria-hidden="true" size={20} className={styles.termsBackIcon} />
@@ -74,7 +63,7 @@ export default function MarkdownPageLayout({ markdownContent }: MarkdownPageLayo
                     </div>
                 </div>
             </div>
-            <ContactDialog open={isContactOpen} onClose={() => setIsContactOpen(false)} />
         </main>
     );
 }
+

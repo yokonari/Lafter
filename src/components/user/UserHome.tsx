@@ -11,11 +11,9 @@ import { SearchResults } from "./SearchResults";
 import { UserFooter } from "./UserFooter";
 import { VideoDialog } from "./VideoDialog";
 import { PlaylistDialog } from "./PlaylistDialog";
-import { ContactDialog } from "./ContactDialog";
+
 import { ReportDialog } from "./ReportDialog";
 import { ScrollTopButton } from "./ScrollTopButton";
-import { UsageDialog } from "./UsageDialog";
-import { AboutDialog } from "./AboutDialog";
 import styles from "./userTheme.module.scss";
 
 // トースト通知の外観を統一し、暗色テーマの世界観を崩さないよう共有設定を用意します。
@@ -35,10 +33,6 @@ export function UserHome() {
   const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
   const [dialogPlaylist, setDialogPlaylist] = useState<PlaylistItem | null>(null);
   const [reportVideo, setReportVideo] = useState<VideoItem | null>(null);
-  const [isContactOpen, setIsContactOpen] = useState(false);
-  const [isUsageOpen, setIsUsageOpen] = useState(false);
-  // サイトの背景説明モーダルも個別に制御し、ユーザーが安心して情報を確認できるようにします。
-  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   // URL パラメーターを置換し、検索条件を共有するためのヘルパーです。
   const updateUrl = useCallback(
@@ -154,9 +148,7 @@ export function UserHome() {
     toast.success("ご報告ありがとうございました！", userToastAppearanceOptions);
   }, []);
 
-  const handleContactSuccess = useCallback(() => {
-    toast.success("お問い合わせありがとうございました！", userToastAppearanceOptions);
-  }, []);
+
 
   return (
     // 管理画面と同様に全体をダークトーンで包み込み、視覚的な統一感を丁寧に確保します。
@@ -166,7 +158,7 @@ export function UserHome() {
         onQueryChange={setSearchInput}
         onSearch={handleSearch}
         onReset={handleReset}
-        onUsageOpen={() => setIsUsageOpen(true)}
+        onUsageOpen={() => router.push('/about')}
       />
 
       {/* メインも暗めの背景に切り替え、上部ヘッダーとの境界を自然に馴染ませます。 */}
@@ -195,10 +187,7 @@ export function UserHome() {
       {/* スクロール可能なときにのみ表示し、ワンクリックでトップへ戻れる固定ボタンです。 */}
       <ScrollTopButton />
 
-      <UserFooter
-        onContactClick={() => setIsContactOpen(true)}
-        onAboutClick={() => setIsAboutOpen(true)}
-      />
+      <UserFooter />
 
       <VideoDialog
         video={dialogVideo}
@@ -209,13 +198,7 @@ export function UserHome() {
         playlist={dialogPlaylist}
         onClose={() => setDialogPlaylist(null)}
       />
-      <ContactDialog
-        open={isContactOpen}
-        onClose={() => setIsContactOpen(false)}
-        onSuccess={handleContactSuccess}
-      />
-      <UsageDialog open={isUsageOpen} onClose={() => setIsUsageOpen(false)} />
-      <AboutDialog open={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
+
       <ReportDialog open={Boolean(reportVideo)} video={reportVideo} onClose={handleReportClose} onSuccess={handleReportSuccess} />
       <ToastContainer position="top-center" theme="dark" />
     </div>
