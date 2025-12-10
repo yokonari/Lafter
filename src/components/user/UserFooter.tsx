@@ -13,9 +13,9 @@ export function UserFooter() {
       <div className={styles.footerInner}>
         <div className={styles.footerLinks}>
           {/* サイト紹介ページへの導線を用意し、新規訪問者にも安心して使ってもらえるよう丁寧に説明します。 */}
-          <Link href="/about" className={styles.footerLink}>
+          {/* <Link href="/about" className={styles.footerLink}>
             このサイトについて
-          </Link>
+          </Link> */}
           <Link href="/contact" className={styles.footerLink}>
             お問い合わせ
           </Link>
