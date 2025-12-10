@@ -29,13 +29,6 @@ type RandomVideoCache = {
   items?: CachedVideoItem[];
 };
 
-// aliases キャッシュ: channelId -> keyword[] のマップ
-type AliasesCache = {
-  updated_at?: string;
-  // channelId をキーとし、そのチャンネルに紐づく aliases のキーワード配列を値とする
-  aliases: Record<string, string[]>;
-};
-
 /**
  * 検索クエリを安全にサニタイズする関数
  * - 文字コードを UTF-8 NFC 形式に正規化
@@ -129,11 +122,10 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         activeChannelMap,
         normalizedPatternsPerWord,
       );
-      // aliases を KV キャッシュから取得し、DB アクセスを削減します
-      const aliasMatchedChannelIds = await findChannelIdsByAliasKeywordCached(
+      // キーワードに紐づく別名も DB 側で丁寧に照会し、ユーザーが覚えやすい呼称でも確実にヒットさせます。
+      const aliasMatchedChannelIds = await findChannelIdsByAliasKeyword(
         db,
-        kv,
-        keywords,
+        normalizedPatternsPerWord,
         activeChannelMap,
       );
       const combinedIds = new Set<string>([...matchedChannelIds, ...aliasMatchedChannelIds]);
@@ -182,43 +174,26 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       // チャンネル指定がある場合は最優先でそのチャンネルに絞ります。
       videoConditions.push(eq(videos.channelId, channelIdFilter));
     }
+    if (normalizedPatternsPerWord.length) {
+      // キーワードごとに (タイトルLIKE または チャンネルID一致) を作り、すべて AND で縛ります。
+      const keywordConditions: SQL<boolean>[] = normalizedPatternsPerWord.map((patterns) => {
+        const titleMatches = patterns.map((pattern) => like(videos.title, pattern) as SQL<boolean>);
+        const checks: SQL<boolean>[] = titleMatches;
+        if (channelIdsMatchingQuery.length) {
+          // inArray も SQL<unknown> を返すため、boolean 条件へそろえます。
+          checks.push(inArray(videos.channelId, channelIdsMatchingQuery) as SQL<boolean>);
+        }
+        if (checks.length === 1) {
+          return checks[0];
+        }
+        const combined = or(...checks);
+        return combined as SQL<boolean>;
+      });
 
-    // FTS5 検索用のクエリ文字列を構築（複数キーワードは AND 検索）
-    // trigram トークナイザーは 3 文字以上のキーワードにのみ対応するため、
-    // 2 文字以下のキーワードは LIKE にフォールバックします
-    const ftsKeywords = keywords.filter((kw) => kw.length >= 3);
-    const likeKeywords = keywords.filter((kw) => kw.length < 3);
-    const ftsQuery = ftsKeywords.length > 0
-      ? ftsKeywords.map((kw) => `"${kw.replace(/"/g, '""')}"`).join(" ")
-      : "";
-
-    if (ftsKeywords.length > 0 || likeKeywords.length > 0) {
-      const searchConditions: SQL<boolean>[] = [];
-
-      // 3 文字以上のキーワードは FTS5 で高速検索
-      if (ftsQuery) {
-        const ftsCondition = sql<boolean>`videos.rowid IN (SELECT rowid FROM videos_fts WHERE videos_fts MATCH ${ftsQuery})`;
-        searchConditions.push(ftsCondition);
-      }
-
-      // 2 文字以下のキーワードは LIKE でフォールバック検索
-      for (const shortKeyword of likeKeywords) {
-        const escaped = shortKeyword.replace(/[%_]/g, (m) => `\\${m}`);
-        const likeCondition = like(videos.title, `%${escaped}%`) as SQL<boolean>;
-        searchConditions.push(likeCondition);
-      }
-
-      // チャンネル名マッチも OR 条件として追加
-      if (channelIdsMatchingQuery.length) {
-        const channelCondition = inArray(videos.channelId, channelIdsMatchingQuery) as SQL<boolean>;
-        // キーワード検索（FTS + LIKE）とチャンネル名マッチは OR 関係
-        const titleOrChannel = or(...searchConditions, channelCondition) as SQL<boolean>;
-        videoConditions.push(titleOrChannel);
-      } else if (searchConditions.length === 1) {
-        videoConditions.push(searchConditions[0]);
-      } else if (searchConditions.length > 1) {
-        // 複数キーワードは AND で結合
-        videoConditions.push(and(...searchConditions) as SQL<boolean>);
+      if (keywordConditions.length === 1) {
+        videoConditions.push(keywordConditions[0]);
+      } else if (keywordConditions.length > 1) {
+        videoConditions.push(and(...keywordConditions) as SQL<boolean>);
       }
     }
     const videoWhere =
@@ -377,103 +352,44 @@ function findChannelIdsByKeyword(
   return matches;
 }
 
-const ALIASES_CACHE_KEY = "channel_aliases_cache";
-const ALIASES_CACHE_TTL_SECONDS = 3600; // 1 時間キャッシュ
-
-/**
- * KV キャッシュから aliases を取得し、キーワードにマッチするチャンネル ID を返します。
- * キャッシュがない場合は DB から取得して KV に保存します。
- */
-async function findChannelIdsByAliasKeywordCached(
+async function findChannelIdsByAliasKeyword(
   db: AppDatabase,
-  kv: KVNamespace | null,
-  keywords: string[],
+  normalizedPatternsPerWord: string[][],
   activeChannelMap: Map<string, string>,
 ): Promise<string[]> {
-  if (!keywords.length) {
+  // aliases テーブルの keyword を LIKE で丁寧に探索し、別名経由でも対象チャンネルを取りこぼさないようにいたします。
+  if (!normalizedPatternsPerWord.length) {
     return [];
   }
+  const aliasConditions: SQL<boolean>[] = normalizedPatternsPerWord.map((patterns) => {
+    const likeConditions = patterns.map((pattern) => like(aliases.keyword, pattern) as SQL<boolean>);
+    if (likeConditions.length === 1) {
+      return likeConditions[0];
+    }
+    // キーワードの NFC/NFD どちらでもヒットできるよう、OR 結合した条件を丁寧に構築します。
+    return or(...likeConditions) as SQL<boolean>;
+  });
+  if (!aliasConditions.length) {
+    return [];
+  }
+  const aliasWhere =
+    aliasConditions.length === 1
+      ? aliasConditions[0]
+      : (and(...aliasConditions) as SQL<boolean>);
 
-  // KV キャッシュから aliases を取得
-  let aliasesMap: Record<string, string[]> | null = null;
-  if (kv) {
-    try {
-      const cached = await kv.get(ALIASES_CACHE_KEY, "json") as AliasesCache | null;
-      if (cached?.aliases) {
-        aliasesMap = cached.aliases;
-      }
-    } catch (error) {
-      console.error("[get-videos] aliases キャッシュの取得に失敗しました。", error);
+  const aliasRows = await db
+    .select({ channelId: aliases.channelId })
+    .from(aliases)
+    .where(aliasWhere);
+
+  const channelIds: string[] = [];
+  for (const row of aliasRows) {
+    if (row.channelId && activeChannelMap.has(row.channelId)) {
+      // アクティブなチャンネルのみを丁寧に残し、不要な ID をここで除外します。
+      channelIds.push(row.channelId);
     }
   }
-
-  // キャッシュがない場合は DB から取得して KV に保存
-  if (!aliasesMap) {
-    const aliasRows = await db
-      .select({ channelId: aliases.channelId, keyword: aliases.keyword })
-      .from(aliases);
-
-    aliasesMap = {};
-    for (const row of aliasRows) {
-      if (!row.channelId) continue;
-      if (!aliasesMap[row.channelId]) {
-        aliasesMap[row.channelId] = [];
-      }
-      aliasesMap[row.channelId].push(row.keyword);
-    }
-
-    // KV にキャッシュを保存
-    if (kv) {
-      try {
-        const cacheData: AliasesCache = {
-          updated_at: new Date().toISOString(),
-          aliases: aliasesMap,
-        };
-        await kv.put(ALIASES_CACHE_KEY, JSON.stringify(cacheData), {
-          expirationTtl: ALIASES_CACHE_TTL_SECONDS,
-        });
-      } catch (error) {
-        console.error("[get-videos] aliases キャッシュの保存に失敗しました。", error);
-      }
-    }
-  }
-
-  // JavaScript 側でキーワードマッチングを実行
-  const matchedChannelIds: string[] = [];
-  for (const [channelId, aliasKeywords] of Object.entries(aliasesMap)) {
-    // アクティブなチャンネルのみを対象
-    if (!activeChannelMap.has(channelId)) continue;
-
-    // 全キーワードがいずれかの alias にマッチするか確認
-    let allKeywordsMatch = true;
-    for (const keyword of keywords) {
-      const keywordLower = keyword.toLowerCase();
-      const keywordNfc = keyword.normalize("NFC").toLowerCase();
-      const keywordNfd = keyword.normalize("NFD").toLowerCase();
-
-      const matchesAny = aliasKeywords.some((alias) => {
-        const aliasLower = alias.toLowerCase();
-        const aliasNfc = alias.normalize("NFC").toLowerCase();
-        const aliasNfd = alias.normalize("NFD").toLowerCase();
-        return (
-          aliasLower.includes(keywordLower) ||
-          aliasNfc.includes(keywordNfc) ||
-          aliasNfd.includes(keywordNfd)
-        );
-      });
-
-      if (!matchesAny) {
-        allKeywordsMatch = false;
-        break;
-      }
-    }
-
-    if (allKeywordsMatch) {
-      matchedChannelIds.push(channelId);
-    }
-  }
-
-  return matchedChannelIds;
+  return Array.from(new Set(channelIds));
 }
 
 function stripLikeWildcards(pattern: string): string {
