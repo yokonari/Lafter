@@ -165,7 +165,9 @@ export function UserHeader({
       void logSearchKeyword(trimmed);
       onSearch(trimmed);
       setIsMobileSearchOpen(false);
+      // オーバーレイとヘッダーの両入力欄をブラーしてソフトキーボードを丁寧に閉じます。
       mobileSearchInputRef.current?.blur();
+      searchInputRef.current?.blur();
     }
   };
 
@@ -185,6 +187,9 @@ export function UserHeader({
     void logSearchKeyword(word);
     onSearch(word);
     setIsMobileSearchOpen(false);
+    // 検索後は両入力欄をブラーしてソフトキーボードを丁寧に閉じます。
+    mobileSearchInputRef.current?.blur();
+    searchInputRef.current?.blur();
   };
 
   const handleMobileHistoryDelete = (item: string) => {

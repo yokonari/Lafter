@@ -6,7 +6,7 @@ $user-surface: #201f1f; // surface container
 $user-surface-hover: #313030; // surface container high を目安にしたホバー色
 $user-text: #ffffff; // --md-sys-color-on-surface
 $user-text-muted: #737373; // --md-sys-color-on-surface-variant をそのまま利用しつつ、透明度を30%下げて柔らかな補助テキストにします。
-$user-text-secondary: #dee3e5bb; // --md-sys-color-on-surface-variant をそのまま利用しつつ、透明度を30%下げて柔らかな補助テキストにします。
+$user-text-secondary: #c6c6c6; // --md-sys-color-on-surface-variant をそのまま利用しつつ、透明度を30%下げて柔らかな補助テキストにします。
 $user-border: #48464667; // リンクやボーダーも on-surface-variant 系で統一しつつ、透明度を50%下げて柔らかな縁取りにします。
 $user-accent: #e5bd69; // primary container
 $user-accent-strong: #f9bd22; // primary fixed dim
@@ -1016,8 +1016,8 @@ $title-font-weight: 400;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 0.95rem;
-  color: $user-text-secondary;
+  font-size: 1rem;
+  color: $user-text;
 }
 
 .contactInput,
@@ -1061,7 +1061,7 @@ $title-font-weight: 400;
 
 .contactHelper {
   font-size: 0.8rem;
-  color: var(--user-text-muted);
+  color: var(--user-text-secondary);
 }
 
 .contactRequired {
@@ -1271,7 +1271,7 @@ $title-font-weight: 400;
 .usageItemDesc {
   margin: 0;
   color: var(--user-text-secondary);
-  font-size: 0.85rem;
+  font-size: 1rem;
 }
 
 .usageActions {
@@ -1308,7 +1308,7 @@ $title-font-weight: 400;
 
 .aboutSectionTitle {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--user-text);
 }
@@ -1316,7 +1316,7 @@ $title-font-weight: 400;
 .aboutText {
   margin: 0;
   color: var(--user-text-secondary);
-  font-size: 0.88rem;
+  font-size: 1rem;
   line-height: 1.72;
 }
 
