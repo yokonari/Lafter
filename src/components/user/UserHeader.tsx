@@ -259,7 +259,7 @@ export function UserHeader({
                 <X aria-hidden="true" className={styles.searchClearIcon} size={18} />
               </button>
             )}
-            {isHistoryOpen && history.length > 0 && (
+            {!isMobile && isHistoryOpen && history.length > 0 && (
               <div className={styles.searchHistory} role="listbox">
                 <div className={styles.searchHistoryList}>
                   {history.map((item) => (
