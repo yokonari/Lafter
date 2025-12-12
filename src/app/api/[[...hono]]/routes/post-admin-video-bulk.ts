@@ -42,7 +42,7 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
     }
 
     let processed = 0;
-    // ステータス 3→1 変更時に few-shot キャッシュ更新が必要なチャンネルIDを収集します。
+    // ステータスを 1 または 2 に変更する際に、few-shot キャッシュ更新が必要なチャンネルIDを収集します。
     const channelsNeedingFewShotRefresh = new Set<string>();
 
     for (const [index, item] of items.entries()) {
@@ -74,8 +74,8 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
       }
       videoUpdates.status = videoStatus;
 
-      // ステータスが 3→1 に変更された場合、few-shot 更新対象としてチャンネルを記録します。
-      if (videoRow.status === 3 && videoStatus === 1 && videoRow.channelId) {
+      // ステータスを 1 または 2 に変更する場合、few-shot 更新対象としてチャンネルを記録します。
+      if ((videoStatus === 1 || videoStatus === 2) && videoRow.channelId) {
         channelsNeedingFewShotRefresh.add(videoRow.channelId);
       }
 
@@ -86,7 +86,7 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
       processed += 1;
     }
 
-    // 3→1 に変更されたチャンネルの few-shot キャッシュを KV から削除し、次回 classify 時に再構築させます。
+    // ステータスを 1 または 2 に変更したチャンネルの few-shot キャッシュを KV から削除し、次回 classify 時に再構築させます。
     if (channelsNeedingFewShotRefresh.size > 0 && env.LAFTER) {
       for (const channelId of channelsNeedingFewShotRefresh) {
         const key = `${CHANNEL_FEW_SHOT_KV_PREFIX}${channelId}`;
