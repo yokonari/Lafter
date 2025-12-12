@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-page-custom-font */
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
@@ -13,6 +13,12 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+// ブラウザのUIカラーを固定し、画面遷移時やオーバースクロール時も黒背景を維持します。
+export const viewport: Viewport = {
+  themeColor: "#141313",
+  colorScheme: "dark",
+};
 
 // Next.js 側が利用するメタデータの型を明示し、型安全に OGP 情報を配信します。
 export const metadata: Metadata = {

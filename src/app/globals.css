@@ -1,14 +1,12 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-.dark {
+  /* システム設定に関わらず、アプリ全体のベースカラーをユーザーテーマ(#141313)に固定します。 */
+  /* これにより、モバイルでの計算ズレやオーバースクロール時に白い下地が見える問題を解決します。 */
+  --background: #141313;
+  --foreground: #ffffff;
+  /* ブラウザ標準UI（スクロールバーやフォーム部品）をダークモード対応にし、モバイルでも黒いバーを表示させます。 */
   color-scheme: dark;
-  --background: #030303;
-  --foreground: #f5f5f5;
 }
 
 @theme inline {
@@ -18,22 +16,17 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  /* ページの描画キャンバス自体を塗りつぶし、body との計算誤差で生じる隙間も黒く埋めます。 */
+  background-color: var(--background);
+  /* HTML要素レベルでもダークモードを強制し、スクロールバー等のUI色を確実に黒系にします。 */
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-}
-
-.dark body {
-  background: var(--background);
-  color: var(--foreground);
 }
 
 .markdownBackLink {

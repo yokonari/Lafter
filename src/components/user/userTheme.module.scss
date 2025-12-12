@@ -122,15 +122,14 @@ $title-font-weight: 400;
   width: 100%;
   height: 100%;
   margin: 0 auto;
-  padding: 0 1rem;
+  padding: 0 1rem; // SP: 16px (Admin SPと同じ)
   display: grid;
   align-items: center;
   grid-template-columns: 1fr minmax(0, 40rem) 1fr;
   gap: 0.5rem;
 
-  @media (max-width: 640px) {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem; // トップ画面の左右余白も半分にし、モバイルでの可視領域を丁寧に確保します。
+  @media (min-width: 640px) {
+    padding: 0 1.5rem; // PC: 24px (Admin PCと同じ)
   }
 }
 
@@ -346,12 +345,11 @@ $title-font-weight: 400;
   width: 100%;
   max-width: 86.4rem; // 管理画面と同じ幅に揃えます。
   margin: 0 auto;
-  padding: 1rem 1rem;
+  padding: 1rem 1rem; // SP: 16px (Admin SPと同じ)
   color: var(--user-text);
 
-  @media (max-width: 640px) {
-    padding-left: 0.5rem;
-    padding-right: 0.5rem; // トップ画面の左右余白も半分にし、モバイルでの可視領域を丁寧に確保します。
+  @media (min-width: 640px) {
+    padding: 1rem 1.5rem; // PC: 24px (Admin PCと同じ)
   }
 }
 
@@ -745,11 +743,15 @@ $title-font-weight: 400;
   max-width: 86.4rem; // 管理画面と同じ幅に揃えます。
   width: 100%;
   margin: 0 auto;
-  padding: 1.5rem 1.5rem 0 1.5rem;
+  padding: 1rem 1rem 0 1rem; // SP: 16px (Admin SPと同じ)
   display: flex;
   flex-direction: column; // YouTube バッジは常に改行し、リンク列と縦に並べます。
   align-items: center;
   justify-content: center;
+
+  @media (min-width: 640px) {
+    padding: 1.5rem 1.5rem 0 1.5rem; // PC: 24px (Admin PCと同じ)
+  }
 }
 
 .footerLinks {
@@ -1713,7 +1715,8 @@ $title-font-weight: 400;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 0.5rem;
+  height: 3.5rem; // 56px: 既存ヘッダーと同じ高さに揃えて統一感を出します。
+  padding: 0 1rem; // 既存ヘッダーと同じ左右余白に揃えます。
   border-bottom: 1px solid $user-border;
   background: var(--user-bg);
   position: sticky;
