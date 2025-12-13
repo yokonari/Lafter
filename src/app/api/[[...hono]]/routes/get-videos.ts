@@ -284,7 +284,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       title: decodeHtmlEntities(row.title),
       channel_id: row.channelId,
       channel_name: row.channelName ?? "",
-      published_at: toUnixTime(row.publishedAt),
     }));
 
     const playlistsPayload = playlistRows.map((row) => ({
@@ -397,11 +396,7 @@ function stripLikeWildcards(pattern: string): string {
   return trimmed.replace(/\\([%_])/g, "$1").toLowerCase();
 }
 
-function toUnixTime(iso: string | null | undefined): number {
-  if (!iso) return 0;
-  const time = Date.parse(iso);
-  return Number.isFinite(time) ? Math.floor(time / 1000) : 0;
-}
+
 
 function decodeHtmlEntities(value: string): string {
   // 現状問題になっているダブルクォートやアポストロフィ、一般的な &amp; だけを安全にデコードします。
@@ -458,7 +453,6 @@ function respondWithCache(
       title: decodeHtmlEntities(item?.video_title ?? ""),
       channel_id: item?.channel_id ?? "",
       channel_name: item?.channel_name ?? "",
-      published_at: 0,
     }));
 
   return c.json(

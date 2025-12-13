@@ -19,7 +19,6 @@ export type PlaylistItem = {
 type RawVideo = {
   id: string;
   title: string;
-  published_at?: number;
   channel_id?: string | null;
   channel_name?: string | null;
 };

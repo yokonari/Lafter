@@ -2,6 +2,7 @@
 
 import { Loader2, ArrowLeft, CheckCircle } from "lucide-react";
 import { useId, useMemo, useState } from "react";
+import { motion } from "motion/react";
 import type { FormEvent } from "react";
 import Link from "next/link";
 import styles from "./userTheme.module.scss";
@@ -71,7 +72,12 @@ export function ContactPage() {
     // 送信成功時の表示
     if (isSuccess) {
         return (
-            <main className={styles.contactPageLayout}>
+            <motion.main
+                className={styles.contactPageLayout}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, ease: "easeOut" }}
+            >
                 <div className={styles.contactPageCard}>
                     <div className={styles.contactSuccessContent}>
                         <CheckCircle size={48} className={styles.contactSuccessIcon} aria-hidden="true" />
@@ -85,12 +91,17 @@ export function ContactPage() {
                         </Link>
                     </div>
                 </div>
-            </main>
+            </motion.main>
         );
     }
 
     return (
-        <main className={styles.contactPageLayout}>
+        <motion.main
+            className={styles.contactPageLayout}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+        >
             <div className={styles.contactPageBackWrap}>
                 <Link href="/" className={styles.contactPageBackLink}>
                     <ArrowLeft aria-hidden="true" size={20} className={styles.contactPageBackIcon} />
@@ -161,6 +172,6 @@ export function ContactPage() {
                     </div>
                 </form>
             </div>
-        </main>
+        </motion.main>
     );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence } from "motion/react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -11,6 +12,7 @@ import { SearchResults } from "./SearchResults";
 import { UserFooter } from "./UserFooter";
 import { VideoDialog } from "./VideoDialog";
 import { PlaylistDialog } from "./PlaylistDialog";
+import { AboutPage } from "./AboutPage";
 
 import { ReportDialog } from "./ReportDialog";
 import { ScrollTopButton } from "./ScrollTopButton";
@@ -33,6 +35,12 @@ export function UserHome() {
   const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
   const [dialogPlaylist, setDialogPlaylist] = useState<PlaylistItem | null>(null);
   const [reportVideo, setReportVideo] = useState<VideoItem | null>(null);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
+
+  // 検索履歴関連の状態
+  const [history, setHistory] = useState<string[]>([]);
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const HISTORY_KEY = "userSearchHistory";
 
   // URL パラメーターを置換し、検索条件を共有するためのヘルパーです。
   const updateUrl = useCallback(
@@ -79,14 +87,50 @@ export function UserHome() {
     setIsSearching(Boolean(urlQuery || urlChannelId || urlMode));
   }, [searchParams]);
 
-  // ヘッダーから検索が実行されたタイミングを集中管理
-  const handleSearch = useCallback((value: string) => {
-    setActiveQuery(value);
-    setActiveChannelId(undefined);
-    setActiveMode(undefined);
-    setIsSearching(true);
-    updateUrl({ query: value, channelId: undefined, mode: undefined });
-  }, [updateUrl]);
+  // ローカルストレージから検索履歴を丁寧に読み込みます。
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? window.localStorage.getItem(HISTORY_KEY) : null;
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setHistory(parsed.filter((item): item is string => typeof item === "string"));
+        }
+      } catch {
+        // 破損した場合は無視して再生成します。
+      }
+    }
+  }, []);
+
+  const persistHistory = (next: string[]) => {
+    setHistory(next);
+    try {
+      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+    } catch {
+      // ストレージ書き込み失敗時も UI は継続します。
+    }
+  };
+
+  const handleHistoryDelete = (item: string) => {
+    const nextHistory = history.filter((h) => h !== item);
+    persistHistory(nextHistory);
+  };
+
+  // 検索ワードを API へ丁寧に記録し、失敗時は UI を止めずにログへ残します。
+  const logSearchKeyword = async (keyword: string) => {
+    try {
+      const res = await fetch("/api/search-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keyword }),
+      });
+      if (!res.ok) {
+        console.warn("検索ログ送信に失敗しました", res.status);
+      }
+    } catch (error) {
+      console.error("検索ログ送信中に例外が発生しました", error);
+    }
+  };
 
   // ブランドロゴ押下でトップ状態に戻す
   const handleReset = useCallback(() => {
@@ -148,6 +192,29 @@ export function UserHome() {
     toast.success("ご報告ありがとうございました！", userToastAppearanceOptions);
   }, []);
 
+  const performSearch = useCallback((value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return;
+
+    // 履歴更新
+    setHistory((prev) => {
+      const next = [trimmed, ...prev.filter((item) => item !== trimmed)].slice(0, 10);
+      try {
+        window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      } catch { }
+      return next;
+    });
+
+    void logSearchKeyword(trimmed);
+
+    setActiveQuery(trimmed);
+    setActiveChannelId(undefined);
+    setActiveMode(undefined);
+    setIsSearching(true);
+    setIsMobileSearchOpen(false);
+    updateUrl({ query: trimmed, channelId: undefined, mode: undefined });
+  }, [updateUrl]);
+
 
 
   return (
@@ -156,9 +223,15 @@ export function UserHome() {
       <UserHeader
         query={searchInput}
         onQueryChange={setSearchInput}
-        onSearch={handleSearch}
+        onSearch={performSearch}
         onReset={handleReset}
-        onUsageOpen={() => router.push('/about')}
+        onUsageOpen={() => setIsAboutOpen(true)}
+        history={history}
+        onHistorySelect={performSearch}
+        onHistoryDelete={handleHistoryDelete}
+        isMobileSearchOpen={isMobileSearchOpen}
+        onMobileSearchOpen={() => setIsMobileSearchOpen(true)}
+        onMobileSearchClose={() => setIsMobileSearchOpen(false)}
       />
 
       {/* メインも暗めの背景に切り替え、上部ヘッダーとの境界を自然に馴染ませます。 */}
@@ -200,6 +273,9 @@ export function UserHome() {
       />
 
       <ReportDialog open={Boolean(reportVideo)} video={reportVideo} onClose={handleReportClose} onSuccess={handleReportSuccess} />
+      <AnimatePresence>
+        {isAboutOpen && <AboutPage onClose={() => setIsAboutOpen(false)} />}
+      </AnimatePresence>
       <ToastContainer position="top-center" theme="dark" />
     </div>
   );

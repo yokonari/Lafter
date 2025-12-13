@@ -2,6 +2,7 @@
 
 import React from "react";
 import ReactMarkdown from "react-markdown";
+import { motion } from "motion/react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import styles from "./userTheme.module.scss";
@@ -49,7 +50,12 @@ export default function MarkdownPageLayout({ markdownContent }: MarkdownPageLayo
     };
 
     return (
-        <main className={styles.termsLayout}>
+        <motion.main
+            className={styles.termsLayout}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+        >
             <div className={styles.termsBackWrap}>
                 <Link href="/" className={styles.termsBackLink}>
                     <ArrowLeft aria-hidden="true" size={20} className={styles.termsBackIcon} />
@@ -63,7 +69,7 @@ export default function MarkdownPageLayout({ markdownContent }: MarkdownPageLayo
                     </div>
                 </div>
             </div>
-        </main>
+        </motion.main>
     );
 }
 

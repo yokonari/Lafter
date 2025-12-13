@@ -2,8 +2,10 @@
 
 import Image from "next/image";
 import { ArrowLeft, CircleQuestionMark, Search, X } from "lucide-react";
-import { ChangeEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import styles from "./userTheme.module.scss";
+
+// ... (imports remain same)
 
 type UserHeaderProps = {
   query: string;
@@ -11,6 +13,12 @@ type UserHeaderProps = {
   onSearch: (value: string) => void;
   onReset: () => void;
   onUsageOpen: () => void;
+  history: string[];
+  onHistorySelect: (word: string) => void;
+  onHistoryDelete: (word: string) => void;
+  isMobileSearchOpen: boolean;
+  onMobileSearchOpen: () => void;
+  onMobileSearchClose: () => void;
 };
 
 export function UserHeader({
@@ -19,15 +27,17 @@ export function UserHeader({
   onSearch,
   onReset,
   onUsageOpen,
+  history,
+  onHistorySelect,
+  onHistoryDelete,
+  isMobileSearchOpen,
+  onMobileSearchOpen,
+  onMobileSearchClose,
 }: UserHeaderProps) {
   const searchAreaRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const mobileSearchInputRef = useRef<HTMLInputElement | null>(null);
-  const [history, setHistory] = useState<string[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const HISTORY_KEY = "userSearchHistory";
 
   // モバイル判定を行い、ビューポート変更時にも丁寧に追従します。
   useEffect(() => {
@@ -37,18 +47,30 @@ export function UserHeader({
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // モバイル検索画面を開いたとき、入力欄にフォーカスを当てます。
+  // 履歴パネル外クリックで丁寧に閉じる
   useEffect(() => {
-    if (isMobileSearchOpen && mobileSearchInputRef.current) {
-      mobileSearchInputRef.current.focus();
-    }
-  }, [isMobileSearchOpen]);
+    const handleClickOutside = (event: MouseEvent | PointerEvent) => {
+      if (!searchAreaRef.current) return;
+      if (event.target instanceof Node && searchAreaRef.current.contains(event.target)) {
+        return;
+      }
+      setIsHistoryOpen(false);
+    };
+    document.addEventListener("pointerdown", handleClickOutside);
+    return () => document.removeEventListener("pointerdown", handleClickOutside);
+  }, []);
 
-  // モバイル検索画面を閉じてトップ画面に戻ります。
-  const handleMobileSearchClose = useCallback(() => {
-    setIsMobileSearchOpen(false);
-    onReset();
-  }, [onReset]);
+  // モバイル検索画面オープン時のスクロールロック
+  useEffect(() => {
+    if (isMobileSearchOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isMobileSearchOpen]);
 
   // 検索ワードを API へ丁寧に記録し、失敗時は UI を止めずにログへ残します。
   const logSearchKeyword = async (keyword: string) => {
@@ -66,51 +88,12 @@ export function UserHeader({
     }
   };
 
-  // ローカルストレージから検索履歴を丁寧に読み込みます。
-  useEffect(() => {
-    const stored = typeof window !== "undefined" ? window.localStorage.getItem(HISTORY_KEY) : null;
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) {
-          setHistory(parsed.filter((item): item is string => typeof item === "string"));
-        }
-      } catch {
-        // 破損した場合は無視して再生成します。
-      }
-    }
-  }, []);
-
-  // 履歴パネル外クリックで丁寧に閉じる
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent | PointerEvent) => {
-      if (!searchAreaRef.current) return;
-      if (event.target instanceof Node && searchAreaRef.current.contains(event.target)) {
-        return;
-      }
-      setIsHistoryOpen(false);
-    };
-    document.addEventListener("pointerdown", handleClickOutside);
-    return () => document.removeEventListener("pointerdown", handleClickOutside);
-  }, []);
-
-  const persistHistory = (next: string[]) => {
-    setHistory(next);
-    try {
-      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-    } catch {
-      // ストレージ書き込み失敗時も UI は継続します。
-    }
-  };
-
   // Enter 押下と検索ボタンで同じロジックを共有する
-  const triggerSearch = async () => {
-    const trimmed = query.trim();
+  const triggerSearch = async (val: string) => {
+    const trimmed = val.trim();
     if (trimmed) {
-      // 新しい検索語を履歴へ保存し、重複は先頭へ丁寧に寄せます。
-      const nextHistory = [trimmed, ...history.filter((item) => item !== trimmed)].slice(0, 10);
-      persistHistory(nextHistory);
       setIsHistoryOpen(false);
+      onMobileSearchClose();
       // サーバー側へ検索ログも送信し、分析に活用できるよう丁寧に記録します。
       void logSearchKeyword(trimmed);
       onSearch(trimmed);
@@ -121,7 +104,7 @@ export function UserHeader({
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === "Enter") {
-      void triggerSearch();
+      void triggerSearch(query);
     }
   };
 
@@ -130,12 +113,11 @@ export function UserHeader({
     setIsHistoryOpen(true);
   };
 
-  const handleHistorySelect = (word: string) => {
-    onQueryChange(word);
+  const handleHistoryItemSelect = (word: string) => {
+    onHistorySelect(word);
     setIsHistoryOpen(false);
-    // 履歴クリックによる検索も漏れなくログ送信します。
-    void logSearchKeyword(word);
-    onSearch(word);
+    onMobileSearchClose();
+    searchInputRef.current?.blur();
   };
 
   // クリアボタンで入力を空にし、再フォーカスさせます。
@@ -156,76 +138,56 @@ export function UserHeader({
     }
   };
 
-  // モバイル検索画面から実行する検索処理です。
-  const handleMobileSearch = async () => {
-    const trimmed = query.trim();
-    if (trimmed) {
-      const nextHistory = [trimmed, ...history.filter((item) => item !== trimmed)].slice(0, 10);
-      persistHistory(nextHistory);
-      void logSearchKeyword(trimmed);
-      onSearch(trimmed);
-      setIsMobileSearchOpen(false);
-      // オーバーレイとヘッダーの両入力欄をブラーしてソフトキーボードを丁寧に閉じます。
-      mobileSearchInputRef.current?.blur();
-      searchInputRef.current?.blur();
-    }
-  };
-
-  const handleMobileKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      void handleMobileSearch();
-    }
-  };
-
-  const handleMobileClear = () => {
-    onQueryChange("");
-    mobileSearchInputRef.current?.focus();
-  };
-
-  const handleMobileHistorySelect = (word: string) => {
-    onQueryChange(word);
-    void logSearchKeyword(word);
-    onSearch(word);
-    setIsMobileSearchOpen(false);
-    // 検索後は両入力欄をブラーしてソフトキーボードを丁寧に閉じます。
-    mobileSearchInputRef.current?.blur();
-    searchInputRef.current?.blur();
-  };
-
-  const handleMobileHistoryDelete = (item: string) => {
-    const nextHistory = history.filter((h) => h !== item);
-    persistHistory(nextHistory);
-    mobileSearchInputRef.current?.focus();
-  };
-
-  // モバイルで検索欄をタップしたとき、別画面を開きます。
+  // モバイルで検索欄をタップしたとき、モードを切り替えるだけ（フォーカスは維持）
   const handleMobileSearchTrigger = () => {
-    if (isMobile) {
-      setIsMobileSearchOpen(true);
+    if (isMobile && !isMobileSearchOpen) {
+      onMobileSearchOpen();
     }
+  };
+
+  const handleBack = () => {
+    onMobileSearchClose();
+    setIsHistoryOpen(false);
+    searchInputRef.current?.blur();
   };
 
   return (
     <>
       {/* ユーザー画面のヘッダーも管理画面と近いダークトーンに揃え、ブランドカラーを丁寧に踏襲します。 */}
       <header className={styles.header}>
-        <div className={styles.headerInner}>
-          <button type="button" onClick={onReset} className={styles.brandButton}>
-            {/* h1 は使わず汎用的なブロックで囲み、視覚デザインを変えずに柔軟なロゴ表現へ丁寧に調整します。 */}
-            <div className={styles.brandHeading}>
-              {/* 画面には出さずに SEO や支援技術へサイト名を丁寧に伝えます。 */}
-              <span className="sr-only">Lafter（ラフター）- お笑いネタ動画検索サイト</span>
-              {/* 画面幅が狭くなった際も丁寧にアスペクト比を保ったまま縮小させます。 */}
-              <Image
-                src="/Lafter.png"
-                alt="Lafter"
-                width={195}
-                height={49}
-                style={{ width: "100%", minWidth: "60px", maxWidth: "90px", height: "auto" }}
-                priority
-              />
-            </div>
-          </button>
+        <div
+          className={styles.headerInner}
+          data-searching={isMobile && isMobileSearchOpen}
+        >
+          {!isMobileSearchOpen && (
+            <button type="button" onClick={onReset} className={styles.brandButton}>
+              {/* h1 は使わず汎用的なブロックで囲み、視覚デザインを変えずに柔軟なロゴ表現へ丁寧に調整します。 */}
+              <div className={styles.brandHeading}>
+                {/* 画面には出さずに SEO や支援技術へサイト名を丁寧に伝えます。 */}
+                <span className="sr-only">Lafter（ラフター）- お笑いネタ動画検索サイト</span>
+                {/* 画面幅が狭くなった際も丁寧にアスペクト比を保ったまま縮小させます。 */}
+                <Image
+                  src="/Lafter.png"
+                  alt="Lafter"
+                  width={195}
+                  height={49}
+                  style={{ width: "100%", minWidth: "60px", maxWidth: "90px", height: "auto" }}
+                  priority
+                />
+              </div>
+            </button>
+          )}
+
+          {isMobileSearchOpen && (
+            <button
+              type="button"
+              className={styles.mobileBackButton}
+              onClick={handleBack}
+              aria-label="検索を終了して戻る"
+            >
+              <ArrowLeft size={24} aria-hidden="true" />
+            </button>
+          )}
 
           <div className={styles.searchArea} ref={searchAreaRef}>
             {/* サンプルと同等の見た目になるよう入力フィールドをシンプルに整形 */}
@@ -236,12 +198,8 @@ export function UserHeader({
               onChange={handleChange}
               onKeyDown={handleKeyDown}
               onFocus={(e) => {
-                if (isMobile) {
-                  e.target.blur();
-                  handleMobileSearchTrigger();
-                } else {
-                  setIsHistoryOpen(true);
-                }
+                setIsHistoryOpen(true);
+                handleMobileSearchTrigger();
               }}
               placeholder="芸人名、動画タイトルなど"
               aria-label="芸人名、動画タイトルなど"
@@ -259,25 +217,29 @@ export function UserHeader({
                 <X aria-hidden="true" className={styles.searchClearIcon} size={18} />
               </button>
             )}
-            {!isMobile && isHistoryOpen && history.length > 0 && (
+            {/* モバイル検索時は常に履歴コンテナを表示（履歴が空の場合はCSS等で制御可能だが、要望では「履歴が無い場合は表示しなくていい」とあるので length check を入れる） */}
+            {isHistoryOpen && history.length > 0 && (
               <div className={styles.searchHistory} role="listbox">
+                {/* モバイル検索時のみタイトルを表示するなどの調整が可能だが、一旦シンプルにリストを表示 */}
                 <div className={styles.searchHistoryList}>
                   {history.map((item) => (
                     <div key={item} className={styles.searchHistoryItemWrapper}>
                       <button
                         type="button"
                         className={styles.searchHistoryItem}
-                        onClick={() => handleHistorySelect(item)}
+                        onClick={() => handleHistoryItemSelect(item)}
                       >
-                        {item}
+                        <Search size={16} aria-hidden="true" className={styles.searchHistoryIcon} />
+                        <span className={styles.searchHistoryText}>{item}</span>
                       </button>
                       <button
                         type="button"
                         className={styles.searchHistoryDelete}
                         onClick={(e) => {
                           e.stopPropagation();
-                          const nextHistory = history.filter((h) => h !== item);
-                          persistHistory(nextHistory);
+                          onHistoryDelete(item);
+                          // PCの場合はフォーカス戻すが、モバイルの場合はキーボード閉じたままがいいかも？
+                          // いったんフォーカス戻しで統一
                           searchInputRef.current?.focus();
                         }}
                         aria-label={`${item}を履歴から削除`}
@@ -290,90 +252,21 @@ export function UserHeader({
               </div>
             )}
           </div>
-          <div className={styles.headerActions}>
-            <button
-              type="button"
-              className={styles.usageButton}
-              onClick={onUsageOpen}
-              aria-label="使いかたを開く"
-            >
-              <CircleQuestionMark size={24} aria-hidden="true" />
-            </button>
-            <span className={styles.headerSpacer} aria-hidden />
-          </div>
-        </div>
-      </header>
-
-      {/* モバイル用の全画面検索オーバーレイ */}
-      {isMobileSearchOpen && (
-        <div className={styles.mobileSearchOverlay}>
-          <div className={styles.mobileSearchHeader}>
-            <button
-              type="button"
-              className={styles.mobileSearchBackButton}
-              onClick={handleMobileSearchClose}
-              aria-label="トップ画面に戻る"
-            >
-              <ArrowLeft size={24} aria-hidden="true" />
-            </button>
-            <div className={styles.mobileSearchInputWrapper}>
-              <input
-                type="search"
-                value={query}
-                onChange={handleChange}
-                onKeyDown={handleMobileKeyDown}
-                placeholder="芸人名、動画タイトルなど"
-                aria-label="芸人名、動画タイトルなど"
-                className={styles.mobileSearchInput}
-                ref={mobileSearchInputRef}
-              />
-              {query && (
-                <button
-                  type="button"
-                  className={styles.mobileSearchClear}
-                  onClick={handleMobileClear}
-                  aria-label="検索キーワードをクリア"
-                >
-                  <X aria-hidden="true" size={18} />
-                </button>
-              )}
-            </div>
-          </div>
-          {history.length > 0 ? (
-            <div className={styles.mobileSearchHistoryContainer}>
-              <div className={styles.mobileSearchHistoryTitle}>検索履歴</div>
-              <div className={styles.mobileSearchHistoryList}>
-                {history.map((item) => (
-                  <div key={item} className={styles.mobileSearchHistoryItemWrapper}>
-                    <button
-                      type="button"
-                      className={styles.mobileSearchHistoryItem}
-                      onClick={() => handleMobileHistorySelect(item)}
-                    >
-                      <Search size={16} aria-hidden="true" className={styles.mobileSearchHistoryIcon} />
-                      <span>{item}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.mobileSearchHistoryDelete}
-                      onClick={() => handleMobileHistoryDelete(item)}
-                      aria-label={`${item}を履歴から削除`}
-                    >
-                      <X size={16} aria-hidden="true" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className={styles.mobileSearchHistoryContainer}>
-              <div className={styles.mobileSearchHistoryEmpty}>
-                検索履歴はありません
-              </div>
+          {!isMobileSearchOpen && (
+            <div className={styles.headerActions}>
+              <button
+                type="button"
+                className={styles.usageButton}
+                onClick={onUsageOpen}
+                aria-label="使いかたを開く"
+              >
+                <CircleQuestionMark size={24} aria-hidden="true" />
+              </button>
+              <span className={styles.headerSpacer} aria-hidden />
             </div>
           )}
         </div>
-      )}
+      </header>
     </>
   );
 }

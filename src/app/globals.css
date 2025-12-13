@@ -21,6 +21,8 @@ html {
   background-color: var(--background);
   /* HTML要素レベルでもダークモードを強制し、スクロールバー等のUI色を確実に黒系にします。 */
   color-scheme: dark;
+  /* スクロールバーの有無でコンテンツ幅が変わるのを防ぎ、画面遷移時のガタつきを解消します。 */
+  scrollbar-gutter: stable;
 }
 
 body {

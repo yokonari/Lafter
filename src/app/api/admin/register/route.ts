@@ -33,7 +33,7 @@ export async function POST(request: Request) {
   }
 
   const { env } = getCloudflareContext();
-  const auth = getAuth(env.DB);
+  const auth = getAuth(env.DB, env.ADMIN_EMAIL);
   const allowedEmail =
     (typeof env.ADMIN_EMAIL === "string" ? env.ADMIN_EMAIL : undefined) ??
     (typeof process.env.ADMIN_EMAIL === "string" ? process.env.ADMIN_EMAIL : undefined);

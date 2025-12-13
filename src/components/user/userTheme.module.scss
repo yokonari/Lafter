@@ -74,7 +74,7 @@ $title-font-weight: 400;
   }
 }
 
-.userLayout {
+@mixin user-variables {
   --user-bg: #{$user-bg};
   --user-surface: #{$user-surface};
   --user-surface-hover: #{$user-surface-hover};
@@ -89,6 +89,10 @@ $title-font-weight: 400;
   --user-error-bg: #{$user-error-bg};
   --user-error-text: #{$user-error-text};
   --user-card-overlay: #{$user-card-overlay};
+}
+
+.userLayout {
+  @include user-variables;
   min-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -138,6 +142,70 @@ $title-font-weight: 400;
   justify-self: flex-end;
   width: 100%;
   height: 0;
+}
+
+// モバイル検索モード時のヘッダー内レイアウト
+.headerInner[data-searching="true"] {
+  display: flex; // GridからFlexへ切り替えてレイアウト制御
+  align-items: center;
+  padding-left: 0.5rem; // 戻るボタン分の余白調整
+  gap: 0.5rem;
+
+  .searchArea {
+    grid-column: auto;
+    width: 100%;
+    max-width: none; // 幅制限を解除
+  }
+
+  // 検索履歴を全画面化
+  .searchHistory {
+    position: fixed;
+    top: 3.5rem; // ヘッダーの高さ分下げる
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: calc(100vh - 3.5rem); // 画面下まで埋める
+    border-radius: 0; // 角丸解除
+    border: none;
+    box-shadow: none;
+    padding: 0; // 内部リストで余白調整
+    overflow-y: auto;
+    background: var(--user-bg); // 背景色を確実に適用
+    transform: none; // ポップアップのアニメショーン等があればリセット
+  }
+
+  .searchHistoryList {
+    padding: 1rem; // リスト全体にのみ余白を与える
+  }
+
+  .searchHistoryItemWrapper {
+    padding: 0.25rem 0; // アイテム間の余白を調整
+  }
+
+  // モバイル時はアイコンとテキストの間隔を広げる
+  .searchHistoryItem {
+    gap: 1rem;
+    font-size: 1rem; // 文字サイズも少し大きくしてタップしやすく
+  }
+}
+
+.mobileBackButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: none;
+  color: var(--user-text);
+  cursor: pointer;
+  flex-shrink: 0;
+  border-radius: 9999px;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--user-surface-hover);
+  }
 }
 
 .headerActions {
@@ -222,6 +290,7 @@ $title-font-weight: 400;
 
   &:focus {
     background: var(--user-surface);
+    border-color: var(--user-accent);
   }
 
   &::-webkit-search-decoration,
@@ -298,6 +367,11 @@ $title-font-weight: 400;
   }
 }
 
+.searchHistoryText {
+  flex: 1;
+  text-align: left;
+}
+
 .searchHistoryItem {
   flex: 1;
   text-align: left;
@@ -308,6 +382,11 @@ $title-font-weight: 400;
   background: transparent;
   transition: background-color 0.2s ease, color 0.2s ease;
   font-size: 0.85rem; // 少し小さめにして履歴一覧をコンパクトに
+
+  display: flex;
+  /* アイコンとテキストを横並びにする */
+  align-items: center;
+  gap: 0.5rem; // PC版のデフォルト間隔
 
   &:focus-visible {
     background: var(--user-surface-hover);
@@ -1647,17 +1726,35 @@ $title-font-weight: 400;
 
 /* ------- このサイトについてページ ------- */
 .aboutPageLayout {
-  @extend .staticPageLayout;
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background-color: var(--user-bg);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 1rem;
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+
+  @media (max-width: 640px) {
+    padding: 1rem;
+  }
 }
 
 .aboutPageCard {
   @extend .staticPageCard;
   max-width: 600px;
+  flex-shrink: 0;
 }
 
 .aboutPageBackWrap {
   @extend .staticPageBackWrap;
   max-width: 600px;
+  flex-shrink: 0;
 }
 
 .aboutPageBackLink {
@@ -1702,26 +1799,42 @@ $title-font-weight: 400;
 
 /* ------- モバイル検索オーバーレイ ------- */
 .mobileSearchOverlay {
+  @include user-variables;
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: 9999; // 最前面に固定
   background: var(--user-bg);
+  color: var(--user-text); // テキスト色も継承されないため明示
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  height: 100%; // 100dvhだとキーボード表示時にレイアウトが不安定になるため100%に変更
+  overflow: hidden; // コンテナ自体のスクロールを禁止
+  overscroll-behavior: none;
 }
 
 .mobileSearchHeader {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  height: 3.5rem; // 56px: 既存ヘッダーと同じ高さに揃えて統一感を出します。
-  padding: 0 1rem; // 既存ヘッダーと同じ左右余白に揃えます。
+  height: 3.5rem;
+  padding: 0 1rem;
   border-bottom: 1px solid $user-border;
   background: var(--user-bg);
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  flex-shrink: 0; // 縮小・スクロールしないよう固定
+  z-index: 50; // ヒストリー等の要素より確実に手前に表示
+}
+
+.mobileSearchHistoryContainer {
+  flex: 1;
+  padding: 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  touch-action: pan-y; // 縦スクロールのみ許可
+  -webkit-overflow-scrolling: touch; // iOSでの慣性スクロール有効化
+  position: relative; // スタッキングコンテキストを形成
+  z-index: 1;
 }
 
 .mobileSearchBackButton {
@@ -1737,6 +1850,9 @@ $title-font-weight: 400;
   flex-shrink: 0;
   border-radius: 9999px;
   transition: background-color 0.2s ease;
+  position: relative; // z-indexを効かせるため
+  z-index: 2;
+  touch-action: manipulation; // タップ操作を最適化
 
   &:hover,
   &:focus-visible {
@@ -1800,6 +1916,9 @@ $title-font-weight: 400;
 .mobileSearchHistoryContainer {
   flex: 1;
   padding: 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain; // 内部スクロールの境界を明確にする
+  min-height: 0; // Flexbox内でのスクロール領域確保のため
 }
 
 .mobileSearchHistoryTitle {

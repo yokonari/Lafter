@@ -4,7 +4,7 @@ import { getAuth } from "@/lib/admin-auth";
 const handler = (request: Request) => {
   // Cloudflare D1 を利用した認証エンドポイントを丁寧にハンドリングします。
   const { env } = getCloudflareContext();
-  const auth = getAuth(env.DB);
+  const auth = getAuth(env.DB, env.ADMIN_EMAIL);
   return auth.handler(request);
 };
 

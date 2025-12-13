@@ -2,6 +2,7 @@
 
 import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
 import styles from "./userTheme.module.scss";
@@ -25,6 +26,11 @@ export function HomeSections({
   const [randomError, setRandomError] = useState<string | null>(null);
   const [newLoading, setNewLoading] = useState(false);
   const [randomLoading, setRandomLoading] = useState(false);
+
+  const variants = {
+    invisible: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0 },
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -132,14 +138,32 @@ export function HomeSections({
               </button>
             </div>
             <div className={styles.sectionGrid}>
-              {newVideos.map((video) => (
-                <VideoCard
-                  key={`new-${video.id}`}
-                  video={video}
-                  onSelect={onVideoSelect}
-                  onChannelSelect={onChannelSelect}
-                />
-              ))}
+              {newVideos.map((video, index) => {
+                const isPriority = index < 6;
+                return (
+                  <motion.div
+                    key={`new-${video.id}`}
+                    variants={variants}
+                    initial={isPriority ? "visible" : "invisible"}
+                    whileInView="visible"
+                    viewport={{ amount: 0, once: true }}
+                    transition={
+                      isPriority
+                        ? { duration: 0 }
+                        : {
+                          opacity: { duration: 0.3 },
+                          y: { duration: 0.4 },
+                        }
+                    }
+                  >
+                    <VideoCard
+                      video={video}
+                      onSelect={onVideoSelect}
+                      onChannelSelect={onChannelSelect}
+                    />
+                  </motion.div>
+                );
+              })}
             </div>
           </section>
 
@@ -168,14 +192,32 @@ export function HomeSections({
               </button>
             </div>
             <div className={styles.sectionGrid}>
-              {randomVideos.map((video) => (
-                <VideoCard
-                  key={`random-${video.id}`}
-                  video={video}
-                  onSelect={onVideoSelect}
-                  onChannelSelect={onChannelSelect}
-                />
-              ))}
+              {randomVideos.map((video, index) => {
+                const isPriority = index < 6;
+                return (
+                  <motion.div
+                    key={`random-${video.id}`}
+                    variants={variants}
+                    initial={isPriority ? "visible" : "invisible"}
+                    whileInView="visible"
+                    viewport={{ amount: 0, once: true }}
+                    transition={
+                      isPriority
+                        ? { duration: 0 }
+                        : {
+                          opacity: { duration: 0.3 },
+                          y: { duration: 0.4 },
+                        }
+                    }
+                  >
+                    <VideoCard
+                      video={video}
+                      onSelect={onVideoSelect}
+                      onChannelSelect={onChannelSelect}
+                    />
+                  </motion.div>
+                );
+              })}
             </div>
           </section>
         </>

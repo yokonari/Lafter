@@ -13,7 +13,7 @@ export const authMiddleware = createMiddleware<{
   try {
     // 認証情報を丁寧に検証し、後続処理が安全に利用できるよう共有します。
     const { env } = getCloudflareContext();
-    const auth = getAuth(env.DB);
+    const auth = getAuth(env.DB, env.ADMIN_EMAIL);
 
     const session = await auth.api.getSession({ headers: c.req.raw.headers });
     if (!session) {

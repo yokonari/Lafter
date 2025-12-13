@@ -152,7 +152,6 @@ export function AdminLoginForm() {
                                 value={email}
                                 onChange={(event) => setEmail(event.target.value)}
                                 className={styles.loginInput}
-                                placeholder="admin@example.com"
                                 required
                                 autoComplete="email"
                                 disabled={submittingAction !== null}
@@ -168,7 +167,6 @@ export function AdminLoginForm() {
                                 value={password}
                                 onChange={(event) => setPassword(event.target.value)}
                                 className={styles.loginInput}
-                                placeholder="********"
                                 required
                                 autoComplete="current-password"
                                 disabled={submittingAction !== null}

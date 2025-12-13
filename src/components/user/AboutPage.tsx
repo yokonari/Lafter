@@ -1,10 +1,11 @@
 'use client';
 
 import { CircleQuestionMark, Flag, Gift, Info, Megaphone, PlaySquare, Search, ArrowLeft } from "lucide-react";
-import { Fragment, useCallback, useMemo } from "react";
+import { Fragment, useCallback, useEffect, useMemo } from "react";
+import { motion } from "motion/react";
 import { toast, ToastContainer } from "react-toastify";
 import type { ReactNode } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import styles from "./userTheme.module.scss";
 
 const userToastAppearanceOptions = {
@@ -12,10 +13,19 @@ const userToastAppearanceOptions = {
 } as const;
 
 // Lafter の背景や運営方針、使いかたを丁寧にまとめた説明ページです。
-export function AboutPage() {
+export function AboutPage({ onClose }: { onClose?: () => void }) {
     // Amazon eギフトの受取人アドレスを環境変数から一元管理し、表示やコピー処理の記述を丁寧にまとめます。
     const donationRecipientEmail =
         process.env.NEXT_PUBLIC_CONTACT_TO_EMAIL ?? process.env.CONTACT_TO_EMAIL ?? "yokonari10@gmail.com";
+
+    // ダイアログ表示中は背面のスクロールを抑制し、ユーザーの操作範囲をダイアログ内に限定します。
+    useEffect(() => {
+        const originalStyle = window.getComputedStyle(document.body).overflow;
+        document.body.style.overflow = "hidden";
+        return () => {
+            document.body.style.overflow = originalStyle;
+        };
+    }, []);
 
     // クリップボード API とフォールバックを用意し、クリック一度で確実にアドレスをコピーできるよう配慮します。
     const handleCopyDonationEmail = useCallback(() => {
@@ -53,6 +63,16 @@ export function AboutPage() {
             document.body.removeChild(textarea);
         }
     }, [donationRecipientEmail]);
+
+    const router = useRouter();
+
+    const handleBack = useCallback(() => {
+        if (onClose) {
+            onClose();
+        } else {
+            router.back();
+        }
+    }, [onClose, router]);
 
     // 使いかたセクションの情報をメモ化します。
     const usageFeatures = useMemo(() => [
@@ -132,12 +152,18 @@ export function AboutPage() {
     );
 
     return (
-        <main className={styles.aboutPageLayout}>
+        <motion.div
+            className={styles.aboutPageLayout}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+        >
             <div className={styles.aboutPageBackWrap}>
-                <Link href="/" className={styles.aboutPageBackLink}>
+                <button type="button" onClick={handleBack} className={styles.aboutPageBackLink}>
                     <ArrowLeft aria-hidden="true" size={20} className={styles.aboutPageBackIcon} />
-                    <span>トップへ戻る</span>
-                </Link>
+                    <span>戻る</span>
+                </button>
             </div>
 
             {/* 使いかたカード */}
@@ -183,6 +209,6 @@ export function AboutPage() {
             </div>
 
             <ToastContainer position="top-center" theme="dark" />
-        </main>
+        </motion.div>
     );
 }

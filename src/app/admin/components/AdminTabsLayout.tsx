@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { createAuthClient } from "better-auth/react";
 import type { ClientOptions } from "better-auth/types";
 import { Bounce, ToastContainer } from "react-toastify";
+import { Video, User, ListVideo, LogOut } from "lucide-react";
 import "react-toastify/dist/ReactToastify.css";
 import styles from "../adminTheme.module.scss";
 
@@ -13,11 +14,11 @@ type AdminTabsLayoutProps = {
   children: React.ReactNode;
 };
 
-const TAB_ITEMS: Array<{ key: "videos" | "channels" | "playlists"; name: string; href: string }> = [
-  { key: "videos", name: "動画", href: "/admin/videos" },
-  { key: "channels", name: "チャンネル", href: "/admin/channels" },
-  { key: "playlists", name: "プレイリスト", href: "/admin/playlists" },
-];
+const TAB_ITEMS = [
+  { key: "videos", icon: Video, label: "動画", href: "/admin/videos" },
+  { key: "channels", icon: User, label: "チャンネル", href: "/admin/channels" },
+  { key: "playlists", icon: ListVideo, label: "プレイリスト", href: "/admin/playlists" },
+] as const;
 
 export function AdminTabsLayout({ activeTab, children }: AdminTabsLayoutProps) {
   const authClient = useMemo(() => {
@@ -54,9 +55,17 @@ export function AdminTabsLayout({ activeTab, children }: AdminTabsLayoutProps) {
             const tabClassName = `${styles.tabItem} ${isActive ? styles.tabItemActive : styles.tabItemInactive
               }`;
 
+            const Icon = tab.icon;
+
             return (
-              <Link key={tab.key} href={tab.href} prefetch={false} className={tabClassName}>
-                {tab.name}
+              <Link
+                key={tab.key}
+                href={tab.href}
+                prefetch={false}
+                className={tabClassName}
+                aria-label={tab.label}
+              >
+                <Icon size={24} />
               </Link>
             );
           })}
@@ -64,6 +73,7 @@ export function AdminTabsLayout({ activeTab, children }: AdminTabsLayoutProps) {
             type="button"
             className={`${styles.tabItem} ${styles.tabItemInactive}`}
             onClick={handleSignOut}
+            aria-label="ログアウト"
             style={{
               marginLeft: "auto",
               backgroundColor: "transparent",
@@ -73,7 +83,7 @@ export function AdminTabsLayout({ activeTab, children }: AdminTabsLayoutProps) {
               cursor: "pointer",
             }}
           >
-            ログアウト
+            <LogOut size={24} />
           </button>
         </div>
 
