@@ -2,7 +2,7 @@
 
 import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
-import { motion } from "motion/react";
+import { FadeIn, FadeInWithStagger } from "./FadeIn";
 import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
 import styles from "./userTheme.module.scss";
@@ -27,10 +27,7 @@ export function HomeSections({
   const [newLoading, setNewLoading] = useState(false);
   const [randomLoading, setRandomLoading] = useState(false);
 
-  const variants = {
-    invisible: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0 },
-  };
+
 
   useEffect(() => {
     const controller = new AbortController();
@@ -141,27 +138,18 @@ export function HomeSections({
               {newVideos.map((video, index) => {
                 const isPriority = index < 6;
                 return (
-                  <motion.div
+                  <FadeIn
                     key={`new-${video.id}`}
-                    variants={variants}
-                    initial={isPriority ? "visible" : "invisible"}
-                    whileInView="visible"
+                    initial={isPriority ? "visible" : "hidden"}
+                    transition={isPriority ? { duration: 0 } : undefined}
                     viewport={{ amount: 0, once: true }}
-                    transition={
-                      isPriority
-                        ? { duration: 0 }
-                        : {
-                          opacity: { duration: 0.3 },
-                          y: { duration: 0.4 },
-                        }
-                    }
                   >
                     <VideoCard
                       video={video}
                       onSelect={onVideoSelect}
                       onChannelSelect={onChannelSelect}
                     />
-                  </motion.div>
+                  </FadeIn>
                 );
               })}
             </div>
@@ -191,34 +179,17 @@ export function HomeSections({
                 <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
-            <div className={styles.sectionGrid}>
-              {randomVideos.map((video, index) => {
-                const isPriority = index < 6;
-                return (
-                  <motion.div
-                    key={`random-${video.id}`}
-                    variants={variants}
-                    initial={isPriority ? "visible" : "invisible"}
-                    whileInView="visible"
-                    viewport={{ amount: 0, once: true }}
-                    transition={
-                      isPriority
-                        ? { duration: 0 }
-                        : {
-                          opacity: { duration: 0.3 },
-                          y: { duration: 0.4 },
-                        }
-                    }
-                  >
-                    <VideoCard
-                      video={video}
-                      onSelect={onVideoSelect}
-                      onChannelSelect={onChannelSelect}
-                    />
-                  </motion.div>
-                );
-              })}
-            </div>
+            <FadeInWithStagger className={styles.sectionGrid}>
+              {randomVideos.map((video) => (
+                <FadeIn key={`random-${video.id}`}>
+                  <VideoCard
+                    video={video}
+                    onSelect={onVideoSelect}
+                    onChannelSelect={onChannelSelect}
+                  />
+                </FadeIn>
+              ))}
+            </FadeInWithStagger>
           </section>
         </>
       )}
