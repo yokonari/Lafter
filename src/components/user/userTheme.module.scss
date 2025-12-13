@@ -129,8 +129,8 @@ $title-font-weight: 400;
   padding: 0 1rem; // SP: 16px (Admin SPと同じ)
   display: grid;
   align-items: center;
-  grid-template-columns: 1fr minmax(0, 40rem) 1fr;
-  gap: 0.5rem;
+  grid-template-columns: auto 1fr auto;
+  gap: 1rem;
 
   @media (min-width: 640px) {
     padding: 0 1.5rem; // PC: 24px (Admin PCと同じ)
@@ -156,14 +156,14 @@ $title-font-weight: 400;
   // .brandButton, .headerActions 等のアニメーション変化先を定義
 
   .brandButton {
-    width: 0;
+    max-width: 0;
     opacity: 0;
     margin: 0;
     pointer-events: none;
   }
 
   .headerActions {
-    width: 0;
+    max-width: 0;
     opacity: 0;
     padding: 0;
     pointer-events: none;
@@ -249,7 +249,8 @@ $title-font-weight: 400;
   gap: 0.5rem; // 複数のコントロールを並べても窮屈にならないよう余白を設けます。
   flex-shrink: 0;
   overflow: hidden; // アニメーション用に幅が縮んだ時の中身を隠す
-  transition: width 0.3s ease, opacity 0.3s ease;
+  max-width: 200px;
+  transition: max-width 0.3s ease, opacity 0.3s ease;
   // 初期幅はautoでよい
 }
 
@@ -278,7 +279,8 @@ $title-font-weight: 400;
   justify-self: flex-start;
   grid-column: 1;
   justify-self: flex-start;
-  transition: width 0.3s ease, opacity 0.3s ease, margin 0.3s ease; // アニメーション
+  transition: max-width 0.3s ease, opacity 0.3s ease, margin 0.3s ease; // アニメーション
+  max-width: 200px;
   overflow: hidden; // アニメーション用
   flex-shrink: 0;
 }
@@ -643,10 +645,6 @@ $title-font-weight: 400;
   }
 
   @media (min-width: 1024px) {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-
-  @media (min-width: 1280px) {
     grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
@@ -706,14 +704,6 @@ $title-font-weight: 400;
     opacity: 1;
     transform: translateY(0);
     pointer-events: auto;
-  }
-
-  &.atBottom {
-    bottom: 8rem;
-
-    @media (max-width: 640px) {
-      bottom: 10rem;
-    }
   }
 }
 

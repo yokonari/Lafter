@@ -33,7 +33,7 @@ type RawPlaylist = {
 
 
 function buildThumbnailUrl(videoId: string) {
-  return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+  return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
 }
 
 function mapRawVideo(video: RawVideo): VideoItem | null {

@@ -2,7 +2,6 @@
 
 import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
-import { FadeIn, FadeInWithStagger } from "./FadeIn";
 import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
 import styles from "./userTheme.module.scss";
@@ -135,21 +134,14 @@ export function HomeSections({
               </button>
             </div>
             <div className={styles.sectionGrid}>
-              {newVideos.map((video, index) => {
-                const isPriority = index < 6;
+              {newVideos.map((video) => {
                 return (
-                  <FadeIn
+                  <VideoCard
                     key={`new-${video.id}`}
-                    initial={isPriority ? "visible" : "hidden"}
-                    transition={isPriority ? { duration: 0 } : undefined}
-                    viewport={{ amount: 0, once: true }}
-                  >
-                    <VideoCard
-                      video={video}
-                      onSelect={onVideoSelect}
-                      onChannelSelect={onChannelSelect}
-                    />
-                  </FadeIn>
+                    video={video}
+                    onSelect={onVideoSelect}
+                    onChannelSelect={onChannelSelect}
+                  />
                 );
               })}
             </div>
@@ -179,17 +171,16 @@ export function HomeSections({
                 <ArrowRight size={16} aria-hidden="true" />
               </button>
             </div>
-            <FadeInWithStagger className={styles.sectionGrid}>
+            <div className={styles.sectionGrid}>
               {randomVideos.map((video) => (
-                <FadeIn key={`random-${video.id}`}>
-                  <VideoCard
-                    video={video}
-                    onSelect={onVideoSelect}
-                    onChannelSelect={onChannelSelect}
-                  />
-                </FadeIn>
+                <VideoCard
+                  key={`random-${video.id}`}
+                  video={video}
+                  onSelect={onVideoSelect}
+                  onChannelSelect={onChannelSelect}
+                />
               ))}
-            </FadeInWithStagger>
+            </div>
           </section>
         </>
       )}

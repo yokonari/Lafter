@@ -1,6 +1,5 @@
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { motion } from "motion/react";
 import { fetchVideoItems, type VideoItem, type PlaylistItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
 import { PlaylistCard } from "./PlaylistCard";
@@ -37,10 +36,7 @@ export function SearchResults({
   const [nextOffset, setNextOffset] = useState(0);
   const PAGE_SIZE = 20;
 
-  const variants = {
-    invisible: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0 },
-  };
+
 
   useEffect(() => {
     let canceled = false;
@@ -233,60 +229,24 @@ export function SearchResults({
         <p className={styles.statusText}>検索結果が見つかりませんでした。</p>
       ) : (
         <div className={styles.searchGrid}>
-          {playlists.map((playlist, index) => {
-            const isPriority = index % PAGE_SIZE < 6;
+          {playlists.map((playlist) => {
             return (
-              <motion.div
+              <PlaylistCard
                 key={`playlist-${playlist.id}`}
-                variants={variants}
-                initial={isPriority ? "visible" : "invisible"}
-                whileInView="visible"
-                viewport={{ amount: 0, once: true }}
-                transition={
-                  isPriority
-                    ? { duration: 0 }
-                    : {
-                      opacity: { duration: 0.3 },
-                      y: { duration: 0.4 },
-                    }
-                }
-              >
-                <PlaylistCard
-                  playlist={playlist}
-                  onSelect={onPlaylistSelect}
-                  onChannelSelect={onChannelSelect}
-                />
-              </motion.div>
+                playlist={playlist}
+                onSelect={onPlaylistSelect}
+                onChannelSelect={onChannelSelect}
+              />
             );
           })}
-          {videos.map((video, index) => {
-            const isFirstPage = index < PAGE_SIZE;
-            const isPriority = isFirstPage
-              ? index + playlists.length < 6
-              : index % PAGE_SIZE < 6;
-
+          {videos.map((video) => {
             return (
-              <motion.div
+              <VideoCard
                 key={video.id}
-                variants={variants}
-                initial={isPriority ? "visible" : "invisible"}
-                whileInView="visible"
-                viewport={{ amount: 0, once: true }}
-                transition={
-                  isPriority
-                    ? { duration: 0 }
-                    : {
-                      opacity: { duration: 0.3 },
-                      y: { duration: 0.4 },
-                    }
-                }
-              >
-                <VideoCard
-                  video={video}
-                  onSelect={onVideoSelect}
-                  onChannelSelect={onChannelSelect}
-                />
-              </motion.div>
+                video={video}
+                onSelect={onVideoSelect}
+                onChannelSelect={onChannelSelect}
+              />
             );
           })}
         </div>

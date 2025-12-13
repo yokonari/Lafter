@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from "react";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -219,7 +219,12 @@ export function UserHome() {
 
   return (
     // 管理画面と同様に全体をダークトーンで包み込み、視覚的な統一感を丁寧に確保します。
-    <div className={styles.userLayout}>
+    <motion.div
+      className={styles.userLayout}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.2 }}
+    >
       <UserHeader
         query={searchInput}
         onQueryChange={setSearchInput}
@@ -237,24 +242,42 @@ export function UserHome() {
       {/* メインも暗めの背景に切り替え、上部ヘッダーとの境界を自然に馴染ませます。 */}
       {/* ヘッダー高さに合わせて上部余白も56px（pt-14）に揃え、重なりを防ぎます。 */}
       <main className={styles.main}>
-        {isSearching && (activeQuery || activeChannelId || activeMode) ? (
-          <SearchResults
-            query={activeQuery}
-            channelId={activeChannelId}
-            mode={activeMode}
-            onVideoSelect={handleVideoSelect}
-            onPlaylistSelect={handlePlaylistSelect}
-            onChannelSelect={handleChannelSelect}
-            onBackToTop={handleReset}
-          />
-        ) : (
-          <HomeSections
-            onVideoSelect={handleVideoSelect}
-            onChannelSelect={handleChannelSelect}
-            onShowNewList={handleShowNewList}
-            onShowRandomList={handleShowRandomList}
-          />
-        )}
+        <AnimatePresence mode="wait">
+          {isSearching && (activeQuery || activeChannelId || activeMode) ? (
+            <motion.div
+              key="search-results"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <SearchResults
+                query={activeQuery}
+                channelId={activeChannelId}
+                mode={activeMode}
+                onVideoSelect={handleVideoSelect}
+                onPlaylistSelect={handlePlaylistSelect}
+                onChannelSelect={handleChannelSelect}
+                onBackToTop={handleReset}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="home-sections"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <HomeSections
+                onVideoSelect={handleVideoSelect}
+                onChannelSelect={handleChannelSelect}
+                onShowNewList={handleShowNewList}
+                onShowRandomList={handleShowRandomList}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* スクロール可能なときにのみ表示し、ワンクリックでトップへ戻れる固定ボタンです。 */}
@@ -277,6 +300,6 @@ export function UserHome() {
         {isAboutOpen && <AboutPage onClose={() => setIsAboutOpen(false)} />}
       </AnimatePresence>
       <ToastContainer position="top-center" theme="dark" />
-    </div>
+    </motion.div>
   );
 }
