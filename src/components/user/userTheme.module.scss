@@ -135,6 +135,13 @@ $title-font-weight: 400;
   @media (min-width: 640px) {
     padding: 0 1.5rem; // PC: 24px (Admin PCと同じ)
   }
+
+  // モバイルではFlexboxレイアウトにしてアニメーションしやすくします
+  @media (max-width: 640px) {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
 }
 
 .headerSpacer {
@@ -146,15 +153,33 @@ $title-font-weight: 400;
 
 // モバイル検索モード時のヘッダー内レイアウト
 .headerInner[data-searching="true"] {
-  display: flex; // GridからFlexへ切り替えてレイアウト制御
-  align-items: center;
-  padding-left: 0.5rem; // 戻るボタン分の余白調整
-  gap: 0.5rem;
+  // .brandButton, .headerActions 等のアニメーション変化先を定義
+
+  .brandButton {
+    width: 0;
+    opacity: 0;
+    margin: 0;
+    pointer-events: none;
+  }
+
+  .headerActions {
+    width: 0;
+    opacity: 0;
+    padding: 0;
+    pointer-events: none;
+  }
+
+  .mobileBackButton {
+    width: 40px;
+    opacity: 1;
+    margin-right: 0; // gapで間隔制御するためmargin不要
+    pointer-events: auto;
+  }
 
   .searchArea {
-    grid-column: auto;
-    width: 100%;
-    max-width: none; // 幅制限を解除
+    // Flexbox内で自動的に広がるが、念のため
+    flex: 1;
+    max-width: none;
   }
 
   // 検索履歴を全画面化
@@ -193,7 +218,7 @@ $title-font-weight: 400;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
+  width: 0; // 初期状態は幅0で隠す
   height: 40px;
   border: none;
   background: none;
@@ -201,6 +226,15 @@ $title-font-weight: 400;
   cursor: pointer;
   flex-shrink: 0;
   border-radius: 9999px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition: width 0.3s ease, opacity 0.3s ease; // アニメーション設定
+
+  // PC以上では完全に非表示
+  @media (min-width: 641px) {
+    display: none;
+  }
 
   &:hover,
   &:focus-visible {
@@ -213,6 +247,10 @@ $title-font-weight: 400;
   align-items: center;
   justify-content: flex-end;
   gap: 0.5rem; // 複数のコントロールを並べても窮屈にならないよう余白を設けます。
+  flex-shrink: 0;
+  overflow: hidden; // アニメーション用に幅が縮んだ時の中身を隠す
+  transition: width 0.3s ease, opacity 0.3s ease;
+  // 初期幅はautoでよい
 }
 
 .usageButton {
@@ -240,6 +278,21 @@ $title-font-weight: 400;
   justify-self: flex-start;
   grid-column: 1;
   justify-self: flex-start;
+  transition: width 0.3s ease, opacity 0.3s ease, margin 0.3s ease; // アニメーション
+  overflow: hidden; // アニメーション用
+  flex-shrink: 0;
+}
+
+.brandLogo {
+  width: 100%;
+  height: auto;
+  min-width: 60px;
+  max-width: 90px;
+
+  @media (max-width: 640px) {
+    max-width: 70px;
+    min-width: 50px;
+  }
 }
 
 // h1 を使っても横並びのまま維持できるよう柔軟なインラインレイアウトを丁寧に整えます。

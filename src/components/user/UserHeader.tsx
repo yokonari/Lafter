@@ -159,35 +159,39 @@ export function UserHeader({
           className={styles.headerInner}
           data-searching={isMobile && isMobileSearchOpen}
         >
-          {!isMobileSearchOpen && (
-            <button type="button" onClick={onReset} className={styles.brandButton}>
-              {/* h1 は使わず汎用的なブロックで囲み、視覚デザインを変えずに柔軟なロゴ表現へ丁寧に調整します。 */}
-              <div className={styles.brandHeading}>
-                {/* 画面には出さずに SEO や支援技術へサイト名を丁寧に伝えます。 */}
-                <span className="sr-only">Lafter（ラフター）- お笑いネタ動画検索サイト</span>
-                {/* 画面幅が狭くなった際も丁寧にアスペクト比を保ったまま縮小させます。 */}
-                <Image
-                  src="/Lafter.png"
-                  alt="Lafter"
-                  width={195}
-                  height={49}
-                  style={{ width: "100%", minWidth: "60px", maxWidth: "90px", height: "auto" }}
-                  priority
-                />
-              </div>
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={onReset}
+            className={styles.brandButton}
+            aria-hidden={isMobile && isMobileSearchOpen}
+            tabIndex={isMobile && isMobileSearchOpen ? -1 : 0}
+          >
+            {/* h1 は使わず汎用的なブロックで囲み、視覚デザインを変えずに柔軟なロゴ表現へ丁寧に調整します。 */}
+            <div className={styles.brandHeading}>
+              {/* 画面には出さずに SEO や支援技術へサイト名を丁寧に伝えます。 */}
+              <span className="sr-only">Lafter（ラフター）- お笑いネタ動画検索サイト</span>
+              {/* 画面幅が狭くなった際も丁寧にアスペクト比を保ったまま縮小させます。 */}
+              <Image
+                src="/Lafter.png"
+                alt="Lafter"
+                width={195}
+                height={49}
+                className={styles.brandLogo}
+                priority
+              />
+            </div>
+          </button>
 
-          {isMobileSearchOpen && (
-            <button
-              type="button"
-              className={styles.mobileBackButton}
-              onClick={handleBack}
-              aria-label="検索を終了して戻る"
-            >
-              <ArrowLeft size={24} aria-hidden="true" />
-            </button>
-          )}
+          <button
+            type="button"
+            className={styles.mobileBackButton}
+            onClick={handleBack}
+            aria-label="検索を終了して戻る"
+            aria-hidden={!isMobileSearchOpen}
+            tabIndex={isMobileSearchOpen ? 0 : -1}
+          >
+            <ArrowLeft size={24} aria-hidden="true" />
+          </button>
 
           <div className={styles.searchArea} ref={searchAreaRef}>
             {/* サンプルと同等の見た目になるよう入力フィールドをシンプルに整形 */}
@@ -201,8 +205,8 @@ export function UserHeader({
                 setIsHistoryOpen(true);
                 handleMobileSearchTrigger();
               }}
-              placeholder="芸人名、動画タイトルなど"
-              aria-label="芸人名、動画タイトルなど"
+              placeholder="芸人名、動画タイトル"
+              aria-label="芸人名、動画タイトル"
               className={styles.searchInput}
               ref={searchInputRef}
             />
@@ -252,19 +256,21 @@ export function UserHeader({
               </div>
             )}
           </div>
-          {!isMobileSearchOpen && (
-            <div className={styles.headerActions}>
-              <button
-                type="button"
-                className={styles.usageButton}
-                onClick={onUsageOpen}
-                aria-label="使いかたを開く"
-              >
-                <CircleQuestionMark size={24} aria-hidden="true" />
-              </button>
-              <span className={styles.headerSpacer} aria-hidden />
-            </div>
-          )}
+          <div
+            className={styles.headerActions}
+            aria-hidden={isMobile && isMobileSearchOpen}
+          >
+            <button
+              type="button"
+              className={styles.usageButton}
+              onClick={onUsageOpen}
+              aria-label="使いかたを開く"
+              tabIndex={isMobile && isMobileSearchOpen ? -1 : 0}
+            >
+              <CircleQuestionMark size={24} aria-hidden="true" />
+            </button>
+            <span className={styles.headerSpacer} aria-hidden />
+          </div>
         </div>
       </header>
     </>
