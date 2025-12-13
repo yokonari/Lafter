@@ -89,6 +89,14 @@ async function fetchRandomVideos(db: D1Database, limit: number): Promise<RandomV
         WHERE
           v.status IN (1, 3)
           AND c.status = 1
+          AND v.id NOT IN (
+            SELECT v2.id
+            FROM videos v2
+            INNER JOIN channels c2 ON v2.channel_id = c2.id
+            WHERE v2.status IN (1, 3) AND c2.status = 1
+            ORDER BY v2.published_at DESC
+            LIMIT 500
+          )
         ORDER BY RANDOM()
         LIMIT ?
       `,
