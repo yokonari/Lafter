@@ -72,21 +72,7 @@ export function UserHeader({
     };
   }, [isMobileSearchOpen]);
 
-  // 検索ワードを API へ丁寧に記録し、失敗時は UI を止めずにログへ残します。
-  const logSearchKeyword = async (keyword: string) => {
-    try {
-      const res = await fetch("/api/search-logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keyword }),
-      });
-      if (!res.ok) {
-        console.warn("検索ログ送信に失敗しました", res.status);
-      }
-    } catch (error) {
-      console.error("検索ログ送信中に例外が発生しました", error);
-    }
-  };
+
 
   // Enter 押下と検索ボタンで同じロジックを共有する
   const triggerSearch = async (val: string) => {
@@ -95,7 +81,6 @@ export function UserHeader({
       setIsHistoryOpen(false);
       onMobileSearchClose();
       // サーバー側へ検索ログも送信し、分析に活用できるよう丁寧に記録します。
-      void logSearchKeyword(trimmed);
       onSearch(trimmed);
       // 実行後は入力をブラーしてソフトキーボードを丁寧に閉じます。
       searchInputRef.current?.blur();
