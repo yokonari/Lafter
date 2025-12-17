@@ -114,15 +114,15 @@ export function AboutPage({ onClose }: { onClose?: () => void }) {
             },
             {
                 icon: <Megaphone size={24} className={styles.usageIcon} aria-hidden="true" />,
-                title: "制作者",
+                title: "運営",
                 paragraphs: [
                     <a
                         key="section-author-link"
-                        href="https://x.com/_yokonari"
+                        href="https://x.com/lafter_day"
                         target="_blank"
                         rel="noreferrer"
                         className={styles.aboutLink}
-                    >よこなり</a>,
+                    >公式 X</a>,
                 ],
             },
             {
