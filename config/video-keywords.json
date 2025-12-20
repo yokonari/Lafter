@@ -75,7 +75,12 @@
     "反省会",
     "選手権",
     "爆食い",
-    "大食い"
+    "大食い",
+    "ギャルゲ",
+    "モンスト",
+    "vlog",
+    "VLOG",
+    "VLog"
   ],
   "positiveKeywordBonus": 0.4,
   "negativeKeywordPenalty": 0.4
