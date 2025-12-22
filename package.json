@@ -35,7 +35,8 @@
     "react-markdown": "^10.1.0",
     "react-toastify": "^11.0.5",
     "resend": "^6.4.2",
-    "sass": "^1.94.0"
+    "sass": "^1.94.0",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
