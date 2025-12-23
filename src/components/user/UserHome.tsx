@@ -12,7 +12,7 @@ import { SearchResults } from "./SearchResults";
 import { UserFooter } from "./UserFooter";
 import { VideoDialog } from "./VideoDialog";
 import { PlaylistDialog } from "./PlaylistDialog";
-import { AboutPage } from "./AboutPage";
+
 
 import { ReportDialog } from "./ReportDialog";
 import { ScrollTopButton } from "./ScrollTopButton";
@@ -35,7 +35,7 @@ export function UserHome() {
   const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
   const [dialogPlaylist, setDialogPlaylist] = useState<PlaylistItem | null>(null);
   const [reportVideo, setReportVideo] = useState<VideoItem | null>(null);
-  const [isAboutOpen, setIsAboutOpen] = useState(false);
+
 
   // 検索履歴関連の状態
   const [history, setHistory] = useState<string[]>([]);
@@ -215,6 +215,9 @@ export function UserHome() {
     updateUrl({ query: trimmed, channelId: undefined, mode: undefined });
   }, [updateUrl]);
 
+  // 復元処理中かどうかを管理し、復元中のスクロールイベントによる誤った上書き保存を防ぎます。
+
+
 
 
   return (
@@ -230,7 +233,6 @@ export function UserHome() {
         onQueryChange={setSearchInput}
         onSearch={performSearch}
         onReset={handleReset}
-        onUsageOpen={() => setIsAboutOpen(true)}
         history={history}
         onHistorySelect={performSearch}
         onHistoryDelete={handleHistoryDelete}
@@ -296,9 +298,7 @@ export function UserHome() {
       />
 
       <ReportDialog open={Boolean(reportVideo)} video={reportVideo} onClose={handleReportClose} onSuccess={handleReportSuccess} />
-      <AnimatePresence>
-        {isAboutOpen && <AboutPage onClose={() => setIsAboutOpen(false)} />}
-      </AnimatePresence>
+
       <ToastContainer position="top-center" theme="dark" />
     </motion.div>
   );

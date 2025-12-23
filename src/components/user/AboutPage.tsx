@@ -18,14 +18,7 @@ export function AboutPage({ onClose }: { onClose?: () => void }) {
     const donationRecipientEmail =
         process.env.NEXT_PUBLIC_CONTACT_TO_EMAIL ?? process.env.CONTACT_TO_EMAIL ?? "yokonari10@gmail.com";
 
-    // ダイアログ表示中は背面のスクロールを抑制し、ユーザーの操作範囲をダイアログ内に限定します。
-    useEffect(() => {
-        const originalStyle = window.getComputedStyle(document.body).overflow;
-        document.body.style.overflow = "hidden";
-        return () => {
-            document.body.style.overflow = originalStyle;
-        };
-    }, []);
+    // ダイアログではなくページとして表示するため、スクロール抑制ロジックは削除しました。
 
     // クリップボード API とフォールバックを用意し、クリック一度で確実にアドレスをコピーできるよう配慮します。
     const handleCopyDonationEmail = useCallback(() => {

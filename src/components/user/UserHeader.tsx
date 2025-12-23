@@ -1,6 +1,7 @@
 'use client';
 
 import Image from "next/image";
+import Link from "next/link";
 import { ArrowLeft, CircleQuestionMark, Search, X } from "lucide-react";
 import { ChangeEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import styles from "./userTheme.module.scss";
@@ -12,7 +13,7 @@ type UserHeaderProps = {
   onQueryChange: (value: string) => void;
   onSearch: (value: string) => void;
   onReset: () => void;
-  onUsageOpen: () => void;
+  // onUsageOpen removed
   history: string[];
   onHistorySelect: (word: string) => void;
   onHistoryDelete: (word: string) => void;
@@ -26,7 +27,7 @@ export function UserHeader({
   onQueryChange,
   onSearch,
   onReset,
-  onUsageOpen,
+  // onUsageOpen removed
   history,
   onHistorySelect,
   onHistoryDelete,
@@ -245,15 +246,14 @@ export function UserHeader({
             className={styles.headerActions}
             aria-hidden={isMobile && isMobileSearchOpen}
           >
-            <button
-              type="button"
+            <Link
+              href="/about"
               className={styles.usageButton}
-              onClick={onUsageOpen}
               aria-label="使いかたを開く"
               tabIndex={isMobile && isMobileSearchOpen ? -1 : 0}
             >
               <CircleQuestionMark size={24} aria-hidden="true" />
-            </button>
+            </Link>
             <span className={styles.headerSpacer} aria-hidden />
           </div>
         </div>

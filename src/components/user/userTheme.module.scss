@@ -1769,14 +1769,9 @@ $title-font-weight: 400;
 
 /* ------- このサイトについてページ ------- */
 .aboutPageLayout {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
+  @include user-variables;
+  min-height: 100vh;
   background-color: var(--user-bg);
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  -webkit-overflow-scrolling: touch;
-  height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
