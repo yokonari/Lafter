@@ -197,7 +197,8 @@
     "瞬間",
     "...",
     "…",
-    "ストリーム"
+    "ストリーム",
+    "抽選会"
   ],
   "positiveKeywordBonus": 0.4,
   "negativeKeywordPenalty": 0.4
