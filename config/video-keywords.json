@@ -196,7 +196,8 @@
     "一番",
     "瞬間",
     "...",
-    "…"
+    "…",
+    "ストリーム"
   ],
   "positiveKeywordBonus": 0.4,
   "negativeKeywordPenalty": 0.4
