@@ -151,7 +151,6 @@ async function registerChannel(db: DatabaseClient, id: string, name: string) {
             .set({
                 name: name,
                 status: 1,
-                lastCheckedAt: new Date().toISOString(),
             })
             .where(eq(channels.id, id));
     } else {
@@ -160,7 +159,6 @@ async function registerChannel(db: DatabaseClient, id: string, name: string) {
             id,
             name,
             status: 1,
-            lastCheckedAt: new Date().toISOString(),
         });
     }
 }
