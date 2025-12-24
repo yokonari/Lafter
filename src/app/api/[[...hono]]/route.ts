@@ -19,6 +19,7 @@ import { registerPostAdminVideosCache } from "./routes/post-admin-videos-cache";
 import { authMiddleware } from "@/lib/middleware/auth";
 import { apiSecretMiddleware } from "@/lib/middleware/api-secret";
 import type { AdminEnv } from "./types";
+import { registerPostAdminChannelRegister } from "./routes/post-admin-channel-register";
 
 const app = new Hono<AdminEnv>().basePath("/api");
 
@@ -37,6 +38,7 @@ registerGetAdminPlaylists(app);
 registerPostAdminPlaylistBulk(app);
 registerGetAdminChannels(app);
 registerPostAdminChannelBulk(app);
+registerPostAdminChannelRegister(app);
 registerPostAdminPlaylistsCheck(app);
 registerPostVideosCheck(app);
 registerPostVideosRss(app);

@@ -182,19 +182,21 @@ export function SearchResults({
     <div className={styles.searchContainer}>
       <div className={styles.searchHeader}>
         {/* 一覧画面の冒頭にトップへ戻る導線を設け、ホームへの遷移を丁寧に補助します。 */}
-        <button
-          type="button"
-          className={styles.searchBackLink}
-          onClick={() => {
-            onBackToTop();
-            if (typeof window !== "undefined") {
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }
-          }}
-        >
-          <ArrowLeft aria-hidden="true" size={16} />
-          <span>トップへ戻る</span>
-        </button>
+        <div>
+          <button
+            type="button"
+            className={styles.searchBackLink}
+            onClick={() => {
+              onBackToTop();
+              if (typeof window !== "undefined") {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
+          >
+            <ArrowLeft aria-hidden="true" size={16} />
+            <span>トップへ戻る</span>
+          </button>
+        </div>
         {/* メインタイトルはh1へ切り替え、視覚的な見た目は既存スタイルを活用して変化させません。 */}
         <div className={styles.sectionHeadingWrap}>
           <h1 className={styles.searchTitle}>

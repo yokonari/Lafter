@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useCallback } from "react";
+
 import {
   ChannelBulkManager,
   type ChannelRow,
@@ -50,6 +51,7 @@ export function ChannelAdminSection({
   });
   const [searchMode, setSearchMode] = useState(false);
   const [currentTotalCount, setCurrentTotalCount] = useState(totalCount);
+
   // 子コンポーネントが発火するトーストも含めて右下固定へ統一し、操作感を揃えます。
   useAdminToast();
 
@@ -147,6 +149,8 @@ export function ChannelAdminSection({
     return { items: mapped, hasNext: Boolean(data?.hasNext), totalCount: data?.totalCount };
   }, [channelStatus]);
 
+
+
   const isPendingFilter = channelStatus === 0;
   const isRegisteredFilter = channelStatus === 1;
   const isNgFilter = channelStatus === 2;
@@ -227,7 +231,21 @@ export function ChannelAdminSection({
             NG{isNgFilter && `(${currentTotalCount.toLocaleString()}件)`}
           </button>
         </div>
+
+        <div className={styles.actionButtons}>
+          <button
+            type="button"
+            onClick={() => router.push("/admin/channels/register")}
+            className={styles.primaryButton}
+            style={{ marginLeft: "auto" }}
+          >
+            チャンネル追加
+          </button>
+        </div>
       </div>
+
+
+
       <ChannelBulkManager
         channels={channels}
         currentPage={pagination.currentPage}

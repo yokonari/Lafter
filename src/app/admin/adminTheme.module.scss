@@ -909,3 +909,35 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   padding: 0.75rem 1rem;
   // 成功・失敗に関わらず読みやすい中立色で、認証ステータスを丁寧に伝えます。
 }
+
+/* ------- チャンネル登録フォーム ------- */
+.registerTextArea {
+  @include focusable-input;
+  width: 100%;
+  resize: vertical;
+  min-height: 150px;
+  font-family: monospace;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background-color: var(--admin-surface-muted);
+  color: var(--admin-text);
+  line-height: 1.5;
+}
+
+.buttonRow {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.headerTitle {
+  @extend .headerText;
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.registerDescription {
+  @extend .metaText;
+  margin-bottom: 1rem;
+}
