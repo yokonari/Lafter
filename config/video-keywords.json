@@ -198,7 +198,8 @@
     "...",
     "…",
     "ストリーム",
-    "抽選会"
+    "抽選会",
+    "舞台裏"
   ],
   "positiveKeywordBonus": 0.4,
   "negativeKeywordPenalty": 0.4
