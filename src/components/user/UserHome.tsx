@@ -224,9 +224,9 @@ export function UserHome() {
     // 管理画面と同様に全体をダークトーンで包み込み、視覚的な統一感を丁寧に確保します。
     <motion.div
       className={styles.userLayout}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.2 }}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
     >
       <UserHeader
         query={searchInput}

@@ -147,10 +147,10 @@ export function AboutPage({ onClose }: { onClose?: () => void }) {
     return (
         <motion.div
             className={styles.aboutPageLayout}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
         >
             <div className={styles.aboutPageBackWrap}>
                 <button type="button" onClick={handleBack} className={styles.aboutPageBackLink}>
