@@ -199,7 +199,9 @@
     "…",
     "ストリーム",
     "抽選会",
-    "舞台裏"
+    "舞台裏",
+    "呑み",
+    "届いた"
   ],
   "positiveKeywordBonus": 0.4,
   "negativeKeywordPenalty": 0.4
