@@ -66,7 +66,8 @@ async function runVideoRssCron(env: CronEnv) {
       const channelsWithMaxInserts = summary?.channelsWithMaxInserts;
       if (Array.isArray(channelsWithMaxInserts) && channelsWithMaxInserts.length > 0) {
         console.log(`[cron-video-rss] 追加検索対象チャンネル: ${channelsWithMaxInserts.length}件`);
-        const searchBaseUrl = `${base}/admin/channels/search`;
+        // /admin/channels/search はセッション認証が必要なため、APIシークレット権限で叩ける /channels/search を使用します。
+        const searchBaseUrl = `${base}/channels/search`;
         const threeDaysAgo = new Date();
         threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
         const publishedAfter = threeDaysAgo.toISOString();

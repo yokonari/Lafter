@@ -102,10 +102,8 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
           summary.itemsSkipped += upsertResult.skipped;
 
           // 登録件数が上限に達している場合は追加検索の候補として丁寧にリストアップします。
-          // NOTE: entries.length ではなく insertable.length で見るべきか検討しましたが、
-          // NGワード除外などが機能した場合も「RSSフィードに大量の新しい動画があった」という事実は変わらないため、
-          // entries.length（＝RSSから取得した有効な件数）で判定を行っています。
-          if (entries.length >= MAX_ITEMS_PER_CHANNEL) {
+          // ユーザー要望により、取得件数ではなく「実際に保存（新規登録）された動画数」が上限に達した場合を条件とします。
+          if (upsertResult.inserted >= MAX_ITEMS_PER_CHANNEL) {
             summary.channelsWithMaxInserts.push(channel.id);
           }
         }
