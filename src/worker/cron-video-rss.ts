@@ -62,6 +62,44 @@ async function runVideoRssCron(env: CronEnv) {
         `inserted=${summary?.itemsInserted ?? "?"}`,
         `errors=${Array.isArray(summary?.errors) ? summary.errors.length : "?"}`,
       );
+
+      const channelsWithMaxInserts = summary?.channelsWithMaxInserts;
+      if (Array.isArray(channelsWithMaxInserts) && channelsWithMaxInserts.length > 0) {
+        console.log(`[cron-video-rss] 追加検索対象チャンネル: ${channelsWithMaxInserts.length}件`);
+        const searchBaseUrl = `${base}/admin/channels/search`;
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+        const publishedAfter = threeDaysAgo.toISOString();
+
+        for (const channelId of channelsWithMaxInserts) {
+          if (typeof channelId !== "string") continue;
+
+          console.log(`[cron-video-rss] 追加検索を実行します channel=${channelId}`);
+          try {
+            // クエリパラメータで指定して検索APIを呼び出します。
+            const searchUrl = new URL(searchBaseUrl);
+            searchUrl.searchParams.set("channelId", channelId);
+            searchUrl.searchParams.set("isFullSearch", "false");
+            searchUrl.searchParams.set("publishedAfter", publishedAfter);
+
+            const searchRes = await fetch(searchUrl.toString(), {
+              method: "POST",
+              headers: {
+                [ADMIN_SECRET_HEADER]: secret,
+              },
+            });
+
+            if (!searchRes.ok) {
+              console.error(`[cron-video-rss] 追加検索に失敗しました channel=${channelId} status=${searchRes.status}`, await searchRes.text());
+            } else {
+              const searchSummary = await searchRes.json() as { videosInserted?: number };
+              console.log(`[cron-video-rss] 追加検索完了 channel=${channelId} inserted=${searchSummary?.videosInserted ?? "?"}`);
+            }
+          } catch (error) {
+            console.error(`[cron-video-rss] 追加検索呼び出しでエラーが発生しました channel=${channelId}`, error);
+          }
+        }
+      }
     } catch {
       console.log("[cron-video-rss] RSS 同期完了 (応答JSONのパースに失敗しました)");
     }

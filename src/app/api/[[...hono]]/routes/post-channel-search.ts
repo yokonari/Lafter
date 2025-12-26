@@ -146,15 +146,29 @@ export function registerPostChannelSearch<
         );
       }
 
+      const skipStats = {
+        channelFilter: 0,
+        videoFilter: 0,
+        exists: 0,
+        error: 0
+      };
+
       for (const item of limitedVideoItems) {
         if (!item.videoId || !item.channelId) continue;
         const resolvedTitle = item.channelTitle || channelTitleFallback;
-        if (shouldSkipChannel(resolvedTitle ?? "")) continue;
-        if (shouldSkipVideo(item.title)) continue;
+        // チャンネル名のNGチェックは行わないため、フィルタリング処理を削除しました。
+        // if (shouldSkipChannel(resolvedTitle ?? "")) continue;
+        if (shouldSkipVideo(item.title)) {
+          skipStats.videoFilter++;
+          continue;
+        }
 
         try {
           const exists = await videoExists(db, item.videoId);
-          if (exists) continue;
+          if (exists) {
+            skipStats.exists++;
+            continue;
+          }
           await ensureChannel(db, ensuredChannels, item.channelId, resolvedTitle);
           await insertVideo(db, {
             id: item.videoId,
@@ -164,7 +178,9 @@ export function registerPostChannelSearch<
           });
           summary.videosInserted += 1;
         } catch (error) {
+          skipStats.error++;
           if (isUniqueConstraintError(error)) {
+            skipStats.exists++; // 重複エラーも実質existsとしてカウント
             continue;
           }
           logSqlError(error);
@@ -174,12 +190,12 @@ export function registerPostChannelSearch<
           );
         }
       }
-      console.log(`[channel-search] 動画登録 success count=${summary.videosInserted}`);
+      console.log(`[channel-search] 動画登録 success=${summary.videosInserted} skipped(channel=${skipStats.channelFilter}, video=${skipStats.videoFilter}, exists=${skipStats.exists}, error=${skipStats.error})`);
 
       for (const item of playlistItems) {
         if (!item.playlistId || !item.channelId) continue;
         const resolvedTitle = item.channelTitle || channelTitleFallback;
-        if (shouldSkipChannel(resolvedTitle ?? "")) continue;
+        // if (shouldSkipChannel(resolvedTitle ?? "")) continue;
 
         try {
           const existing = await getPlaylist(db, item.playlistId);
@@ -244,6 +260,8 @@ export function registerPostChannelSearch<
   };
 
   app.post("/channels/search", handler);
+  // 管理画面からの呼び出し用（認証ミドルウェアを経由させるため /admin プレフィックスを付与）
+  app.post("/admin/channels/search", handler);
 }
 
 async function searchChannelItems(
@@ -260,9 +278,9 @@ async function searchChannelItems(
   while (hasMore && pageFetchCount < MAX_SEARCH_PAGES) {
     const url = new URL(SEARCH_BASE_URL);
     url.searchParams.set("part", "snippet");
-    url.searchParams.set("type", "video,playlist");
     url.searchParams.set("channelId", channelId);
     url.searchParams.set("q", "ネタ");
+    url.searchParams.set("type", "video,playlist");
     url.searchParams.set("maxResults", String(MAX_RESULTS_PER_PAGE));
     url.searchParams.set("safeSearch", "none");
     url.searchParams.set("regionCode", "JP");
@@ -509,6 +527,7 @@ function shouldSkipVideo(title: string): boolean {
   return false;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function shouldSkipChannel(name: string): boolean {
   const normalized = name.toLowerCase();
   const hasNegative = NEGATIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));

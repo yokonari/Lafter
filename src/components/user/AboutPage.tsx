@@ -1,7 +1,7 @@
 'use client';
 
 import { CircleQuestionMark, Flag, Gift, Info, Megaphone, PlaySquare, Search, ArrowLeft } from "lucide-react";
-import { Fragment, useCallback, useEffect, useMemo } from "react";
+import { Fragment, useCallback, useMemo } from "react";
 import { motion } from "motion/react";
 import { toast, ToastContainer } from "react-toastify";
 import type { ReactNode } from "react";

@@ -187,7 +187,7 @@ export function UserHeader({
               value={query}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
-              onFocus={(e) => {
+              onFocus={() => {
                 setIsHistoryOpen(true);
                 handleMobileSearchTrigger();
               }}

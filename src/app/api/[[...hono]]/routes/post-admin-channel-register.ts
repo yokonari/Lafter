@@ -1,4 +1,4 @@
-import { type Hono, type Context } from "hono";
+import { type Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import { channels } from "@/lib/schema";

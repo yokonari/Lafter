@@ -236,6 +236,7 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
     background-color: var(--admin-surface-muted);
     color: var(--admin-text);
     padding: 0.5rem 0.75rem;
+    font-size: 1rem; // 入力欄の文字サイズを1remに統一します
   }
 
   .clearButton {
@@ -514,7 +515,7 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   background-color: var(--admin-surface-alt);
   color: var(--admin-text-light);
   padding: 0.5rem 0.85rem;
-  font-size: 0.875rem;
+  font-size: 1rem; // 入力欄の文字サイズを1remに統一します
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 
   &:focus {
@@ -848,7 +849,7 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 .loginInput {
   border-radius: 0.75rem;
   padding: 0.6rem 0.85rem;
-  font-size: 0.95rem;
+  font-size: 1rem; // 入力欄の文字サイズを1remに統一します
   @include focusable-input;
 
   &:disabled {
@@ -922,6 +923,7 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   background-color: var(--admin-surface-muted);
   color: var(--admin-text);
   line-height: 1.5;
+  font-size: 1rem; // 入力欄の文字サイズを1remに統一します
 }
 
 .buttonRow {

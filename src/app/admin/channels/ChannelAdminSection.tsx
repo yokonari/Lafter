@@ -235,6 +235,13 @@ export function ChannelAdminSection({
         <div className={styles.actionButtons}>
           <button
             type="button"
+            onClick={() => router.push("/admin/channels/video-search")}
+            className={styles.primaryButton}
+          >
+            動画検索
+          </button>
+          <button
+            type="button"
             onClick={() => router.push("/admin/channels/register")}
             className={styles.primaryButton}
             style={{ marginLeft: "auto" }}

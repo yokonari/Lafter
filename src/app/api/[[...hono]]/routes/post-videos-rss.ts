@@ -68,6 +68,7 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
       itemsInserted: 0,
       itemsSkipped: 0,
       errors: [] as string[],
+      channelsWithMaxInserts: [] as string[],
     };
 
     for (const channel of targetChannels) {
@@ -99,6 +100,14 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
           const upsertResult = await insertVideosSafely(db, insertable);
           summary.itemsInserted += upsertResult.inserted;
           summary.itemsSkipped += upsertResult.skipped;
+
+          // 登録件数が上限に達している場合は追加検索の候補として丁寧にリストアップします。
+          // NOTE: entries.length ではなく insertable.length で見るべきか検討しましたが、
+          // NGワード除外などが機能した場合も「RSSフィードに大量の新しい動画があった」という事実は変わらないため、
+          // entries.length（＝RSSから取得した有効な件数）で判定を行っています。
+          if (entries.length >= MAX_ITEMS_PER_CHANNEL) {
+            summary.channelsWithMaxInserts.push(channel.id);
+          }
         }
 
         summary.channelsProcessed += 1;
