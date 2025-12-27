@@ -45,7 +45,7 @@ type SearchItem = {
 const SEARCH_BASE_URL = "https://www.googleapis.com/youtube/v3/search";
 const MAX_RESULTS_PER_PAGE = 50;
 const MAX_VIDEOS_TO_SAVE = 300; // API が大量件数を返しても保存・分類処理は300件に丁寧に制限します。
-const MAX_SEARCH_PAGES = 6; // Search API 呼び出し回数も 6 ページまでに抑え、リクエスト総量を丁寧に制御します。
+const ABSOLUTE_MAX_PAGES = 6; // ユーザー指定のページ数上限（安全策）
 
 export function registerPostChannelSearch<
   E extends import("hono").Env,
@@ -71,7 +71,8 @@ export function registerPostChannelSearch<
 
     // チャンネルIDの受け取りはクエリ・JSON双方に配慮し、柔軟に対応いたします。
     let channelId = (c.req.query("channelId") ?? "").trim();
-    let isFullSearch = parseBooleanInput(c.req.query("isFullSearch"));
+    // デフォルトは6ページとします
+    let maxPages = parseInt(c.req.query("maxPages") || "6", 10);
     let publishedAfter = (c.req.query("publishedAfter") ?? "").trim();
 
     let requestJsonBody: unknown = null;
@@ -84,12 +85,15 @@ export function registerPostChannelSearch<
       }
     }
     if (requestJsonBody && typeof requestJsonBody === "object") {
-      const body = requestJsonBody as { channelId?: unknown; isFullSearch?: unknown; publishedAfter?: unknown };
+      const body = requestJsonBody as { channelId?: unknown; maxPages?: unknown; publishedAfter?: unknown };
       if (!channelId && typeof body.channelId === "string") {
         channelId = body.channelId.trim();
       }
-      if (isFullSearch === null) {
-        isFullSearch = parseBooleanInput(body.isFullSearch);
+      if (body.maxPages !== undefined && body.maxPages !== null) {
+        const parsed = parseInt(String(body.maxPages), 10);
+        if (!isNaN(parsed)) {
+          maxPages = parsed;
+        }
       }
       if (!publishedAfter && typeof body.publishedAfter === "string") {
         publishedAfter = body.publishedAfter.trim();
@@ -99,14 +103,18 @@ export function registerPostChannelSearch<
     if (!channelId) {
       return c.json({ message: "channelId を指定してください。" }, 400);
     }
-    const fullSearchFlag = isFullSearch ?? false;
+
+    // 安全のため上限を適用します
+    if (maxPages > ABSOLUTE_MAX_PAGES) maxPages = ABSOLUTE_MAX_PAGES;
+    if (maxPages < 1) maxPages = 1;
+
     // チャンネル検索の開始を丁寧にログへ残し、実行条件を把握しやすくします。
-    console.log(`[channel-search] チャンネル ${channelId} の検索を開始します (fullSearch=${fullSearchFlag}, publishedAfter=${publishedAfter || "なし"})`);
+    console.log(`[channel-search] チャンネル ${channelId} の検索を開始します (maxPages=${maxPages}, publishedAfter=${publishedAfter || "なし"})`);
 
     try {
       // チャンネルに紐づく動画・再生リストを指定件数ずつ丁寧に収集します。
       const searchItems = await searchChannelItems(channelId, apiKey, {
-        isFullSearch: fullSearchFlag,
+        maxPages: maxPages,
         publishedAfter: publishedAfter || undefined,
       });
       const videoItems = searchItems.filter((i) => i.idKind === "youtube#video");
@@ -121,7 +129,7 @@ export function registerPostChannelSearch<
       const ensuredChannels = new Set<string>();
       const summary = {
         channelId,
-        isFullSearch: fullSearchFlag,
+        maxPages,
         fetched: searchItems.length,
         videosInserted: 0,
         playlistsInserted: 0,
@@ -267,7 +275,7 @@ export function registerPostChannelSearch<
 async function searchChannelItems(
   channelId: string,
   apiKey: string,
-  options: { isFullSearch: boolean; publishedAfter?: string },
+  options: { maxPages: number; publishedAfter?: string },
 ): Promise<SearchItem[]> {
   const items: SearchItem[] = [];
   let pageToken: string | undefined;
@@ -275,7 +283,7 @@ async function searchChannelItems(
   let pageFetchCount = 0;
 
   // 追加取得が必要な場合に nextPageToken を繰り返し使い回します。
-  while (hasMore && pageFetchCount < MAX_SEARCH_PAGES) {
+  while (hasMore && pageFetchCount < options.maxPages) {
     const url = new URL(SEARCH_BASE_URL);
     url.searchParams.set("part", "snippet");
     url.searchParams.set("channelId", channelId);
@@ -329,24 +337,16 @@ async function searchChannelItems(
         ),
     );
 
-    pageToken = options.isFullSearch ? data.nextPageToken : undefined;
-    hasMore = Boolean(options.isFullSearch && pageToken);
+    pageToken = data.nextPageToken;
+    // 次のページトークンがあり、かつ指定ページ数に達していなければ継続します
+    hasMore = Boolean(pageToken);
     pageFetchCount += 1;
-    // 取得ページ数が上限へ達した場合は options.isFullSearch に関係なく丁寧に打ち切ります。
   }
 
   return items;
 }
 
-function parseBooleanInput(value: unknown): boolean | null {
-  if (typeof value === "boolean") return value;
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (normalized === "true" || normalized === "1") return true;
-    if (normalized === "false" || normalized === "0") return false;
-  }
-  return null;
-}
+
 
 function extractVideoIdFromThumbnailUrl(url?: string): string | null {
   if (!url) {

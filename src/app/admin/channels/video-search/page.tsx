@@ -22,6 +22,7 @@ export default function VideoSearchPage() {
     const [searching, setSearching] = useState(false);
     const [channels, setChannels] = useState<Channel[]>([]);
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
+    const [maxPages, setMaxPages] = useState(2);
     const [executing, setExecuting] = useState(false);
 
     // トースト通知の統一
@@ -81,7 +82,11 @@ export default function VideoSearchPage() {
                 body: JSON.stringify({
                     channelId: selectedChannelId,
                     publishedAfter,
-                    isFullSearch: false,
+                    body: JSON.stringify({
+                        channelId: selectedChannelId,
+                        publishedAfter,
+                        maxPages,
+                    }),
                 }),
             });
 
@@ -105,7 +110,7 @@ export default function VideoSearchPage() {
             <div className={styles.section}>
                 <div className={styles.header}>
                     <h2 className={styles.headerTitle}>
-                        動画検索と取り込み
+                        チャンネル指定でYoutube search APIを2P取得します。
                     </h2>
                 </div>
 
@@ -209,6 +214,20 @@ export default function VideoSearchPage() {
                                         >
                                             戻る
                                         </button>
+                                        <div className="flex items-center gap-2 mr-2 ml-2">
+                                            <label htmlFor="maxPages" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                取得ページ数:
+                                            </label>
+                                            <input
+                                                id="maxPages"
+                                                type="number"
+                                                min={1}
+                                                max={6}
+                                                value={maxPages}
+                                                onChange={(e) => setMaxPages(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
+                                                className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                            />
+                                        </div>
                                         <button
                                             type="button"
                                             onClick={handleExecute}

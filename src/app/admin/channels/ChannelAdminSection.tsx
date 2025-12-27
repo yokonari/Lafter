@@ -230,9 +230,23 @@ export function ChannelAdminSection({
           >
             NG{isNgFilter && `(${currentTotalCount.toLocaleString()}件)`}
           </button>
+          <button
+            type="button"
+            onClick={() => router.push("/admin/channels/video-search")}
+            className={styles.primaryButton}
+          >
+            動画登録
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/admin/channels/register")}
+            className={styles.primaryButton}
+          >
+            チャンネル追加
+          </button>
         </div>
 
-        <div className={styles.actionButtons}>
+        {/* <div className={styles.actionButtons}>
           <button
             type="button"
             onClick={() => router.push("/admin/channels/video-search")}
@@ -248,7 +262,7 @@ export function ChannelAdminSection({
           >
             チャンネル追加
           </button>
-        </div>
+        </div> */}
       </div>
 
 
