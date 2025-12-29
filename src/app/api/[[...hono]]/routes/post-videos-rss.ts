@@ -19,6 +19,7 @@ type FeedEntry = {
   videoId: string;
   title: string;
   publishedAt?: string;
+  views?: string; // 視聴回数（未公開動画の判定に使用）
 };
 
 type VideoInsertRow = typeof videos.$inferInsert;
@@ -84,6 +85,7 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
         // RSS エントリを動画テーブルへ登録する際に必要な情報を整形し、不要な項目を丁寧に除外します。
         const insertable = entries
           .filter((entry) => entry.videoId && entry.title)
+          .filter((entry) => entry.views !== "0") // views="0"の未公開動画をスキップ
           .filter((entry) => !shouldSkipVideo(entry.title))
           .map((entry) => ({
             id: entry.videoId,
@@ -242,6 +244,7 @@ function parseChannelFeed(xml: string): { channelTitle?: string; entries: FeedEn
     const videoId = extractTag(rawEntry, "yt:videoId");
     const title = extractTag(rawEntry, "title");
     const published = extractTag(rawEntry, "published");
+    const views = extractViewsAttribute(rawEntry); // 視聴回数を抽出
     if (!videoId || !title) {
       continue;
     }
@@ -249,6 +252,7 @@ function parseChannelFeed(xml: string): { channelTitle?: string; entries: FeedEn
       videoId,
       title,
       publishedAt: published,
+      views,
     });
     if (entries.length >= MAX_ITEMS_PER_CHANNEL) {
       break;
@@ -266,6 +270,12 @@ function extractTag(xml: string, tagName: string): string | undefined {
     return undefined;
   }
   return decodeXmlEntities(match[1].trim());
+}
+
+// media:statistics タグから views 属性を抽出する関数
+function extractViewsAttribute(xml: string): string | undefined {
+  const match = xml.match(/<media:statistics\s+views="([^"]*)"/i);
+  return match ? match[1] : undefined;
 }
 
 function decodeXmlEntities(value: string): string {
