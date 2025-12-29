@@ -148,6 +148,13 @@
       "when": 1765013868210,
       "tag": "0020_complex_runaways",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1767000254762,
+      "tag": "0021_glossy_talkback",
+      "breakpoints": true
     }
   ]
 }

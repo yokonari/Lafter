@@ -9,8 +9,8 @@ async function main() {
   const appendMode = args.has("--append");
   const noTransaction = args.has("--no-transaction");
   const rootDir = process.cwd();
-  const csvPath = path.resolve(rootDir, "data/channels/channel_name_alias.local.csv");
-  // const csvPath = path.resolve(rootDir, "data/channels/channel_name_alias.csv");
+  // const csvPath = path.resolve(rootDir, "data/channels/channel_name_alias.local.csv");
+  const csvPath = path.resolve(rootDir, "data/channels/channel_name_alias.csv");
   const sqlOutputPath = path.resolve(rootDir, "migrations-temp/aliases_seed.sql");
 
   // CSV 全体を一括読み込みし、行単位で丁寧に解析します。

@@ -11,6 +11,15 @@ import type { AppDatabase } from "../context";
 type YouTubeVideosResponse = {
   items?: Array<{
     id?: string | null;
+    snippet?: {
+      publishedAt?: string;
+      channelId?: string;
+      title?: string;
+    };
+    statistics?: {
+      viewCount?: string;
+      likeCount?: string;
+    };
   }>;
 };
 
@@ -19,6 +28,17 @@ const VIDEO_CHECK_QUEUE_KEY = "checkQueue:videos:v1";
 const VIDEO_CHECK_CURSOR_KEY = "checkQueue:videos:cursor";
 const FRESH_VIDEO_LOOKBACK_HOURS = 24;
 const FRESH_VIDEO_BATCH_LIMIT = 10;
+
+/**
+ * 再生数といいね数から人気度スコアを計算します
+ * @param viewCount 再生数
+ * @param likeCount いいね数
+ * @returns 人気度スコア(整数、1000倍して丸めた値)
+ */
+function calculatePopularityScore(viewCount: number, likeCount: number): number {
+  const score = Math.log(viewCount + 1) + 2 * Math.log(likeCount + 1);
+  return Math.round(score * 1000);
+}
 
 export function registerPostVideosCheck(app: Hono<AdminEnv>) {
   // Queue 再構築専用エンドポイントを日次ジョブから叩き、重い SELECT を 1 日 1 回に抑えます。
@@ -95,8 +115,8 @@ export function registerPostVideosCheck(app: Hono<AdminEnv>) {
     }
 
     const url = new URL("https://www.googleapis.com/youtube/v3/videos");
-    // 取得する情報を最小限に抑え、クォータ消費を丁寧に節約します。
-    url.searchParams.set("part", "status");
+    // 動画の統計情報(再生数、いいね数)を取得するため snippet と statistics を含めます。
+    url.searchParams.set("part", "snippet,statistics");
     url.searchParams.set("id", ids.join(","));
     url.searchParams.set("maxResults", String(Math.min(ids.length, MAX_BATCH_SIZE)));
     url.searchParams.set("key", apiKey);
@@ -126,19 +146,51 @@ export function registerPostVideosCheck(app: Hono<AdminEnv>) {
       return fail("YouTube API の応答を JSON として解釈できませんでした。", 502);
     }
 
-    const foundIds = new Set(
-      (data.items ?? [])
-        .map((item) => (typeof item.id === "string" ? item.id : null))
-        .filter((id): id is string => Boolean(id)),
-    );
+    // 動画IDと統計情報のマップを作成します。
+    const videoStats = new Map<
+      string,
+      {
+        viewCount: number;
+        likeCount: number;
+        popularityScore: number;
+      }
+    >();
 
+    for (const item of data.items ?? []) {
+      if (typeof item.id === "string" && item.id) {
+        const viewCount = Number.parseInt(item.statistics?.viewCount ?? "0", 10);
+        const likeCount = Number.parseInt(item.statistics?.likeCount ?? "0", 10);
+        const popularityScore = calculatePopularityScore(viewCount, likeCount);
+
+        videoStats.set(item.id, {
+          viewCount,
+          likeCount,
+          popularityScore,
+        });
+      }
+    }
+
+    const foundIds = new Set(videoStats.keys());
     const missingIds = ids.filter((id) => !foundIds.has(id));
-    const existingIds = ids.filter((id) => foundIds.has(id));
+    const existingIds = Array.from(foundIds);
 
     const now = new Date().toISOString();
     if (existingIds.length > 0) {
-      // 存在確認できた動画は lastCheckedAt を丁寧に更新し、次回チェックを後回しにします。
-      await db.update(videos).set({ lastCheckedAt: now }).where(inArray(videos.id, existingIds));
+      // 存在確認できた動画は lastCheckedAt と統計情報を丁寧に更新します。
+      for (const videoId of existingIds) {
+        const stats = videoStats.get(videoId);
+        if (stats) {
+          await db
+            .update(videos)
+            .set({
+              lastCheckedAt: now,
+              viewCount: stats.viewCount,
+              likeCount: stats.likeCount,
+              popularityScore: stats.popularityScore,
+            })
+            .where(inArray(videos.id, [videoId]));
+        }
+      }
     }
 
     let deletedCount = 0;

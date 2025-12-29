@@ -68,6 +68,12 @@ export const videos = sqliteTable(
     // 報告対応状況を丁寧に保持し、0 = 未処理 を初期値とします。
     reportStatus: integer("report_status").notNull().default(0),
     lastCheckedAt: text("last_checked_at"),
+    // 動画の再生数を保持します(NULL可能)
+    viewCount: integer("view_count"),
+    // 動画のいいね数を保持します(NULL可能)
+    likeCount: integer("like_count"),
+    // 並び替え用の人気度スコアを保持します(NULL可能)
+    popularityScore: integer("popularity_score"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
