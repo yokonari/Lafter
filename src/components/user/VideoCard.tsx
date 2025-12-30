@@ -14,9 +14,15 @@ type VideoCardProps = {
 // 数値を日本語形式でフォーマットする関数
 function formatNumber(num: number): string {
   if (num >= 100000000) {
-    return `${(num / 100000000).toFixed(1)}億`;
+    // 1億以上は小数点なしで整数表示
+    return `${Math.round(num / 100000000)}億`;
+  }
+  if (num >= 100000) {
+    // 10万以上は小数点なしで整数表示
+    return `${Math.round(num / 10000)}万`;
   }
   if (num >= 10000) {
+    // 1万以上10万未満は小数点1桁表示
     return `${(num / 10000).toFixed(1)}万`;
   }
   return num.toLocaleString("ja-JP");

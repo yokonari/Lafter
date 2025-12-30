@@ -278,9 +278,10 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     if (mode === "random") {
       // ランダムモードは常にランダムソート
       orderedVideoQuery = baseVideoQuery.orderBy(sql`RANDOM()`);
-    } else if (sort === "views" || mode === "views") {
+    } else if (sort === "views" || mode === "views" || (mode === "popular" && sort !== "likes")) {
       // 再生数順: view_count の降順、次に公開日の降順
       // 再生数モードも再生数でソートします
+      // mode=popular でキャッシュがない場合も再生数順にソートします（sort=likes以外）
       orderedVideoQuery = baseVideoQuery.orderBy(desc(videos.viewCount), desc(videos.publishedAt));
     } else if (sort === "likes") {
       // 高評価順: like_count の降順、次に公開日の降順
