@@ -8,11 +8,34 @@ type VideoCardProps = {
   video: VideoItem;
   onSelect: (video: VideoItem) => void;
   onChannelSelect: (channelId: string) => void;
+  displayStat?: "views" | "likes"; // 表示する統計情報を指定
 };
 
-export function VideoCard({ video, onSelect, onChannelSelect }: VideoCardProps) {
+// 数値を日本語形式でフォーマットする関数
+function formatNumber(num: number): string {
+  if (num >= 100000000) {
+    return `${(num / 100000000).toFixed(1)}億`;
+  }
+  if (num >= 10000) {
+    return `${(num / 10000).toFixed(1)}万`;
+  }
+  return num.toLocaleString("ja-JP");
+}
+
+export function VideoCard({ video, onSelect, onChannelSelect, displayStat }: VideoCardProps) {
   // タイトル・サムネイル両方のホバーで同じモーションを発火させるためのフラグです。
   const [isHoverActive, setIsHoverActive] = useState(false);
+
+  // 表示する統計情報を取得
+  let statValue: number | undefined;
+  let statLabel: string | undefined;
+  if (displayStat === "views" && video.viewCount !== undefined) {
+    statValue = video.viewCount;
+    statLabel = "回";
+  } else if (displayStat === "likes" && video.likeCount !== undefined) {
+    statValue = video.likeCount;
+    statLabel = "件";
+  }
 
   return (
     <motion.div
@@ -85,9 +108,15 @@ export function VideoCard({ video, onSelect, onChannelSelect }: VideoCardProps) 
               }
             }}
             className={styles.cardChannel}
-            >
+          >
             {video.channelName}
           </button>
+        )}
+        {/* 統計情報を表示 */}
+        {statValue !== undefined && statLabel && (
+          <div className={styles.cardStat}>
+            {formatNumber(statValue)} {statLabel}
+          </div>
         )}
       </div>
     </motion.div>

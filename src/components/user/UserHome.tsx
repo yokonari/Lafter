@@ -23,15 +23,22 @@ const userToastAppearanceOptions = {
   className: "userToast",
 } as const;
 
-export function UserHome() {
+type UserHomeProps = {
+  initialChannelId?: string;
+  initialMode?: "new" | "random" | "popular" | "award-race";
+  initialRace?: "m1" | "koc";
+  initialYear?: number;
+};
+
+export function UserHome({ initialChannelId, initialMode, initialRace, initialYear }: UserHomeProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [searchInput, setSearchInput] = useState("");
   const [activeQuery, setActiveQuery] = useState("");
-  const [activeChannelId, setActiveChannelId] = useState<string | undefined>(undefined);
-  const [activeMode, setActiveMode] = useState<"new" | "random" | undefined>(undefined);
-  const [isSearching, setIsSearching] = useState(false);
+  const [activeChannelId, setActiveChannelId] = useState<string | undefined>(initialChannelId);
+  const [activeMode, setActiveMode] = useState<"new" | "random" | "popular" | "award-race" | undefined>(initialMode);
+  const [isSearching, setIsSearching] = useState(initialChannelId || initialMode ? true : false);
   const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
   const [dialogPlaylist, setDialogPlaylist] = useState<PlaylistItem | null>(null);
   const [reportVideo, setReportVideo] = useState<VideoItem | null>(null);
@@ -43,8 +50,12 @@ export function UserHome() {
   const HISTORY_KEY = "userSearchHistory";
 
   // URL パラメーターを置換し、検索条件を共有するためのヘルパーです。
+  // モードは固定パスで処理されるため、periodパラメータのみを管理します。
   const updateUrl = useCallback(
-    (next: { query?: string; channelId?: string; mode?: "new" | "random" | undefined }) => {
+    (next: {
+      query?: string;
+      period?: "month" | "year" | "all" | undefined;
+    }) => {
       const params = new URLSearchParams(searchParams.toString());
       const trimmedQuery = next.query?.trim() ?? "";
       if (trimmedQuery) {
@@ -52,18 +63,20 @@ export function UserHome() {
       } else {
         params.delete("q");
       }
-      if (next.channelId) {
-        params.set("channelId", next.channelId);
+      if (next.period) {
+        params.set("period", next.period);
       } else {
-        params.delete("channelId");
+        params.delete("period");
       }
-      if (next.mode) {
-        params.set("mode", next.mode);
-      } else {
-        params.delete("mode");
+      // ホームに戻る際は、sort と videosOnly パラメータも削除します。
+      if (!trimmedQuery) {
+        params.delete("sort");
+        params.delete("videosOnly");
+        params.delete("race");
+        params.delete("year");
       }
       const queryString = params.toString();
-      const nextUrl = queryString ? `${pathname}?${queryString}` : pathname;
+      const nextUrl = queryString ? `/?${queryString}` : "/";
       const currentQuery = searchParams.toString();
       const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
       if (nextUrl !== currentUrl) {
@@ -74,18 +87,30 @@ export function UserHome() {
   );
 
   // パラメーターが変わったときに状態を復元し、ブラウザ戻るなどでも一貫させます。
+  // initialChannelId や initialMode がある場合は、それを優先します。
   useEffect(() => {
+    // initialChannelId がある場合は、URL パラメータを無視してチャンネル表示を維持します。
+    if (initialChannelId) {
+      setActiveChannelId(initialChannelId);
+      setIsSearching(true);
+      return;
+    }
+
+    // initialMode がある場合は、URL パラメータを無視してモード表示を維持します。
+    if (initialMode) {
+      setActiveMode(initialMode);
+      setIsSearching(true);
+      return;
+    }
+
     const urlQuery = searchParams.get("q") ?? "";
-    const urlChannelId = searchParams.get("channelId") ?? undefined;
-    const modeParam = searchParams.get("mode");
-    const urlMode = modeParam === "new" || modeParam === "random" ? modeParam : undefined;
     setSearchInput(urlQuery);
     setActiveQuery(urlQuery);
-    setActiveChannelId(urlChannelId || undefined);
-    setActiveMode(urlMode);
-    // クエリ/チャンネル/モードのいずれかが指定されていれば一覧表示へ切り替えます。
-    setIsSearching(Boolean(urlQuery || urlChannelId || urlMode));
-  }, [searchParams]);
+    setActiveChannelId(undefined);
+    setActiveMode(undefined);
+    // クエリが指定されていれば一覧表示へ切り替えます。
+    setIsSearching(Boolean(urlQuery));
+  }, [searchParams, initialChannelId, initialMode]);
 
   // ローカルストレージから検索履歴を丁寧に読み込みます。
   useEffect(() => {
@@ -134,13 +159,21 @@ export function UserHome() {
 
   // ブランドロゴ押下でトップ状態に戻す
   const handleReset = useCallback(() => {
+    // initialChannelId や initialMode がある場合（固定パスから呼ばれた場合）は、
+    // トップページにリダイレクトします。
+    if (initialChannelId || initialMode) {
+      router.push("/");
+      return;
+    }
+
     setSearchInput("");
     setActiveQuery("");
     setActiveChannelId(undefined);
     setActiveMode(undefined);
     setIsSearching(false);
-    updateUrl({ query: "", channelId: undefined, mode: undefined });
-  }, [updateUrl]);
+    setIsMobileSearchOpen(false); // モバイル検索モードも閉じる
+    updateUrl({ query: "" });
+  }, [updateUrl, initialChannelId, initialMode, router]);
 
   // 動画カードの選択でモーダル表示を開く
   const handleVideoSelect = useCallback((video: VideoItem) => {
@@ -150,34 +183,28 @@ export function UserHome() {
   const handlePlaylistSelect = useCallback((playlist: PlaylistItem) => {
     setDialogPlaylist(playlist);
   }, []);
-  // チャンネル名クリックで検索結果へ遷移
+  // チャンネル名クリックで新しい /channel/[id] ルートへ遷移
   const handleChannelSelect = useCallback((channelId: string) => {
-    setSearchInput("");
-    setActiveQuery("");
-    setActiveChannelId(channelId);
-    setActiveMode(undefined);
-    setIsSearching(true);
-    updateUrl({ query: "", channelId, mode: undefined });
-  }, [updateUrl]);
+    router.push(`/channel/${channelId}`);
+  }, [router]);
 
-  // 「最近」「ランダム」の一覧表示へ遷移するハンドラーです。ホーム表示から動画一覧へスムーズに切り替えます。
+  // モード選択ハンドラーを固定パスにナビゲートするように変更します。
   const handleShowNewList = useCallback(() => {
-    setSearchInput("");
-    setActiveQuery("");
-    setActiveChannelId(undefined);
-    setActiveMode("new");
-    setIsSearching(true);
-    updateUrl({ query: "", channelId: undefined, mode: "new" });
-  }, [updateUrl]);
+    router.push("/new");
+  }, [router]);
 
   const handleShowRandomList = useCallback(() => {
-    setSearchInput("");
-    setActiveQuery("");
-    setActiveChannelId(undefined);
-    setActiveMode("random");
-    setIsSearching(true);
-    updateUrl({ query: "", channelId: undefined, mode: "random" });
-  }, [updateUrl]);
+    router.push("/random");
+  }, [router]);
+
+  const handleShowPopularList = useCallback(() => {
+    router.push("/popular");
+  }, [router]);
+
+  const handleShowAwardRaceList = useCallback(() => {
+    // デフォルトの賞レースページ（M-1 2025）にナビゲート
+    router.push("/award-race/m1/2025");
+  }, [router]);
 
   // 報告の選択で確認ダイアログを開きます。
   const handleReportSelect = useCallback((video: VideoItem) => {
@@ -212,7 +239,7 @@ export function UserHome() {
     setActiveMode(undefined);
     setIsSearching(true);
     setIsMobileSearchOpen(false);
-    updateUrl({ query: trimmed, channelId: undefined, mode: undefined });
+    updateUrl({ query: trimmed });
   }, [updateUrl]);
 
   // 復元処理中かどうかを管理し、復元中のスクロールイベントによる誤った上書き保存を防ぎます。
@@ -261,6 +288,8 @@ export function UserHome() {
                 onPlaylistSelect={handlePlaylistSelect}
                 onChannelSelect={handleChannelSelect}
                 onBackToTop={handleReset}
+                initialRace={initialRace}
+                initialYear={initialYear}
               />
             </motion.div>
           ) : (
@@ -276,6 +305,8 @@ export function UserHome() {
                 onChannelSelect={handleChannelSelect}
                 onShowNewList={handleShowNewList}
                 onShowRandomList={handleShowRandomList}
+                onShowPopularList={handleShowPopularList}
+                onShowAwardRaceList={handleShowAwardRaceList}
               />
             </motion.div>
           )}

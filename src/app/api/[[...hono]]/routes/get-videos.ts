@@ -1,7 +1,7 @@
 import type { Hono, Context } from "hono";
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, desc, eq, inArray, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, like, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { aliases, channels, playlists, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
@@ -17,6 +17,8 @@ type CachedVideoItem = {
   channel_name?: string | null;
   video_id?: string;
   video_title?: string;
+  view_count?: number | null; // 再生数を追加
+  like_count?: number | null; // 高評価数を追加
 };
 
 type LatestVideoCache = {
@@ -25,6 +27,11 @@ type LatestVideoCache = {
 };
 
 type RandomVideoCache = {
+  updated_at?: string;
+  items?: CachedVideoItem[];
+};
+
+type ViewCountVideoCache = {
   updated_at?: string;
   items?: CachedVideoItem[];
 };
@@ -102,6 +109,8 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const keywords = q ? q.split(/\s+/u).filter(Boolean) : [];
     const normalizedPatternsPerWord = keywords.map((word) => buildLikePatterns(word));
     const mode = c.req.query("mode");
+    const period = c.req.query("period") ?? "month"; // 期間フィルタ: all, month, year
+    const sort = c.req.query("sort") ?? "published"; // ソート順フィルタ: published, popular, views
     const channelIdFilter = c.req.query("channelId");
     const offsetParam = Number(c.req.query("offset") ?? 0);
     const safeOffset = Number.isFinite(offsetParam) && offsetParam > 0 ? offsetParam : 0;
@@ -169,11 +178,61 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       console.warn("[get-videos] random_active_videos キャッシュが利用できなかったため DB で処理を継続します。");
     }
 
+    if (kv && isCacheEligible && mode === "popular" && !shouldIncludePlaylists) {
+      // mode=popular の場合、sort パラメータに応じて再生数または高評価のキャッシュを取得します
+      if (sort === "likes") {
+        const likesCacheKey = resolveLikesCacheKey(period);
+        const likesCache = await loadCachedVideos(kv, likesCacheKey);
+        if (likesCache) {
+          return respondWithCache(c, likesCache, safeOffset, safeLimit, false);
+        }
+        console.warn(
+          "[get-videos] 高評価動画キャッシュが利用できなかったため DB で処理を継続します。",
+          likesCacheKey,
+        );
+      } else {
+        // sort が "views" または未指定の場合は再生数キャッシュを使用
+        const viewsCacheKey = resolveViewsCacheKey(period);
+        const viewsCache = await loadCachedVideos(kv, viewsCacheKey);
+        if (viewsCache) {
+          return respondWithCache(c, viewsCache, safeOffset, safeLimit, false);
+        }
+        console.warn(
+          "[get-videos] 再生数動画キャッシュが利用できなかったため DB で処理を継続します。",
+          viewsCacheKey,
+        );
+      }
+    }
+
     const videoConditions = [inArray(videos.status, [1, 3]), eq(channels.status, 1)];
     if (channelIdFilter) {
       // チャンネル指定がある場合は最優先でそのチャンネルに絞ります。
       videoConditions.push(eq(videos.channelId, channelIdFilter));
     }
+
+    // 人気度順モードの場合は使用しないため、条件を削除しました。
+    // 再生数順の場合、view_count が NULL の動画を除外します。
+    if (sort === "views" || mode === "views") {
+      videoConditions.push(sql`${videos.viewCount} IS NOT NULL`);
+    }
+    if (sort === "likes") {
+      videoConditions.push(sql`${videos.likeCount} IS NOT NULL`);
+    }
+
+    // 期間フィルタの適用: mode=popular の場合のみ期間フィルタを適用します。
+    // mode=popular 時は sort パラメータ(views/likes)に関わらず期間フィルタを適用します。
+    if (mode === "popular") {
+      const now = new Date();
+      if (period === "month") {
+        const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        videoConditions.push(gte(videos.publishedAt, oneMonthAgo));
+      } else if (period === "year") {
+        const oneYearAgo = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000).toISOString();
+        videoConditions.push(gte(videos.publishedAt, oneYearAgo));
+      }
+      // period === "all" の場合はフィルタを追加しません
+    }
+
     if (normalizedPatternsPerWord.length) {
       // キーワードごとに (タイトルLIKE または チャンネルID一致) を作り、すべて AND で縛ります。
       const keywordConditions: SQL<boolean>[] = normalizedPatternsPerWord.map((patterns) => {
@@ -207,15 +266,29 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         publishedAt: videos.publishedAt,
         channelId: videos.channelId,
         channelName: channels.name,
+        viewCount: videos.viewCount, // 再生数を追加
+        likeCount: videos.likeCount, // 高評価数を追加
       })
       .from(videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(videoWhere);
 
-    const orderedVideoQuery =
-      mode === "random"
-        ? baseVideoQuery.orderBy(sql`RANDOM()`)
-        : baseVideoQuery.orderBy(desc(videos.publishedAt));
+    // ソート順の決定: sort パラメータを優先し、次に mode を参照します。
+    let orderedVideoQuery;
+    if (mode === "random") {
+      // ランダムモードは常にランダムソート
+      orderedVideoQuery = baseVideoQuery.orderBy(sql`RANDOM()`);
+    } else if (sort === "views" || mode === "views") {
+      // 再生数順: view_count の降順、次に公開日の降順
+      // 再生数モードも再生数でソートします
+      orderedVideoQuery = baseVideoQuery.orderBy(desc(videos.viewCount), desc(videos.publishedAt));
+    } else if (sort === "likes") {
+      // 高評価順: like_count の降順、次に公開日の降順
+      orderedVideoQuery = baseVideoQuery.orderBy(desc(videos.likeCount), desc(videos.publishedAt));
+    } else {
+      // デフォルトは公開日順
+      orderedVideoQuery = baseVideoQuery.orderBy(desc(videos.publishedAt));
+    }
 
     // 追加取得分の1件を含めておき、次ページの有無を丁寧に判断します。
     const videoRowsRaw = await orderedVideoQuery.limit(safeLimit + 1).offset(safeOffset);
@@ -284,6 +357,8 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       title: decodeHtmlEntities(row.title),
       channel_id: row.channelId,
       channel_name: row.channelName ?? "",
+      view_count: row.viewCount ?? undefined, // 再生数を追加
+      like_count: row.likeCount ?? undefined, // 高評価数を追加
     }));
 
     const playlistsPayload = playlistRows.map((row) => ({
@@ -408,13 +483,16 @@ function decodeHtmlEntities(value: string): string {
     .replace(/&amp;/g, "&");
 }
 
-async function loadCachedVideos(kv: KVNamespace, key: string): Promise<LatestVideoCache | null> {
+async function loadCachedVideos(
+  kv: KVNamespace,
+  key: string,
+): Promise<LatestVideoCache | null> {
   try {
     const text = await kv.get(key, "text");
     if (!text) {
       return null;
     }
-    const parsed = JSON.parse(text) as LatestVideoCache | RandomVideoCache;
+    const parsed = JSON.parse(text) as LatestVideoCache | RandomVideoCache | ViewCountVideoCache;
     if (!parsed || !Array.isArray(parsed.items)) {
       return null;
     }
@@ -427,7 +505,7 @@ async function loadCachedVideos(kv: KVNamespace, key: string): Promise<LatestVid
 
 function respondWithCache(
   c: Context<AdminEnv>,
-  cache: LatestVideoCache | RandomVideoCache,
+  cache: LatestVideoCache | RandomVideoCache | ViewCountVideoCache,
   offset: number,
   limit: number,
   shouldShuffle: boolean,
@@ -453,6 +531,8 @@ function respondWithCache(
       title: decodeHtmlEntities(item?.video_title ?? ""),
       channel_id: item?.channel_id ?? "",
       channel_name: item?.channel_name ?? "",
+      view_count: item?.view_count ?? undefined, // 再生数を追加
+      like_count: item?.like_count ?? undefined, // 高評価数を追加
     }));
 
   return c.json(
@@ -465,4 +545,24 @@ function respondWithCache(
     },
     200,
   );
+}
+
+function resolveViewsCacheKey(period: string): string {
+  if (period === "all") {
+    return "views_active_videos_all";
+  }
+  if (period === "year") {
+    return "views_active_videos_year";
+  }
+  return "views_active_videos_month";
+}
+
+function resolveLikesCacheKey(period: string): string {
+  if (period === "all") {
+    return "likes_active_videos_all";
+  }
+  if (period === "year") {
+    return "likes_active_videos_year";
+  }
+  return "likes_active_videos_month";
 }

@@ -13,21 +13,15 @@ const BASE_DESCRIPTION =
 
 type SearchMetadataContext = {
   query?: string;
-  channelId?: string;
-  channelName?: string;
-  mode?: "new" | "random";
+  mode?: "new" | "random" | "popular";
 };
 
 // 検索条件に応じたページ見出しを共通関数で丁寧に生成します。
-// NGワードを含む検索クエリやチャンネル名はタイトルに含めません。
-function buildSearchHeading({ query, channelId, channelName, mode }: SearchMetadataContext): string {
+// NGワードを含む検索クエリはタイトルに含めません。
+function buildSearchHeading({ query, mode }: SearchMetadataContext): string {
   if (mode === "new") return "最近のネタ動画";
   if (mode === "random") return "ランダムなネタ動画";
-  if (channelId) {
-    // チャンネル名にNGワードが含まれている場合は表示しない
-    const safeChannelName = channelName && !containsNgWord(channelName) ? channelName : null;
-    return safeChannelName ? `「${safeChannelName}」のネタ動画` : "特定チャンネルのネタ動画";
-  }
+  if (mode === "popular") return "人気のネタ動画";
   // 検索クエリにNGワードが含まれている場合は表示しない
   if (query && !containsNgWord(query)) return `「${query}」のネタ動画`;
   if (query) return "検索結果"; // NGワードを含む場合は汎用タイトル
@@ -35,19 +29,16 @@ function buildSearchHeading({ query, channelId, channelName, mode }: SearchMetad
 }
 
 // OG/Twitter の説明も検索条件を踏まえて柔らかく差し替えます。
-// NGワードを含む検索クエリやチャンネル名は説明に含めません。
-function buildSearchDescription({ query, channelId, channelName, mode }: SearchMetadataContext): string {
+// NGワードを含む検索クエリは説明に含めません。
+function buildSearchDescription({ query, mode }: SearchMetadataContext): string {
   if (mode === "new") {
     return `最近アップロードされた公式ネタ動画をまとめてチェックできます。${BASE_DESCRIPTION}`;
   }
   if (mode === "random") {
     return `公式ネタ動画からランダムに動画を楽しめます。${BASE_DESCRIPTION}`;
   }
-  if (channelId) {
-    // チャンネル名にNGワードが含まれている場合は表示しない
-    const safeChannelName = channelName && !containsNgWord(channelName) ? channelName : null;
-    const target = safeChannelName ? `「${safeChannelName}」` : "特定チャンネル";
-    return `${target}のネタ動画を絞り込んで探せます。${BASE_DESCRIPTION}`;
+  if (mode === "popular") {
+    return `人気の高い公式ネタ動画をまとめてチェックできます。${BASE_DESCRIPTION}`;
   }
   // 検索クエリにNGワードが含まれている場合は表示しない
   if (query && !containsNgWord(query)) {
@@ -81,8 +72,8 @@ function buildSearchImageUrl(heading: string, metadataBase?: URL): string | null
 type HomePageProps = {
   searchParams?: Promise<{
     q?: string | string[];
-    channelId?: string | string[];
-    mode?: string | string[];
+    channelId?: string | string[]; // リダイレクト用に残す
+    mode?: string | string[]; // リダイレクト用に残す
   }>;
 };
 
@@ -112,36 +103,13 @@ export async function generateMetadata(
   { searchParams }: HomePageProps,
   parent: ResolvingMetadata,
 ): Promise<Metadata> {
-  // searchParams は Promise になっているため、必ず await してから値を参照します。
   const resolvedParams = searchParams ? await searchParams : {};
 
   const query = typeof resolvedParams.q === "string" ? resolvedParams.q.trim() : "";
-  const channelId =
-    typeof resolvedParams.channelId === "string" && resolvedParams.channelId.length > 0
-      ? resolvedParams.channelId
-      : undefined;
-  const rawMode = typeof resolvedParams.mode === "string" ? resolvedParams.mode : undefined;
-  const mode = rawMode === "new" || rawMode === "random" ? rawMode : undefined;
-  let channelName: string | undefined;
 
-  if (channelId && absoluteFetch) {
-    try {
-      // メタ情報用にチャンネル名を取得し、OG タイトルへ丁寧に反映します。
-      const { videos, playlists } = await fetchVideoItems(absoluteFetch, {
-        channelId,
-        limit: 1,
-      });
-      channelName = videos[0]?.channelName ?? playlists[0]?.channelName ?? undefined;
-    } catch {
-      // API 取得に失敗してもページ表示は継続し、既定タイトルへフォールバックします。
-    }
-  } else if (channelId && !absoluteFetch) {
-    // API_BASE が無い場合は API 呼び出し自体を控え、既定のタイトル処理に任せます。
-  }
-
-  const heading = buildSearchHeading({ query, channelId, channelName, mode });
+  const heading = buildSearchHeading({ query });
   const title = heading ? `${heading} | Lafter` : BASE_TITLE;
-  const description = buildSearchDescription({ query, channelId, channelName, mode });
+  const description = buildSearchDescription({ query });
 
   const resolvedParent = await parent;
   const metadataBase = resolvedParent.metadataBase ?? new URL("https://lafter.day");
@@ -197,7 +165,43 @@ export async function generateMetadata(
   };
 }
 
-export default function Home() {
+export default async function Home({ searchParams }: HomePageProps) {
+  // 古いURL形式からのリダイレクト処理
+  const resolvedParams = searchParams ? await searchParams : {};
+
+  // チャンネルIDリダイレクト: ?channelId=... → /channel/{id}
+  const channelId = typeof resolvedParams.channelId === "string" && resolvedParams.channelId.length > 0
+    ? resolvedParams.channelId
+    : undefined;
+
+  if (channelId) {
+    const { redirect } = await import("next/navigation");
+    redirect(`/channel/${channelId}`);
+  }
+
+  // モードリダイレクト: ?mode=... → /{mode}
+  const modeParam = typeof resolvedParams.mode === "string" ? resolvedParams.mode : undefined;
+
+  if (modeParam === "new") {
+    const { redirect } = await import("next/navigation");
+    redirect("/new");
+  }
+
+  if (modeParam === "popular") {
+    const { redirect } = await import("next/navigation");
+    redirect("/popular");
+  }
+
+  if (modeParam === "random") {
+    const { redirect } = await import("next/navigation");
+    redirect("/random");
+  }
+
+  if (modeParam === "award-race") {
+    const { redirect } = await import("next/navigation");
+    redirect("/award-race");
+  }
+
   return (
     <Suspense fallback={null}>
       <UserHome />

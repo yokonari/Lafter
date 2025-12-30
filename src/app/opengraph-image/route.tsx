@@ -65,9 +65,9 @@ const absoluteBackgroundImageUrl = (() => {
 // OGP 専用背景画像を一度だけ読み込み、Base64 Data URL としてキャッシュします。
 const baseImageDataUrlPromise: Promise<string | null> = absoluteBackgroundImageUrl
   ? fetch(absoluteBackgroundImageUrl)
-      .then((response) => response.arrayBuffer())
-      .then((buffer) => `data:image/png;base64,${arrayBufferToBase64(buffer)}`)
-      .catch(() => null)
+    .then((response) => response.arrayBuffer())
+    .then((buffer) => `data:image/png;base64,${arrayBufferToBase64(buffer)}`)
+    .catch(() => null)
   : Promise.resolve(null);
 
 function arrayBufferToBase64(buffer: ArrayBuffer): string {
@@ -98,6 +98,14 @@ export async function GET(request: Request) {
   const heading = sanitizeHeading(new URL(request.url).searchParams.get("heading"));
   // 外部で「ネタ動画」などを含めて渡す前提となったため、見出しは受け取った文字列を丁寧に整形したもののみを表示します。
   const headingForDisplay = heading ? clampHeadingText(heading) : null;
+
+  // headingがない場合はデフォルト画像へリダイレクトします。
+  if (!headingForDisplay) {
+    const { origin } = new URL(request.url);
+    const defaultImageUrl = new URL("/ogp.png", origin).toString();
+    return Response.redirect(defaultImageUrl, 302);
+  }
+
   // heading が 1 行に収まるかどうかを概算し、1 行なら中央寄せにするためのフラグを丁寧に管理します。
   const isLikelySingleLineHeading = Boolean(
     headingForDisplay && headingForDisplay.length <= approximateCharsPerLine,
@@ -127,69 +135,45 @@ export async function GET(request: Request) {
           fontFamily: fonts.length > 0 ? "NotoSansJP" : "sans-serif",
         }}
       >
-        {headingForDisplay ? (
+        <div
+          style={{
+            width: textMaxWidth,
+            maxWidth: textMaxWidth,
+            // 1 行で収まる場合は中央寄せ、それ以外は左寄せにします。
+            textAlign: isLikelySingleLineHeading ? "center" : "left",
+            fontSize: headingFontSize,
+            lineHeight: headingLineHeight,
+            color: "#ffffff",
+            wordBreak: "break-word",
+            whiteSpace: "pre-wrap",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: isLikelySingleLineHeading ? "center" : "flex-start",
+            justifyContent: isLikelySingleLineHeading ? "center" : "flex-start",
+          }}
+        >
+          {/* heading 単体で高さ制約内に収まるよう、flex wrap + 文字数制限で丁寧にレイアウトします。 */}
           <div
             style={{
-              width: textMaxWidth,
-              maxWidth: textMaxWidth,
-              // 1 行で収まる場合は中央寄せ、それ以外は左寄せにします。
-              textAlign: isLikelySingleLineHeading ? "center" : "left",
-              fontSize: headingFontSize,
-              lineHeight: headingLineHeight,
-              color: "#ffffff",
-              wordBreak: "break-word",
-              whiteSpace: "pre-wrap",
               display: "flex",
-              flexDirection: "column",
-              alignItems: isLikelySingleLineHeading ? "center" : "flex-start",
+              flexWrap: "wrap",
+              overflow: "hidden",
+              maxHeight: textMaxHeight,
+              // heading テキストのベースライン位置がずれないよう baseline を指定し、視認性を高めます。
+              alignItems: "baseline",
               justifyContent: isLikelySingleLineHeading ? "center" : "flex-start",
             }}
           >
-            {/* heading 単体で高さ制約内に収まるよう、flex wrap + 文字数制限で丁寧にレイアウトします。 */}
-            <div
+            <span
               style={{
-                display: "flex",
-                flexWrap: "wrap",
-                overflow: "hidden",
-                maxHeight: textMaxHeight,
-                // heading テキストのベースライン位置がずれないよう baseline を指定し、視認性を高めます。
-                alignItems: "baseline",
-                justifyContent: isLikelySingleLineHeading ? "center" : "flex-start",
+                wordBreak: "break-word",
+                fontWeight: 700,
               }}
             >
-              <span
-                style={{
-                  wordBreak: "break-word",
-                  fontWeight: 700,
-                }}
-              >
-                {headingForDisplay}
-              </span>
-            </div>
+              {headingForDisplay}
+            </span>
           </div>
-        ) : (
-          <div
-            style={{
-              width: textMaxWidth,
-              maxWidth: textMaxWidth,
-              textAlign: "left",
-              fontSize: headingFontSize,
-              fontWeight: 700,
-              lineHeight: headingLineHeight,
-              color: "#ffffff",
-              wordBreak: "break-word",
-              whiteSpace: "pre-wrap",
-              overflow: "hidden",
-              maxHeight: textMaxHeight,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "flex-start",
-              justifyContent: "center",
-            }}
-          >
-            Lafter でネタ動画を探す
-          </div>
-        )}
+        </div>
       </div>
     ),
     {

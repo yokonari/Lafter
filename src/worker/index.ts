@@ -3,6 +3,8 @@
 import nextWorker from "../../.open-next/worker";
 import cronChannelSearch from "./cron-channel-search";
 import cronLatestVideosCache from "./cron-latest-videos-cache";
+import cronPopularVideosCache from "./cron-popular-videos-cache";
+import cronLikesVideosCache from "./cron-likes-videos-cache";
 import cronRandomVideosCache from "./cron-random-videos-cache";
 import cronLlmClassify from "./cron-llm-classify";
 import cronVideoCheck from "./cron-video-check";
@@ -13,6 +15,8 @@ type ScheduledEventParam = Parameters<ExportedHandlerScheduledHandler>[0];
 const MINUTES_PER_DAY = 24 * 60;
 const VIDEO_CHECK_RUNS_PER_DAY = 400;
 const VIDEO_CHECK_QUEUE_REBUILD_MINUTE = 4 * 60;
+const VIEW_COUNT_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 20;
+const LIKES_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 30;
 
 // OpenNext の fetch を明示的に型付けし、ビルド時の推論抜けを防ぎます。
 const fetchHandler: ExportedHandlerFetchHandler = (request, env, ctx) =>
@@ -39,6 +43,8 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
     const runVideoRss = shouldRunVideoRssJob(event);
     const runLatestCache = shouldRunLatestVideosCacheJob(event);
     const runRandomCache = shouldRunRandomVideosCacheJob(event);
+    const runViewCountCache = shouldRunViewCountVideosCacheJob(event);
+    const runLikesCache = shouldRunLikesVideosCacheJob(event);
     // 毎分トリガーのうち、エポック分が 31 の倍数の場合のみ LLM 判定を丁寧に実行します。
     if (runLlm) {
       if (typeof cronLlmClassify.scheduled === "function") {
@@ -86,6 +92,22 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
       }
     } else {
       console.log("[worker] ランダム動画キャッシュ更新は 6 時間周期外のためスキップしました。");
+    }
+    // 再生数上位動画キャッシュ更新は日次 04:20 UTC で 1 回だけ実行し、再生数上位の KV を丁寧に更新します。
+    if (runViewCountCache) {
+      if (typeof cronPopularVideosCache.scheduled === "function") {
+        await cronPopularVideosCache.scheduled(event, env, ctx);
+      }
+    } else {
+      console.log("[worker] 再生数上位動画キャッシュ更新は日次 04:20 周期外のためスキップしました。");
+    }
+    // 高評価動画キャッシュ更新は日次 04:30 UTC で 1 回だけ実行し、高評価数上位の KV を丁寧に更新します。
+    if (runLikesCache) {
+      if (typeof cronLikesVideosCache.scheduled === "function") {
+        await cronLikesVideosCache.scheduled(event, env, ctx);
+      }
+    } else {
+      console.log("[worker] 高評価動画キャッシュ更新は日次 04:30 周期外のためスキップしました。");
     }
   } else {
     // マッチしない場合は念のため両方動かすか、ログを出して終了するか。
@@ -143,4 +165,18 @@ function shouldRunRandomVideosCacheJob(event: ScheduledEventParam): boolean {
   // ランダム動画キャッシュも 6 時間 (=360 分) ごとの 50 分タイミングで走らせ、最新キャッシュと 10 分ずらしで安定性を保ちます。
   const epochMinutes = Math.floor(event.scheduledTime / 60_000);
   return epochMinutes % 360 === 50;
+}
+
+function shouldRunViewCountVideosCacheJob(event: ScheduledEventParam): boolean {
+  // 再生数上位動画キャッシュは UTC 04:20 に日次で実行し、再生数上位データを安定的に更新します。
+  const epochMinutes = Math.floor(event.scheduledTime / 60_000);
+  const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return minuteOfDay === VIEW_COUNT_VIDEOS_CACHE_RUN_MINUTE;
+}
+
+function shouldRunLikesVideosCacheJob(event: ScheduledEventParam): boolean {
+  // 高評価動画キャッシュは UTC 04:30 に日次で実行し、高評価数上位データを安定的に更新します。
+  const epochMinutes = Math.floor(event.scheduledTime / 60_000);
+  const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return minuteOfDay === LIKES_VIDEOS_CACHE_RUN_MINUTE;
 }

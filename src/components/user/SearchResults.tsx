@@ -5,16 +5,19 @@ import { VideoCard } from "./VideoCard";
 import { PlaylistCard } from "./PlaylistCard";
 import { XShareButton } from "./XShareButton";
 import { containsNgWord } from "@/lib/ng-words";
+import { AwardRacePage } from "./AwardRacePage";
 import styles from "./userTheme.module.scss";
 
 type SearchResultsProps = {
   query: string;
   channelId?: string;
-  mode?: "new" | "random";
+  mode?: "new" | "random" | "popular" | "award-race"; // "popular" と "award-race" を追加
   onVideoSelect: (video: VideoItem) => void;
   onPlaylistSelect: (playlist: PlaylistItem) => void;
   onChannelSelect: (channelId: string) => void;
   onBackToTop: () => void;
+  initialRace?: "m1" | "koc";
+  initialYear?: number;
 };
 
 export function SearchResults({
@@ -25,6 +28,8 @@ export function SearchResults({
   onPlaylistSelect,
   onChannelSelect,
   onBackToTop,
+  initialRace,
+  initialYear,
 }: SearchResultsProps) {
   const [videos, setVideos] = useState<VideoItem[]>([]);
   const [playlists, setPlaylists] = useState<PlaylistItem[]>([]);
@@ -34,8 +39,87 @@ export function SearchResults({
   const [error, setError] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [nextOffset, setNextOffset] = useState(0);
+  const [selectedPeriod, setSelectedPeriod] = useState<"month" | "year" | "all">("month"); // 期間選択用のStateを追加
+  const [selectedSort, setSelectedSort] = useState<"published" | "views" | "likes">("published"); // ソート順選択用のStateを追加
+  const [videosOnly, setVideosOnly] = useState(false); // 動画のみ表示フラグ
   const PAGE_SIZE = 20;
 
+  // URLパラメータから期間とソート順を読み取り、初期値として設定します。
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+
+    // 期間パラメータの読み取り(人気モード時のみ)
+    if (mode === "popular") {
+      const periodParam = params.get("period");
+      if (periodParam === "month" || periodParam === "year" || periodParam === "all") {
+        setSelectedPeriod(periodParam);
+      }
+      // 人気モードではsortパラメータを使用します
+      const sortParam = params.get("sort");
+      if (sortParam === "views" || sortParam === "likes") { // Added "likes"
+        setSelectedSort(sortParam);
+      } else {
+        // デフォルトは再生数
+        setSelectedSort("views");
+      }
+    } else {
+      // その他のモードのソート順パラメータの読み取り
+      const sortParam = params.get("sort");
+      if (sortParam === "published" || sortParam === "views" || sortParam === "likes") {
+        setSelectedSort(sortParam);
+      }
+    }
+
+    // 動画のみフラグの読み取り
+    const videosOnlyParam = params.get("videosOnly");
+    if (videosOnlyParam === "true" || videosOnlyParam === "1") {
+      setVideosOnly(true);
+    }
+  }, [mode]);
+
+  // 期間変更ハンドラを実装します。
+  const handlePeriodChange = useCallback((period: "month" | "year" | "all") => {
+    setSelectedPeriod(period);
+
+    // URLパラメータを更新します。
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.set("period", period);
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.pushState({}, "", newUrl);
+    }
+  }, []);
+
+  // ソート順変更ハンドラを実装します。
+  const handleSortChange = useCallback((sort: "published" | "views" | "likes") => {
+    setSelectedSort(sort);
+
+    // URLパラメータを更新します。
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      params.set("sort", sort);
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.pushState({}, "", newUrl);
+    }
+  }, []);
+
+  // 動画のみフラグ変更ハンドラを実装します。
+  const handleVideosOnlyChange = useCallback((checked: boolean) => {
+    setVideosOnly(checked);
+
+    // URLパラメータを更新します。
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (checked) {
+        params.set("videosOnly", "true");
+      } else {
+        params.delete("videosOnly");
+      }
+      const newUrl = `${window.location.pathname}?${params.toString()}`;
+      window.history.pushState({}, "", newUrl);
+    }
+  }, []);
 
 
   useEffect(() => {
@@ -63,6 +147,8 @@ export function SearchResults({
           query,
           channelId,
           mode,
+          period: mode === "popular" ? selectedPeriod : undefined, // 人気モード時のみperiodを渡します
+          sort: mode === "popular" ? selectedSort : (mode ? undefined : selectedSort), // 人気モード時はsortを渡します
           // 「最近」「ランダム」モードではプレイリストを除外し、動画のみに絞り込みます。
           includePlaylists: mode ? false : undefined,
           signal: controller.signal,
@@ -102,7 +188,7 @@ export function SearchResults({
       canceled = true;
       controller.abort();
     };
-  }, [query, channelId, mode]);
+  }, [query, channelId, mode, selectedPeriod, selectedSort]); // selectedSortを依存配列に追加
 
   const handleLoadMore = useCallback(async () => {
     if (loadingMore) return;
@@ -119,6 +205,8 @@ export function SearchResults({
         query,
         channelId,
         mode,
+        period: mode === "popular" ? selectedPeriod : undefined, // 人気モード時のみperiodを渡します
+        sort: mode === "popular" ? selectedSort : (mode ? undefined : selectedSort), // 人気モード時はsortを渡します
         // 初回と同様にモード指定時はプレイリストを取得しないようにします。
         includePlaylists: mode ? false : undefined,
         limit: PAGE_SIZE,
@@ -133,7 +221,7 @@ export function SearchResults({
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, query, channelId, mode, nextOffset]);
+  }, [loadingMore, query, channelId, mode, selectedPeriod, selectedSort, nextOffset]); // selectedSortを依存配列に追加
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -160,6 +248,8 @@ export function SearchResults({
   const buildTitle = () => {
     if (mode === "new") return "最近";
     if (mode === "random") return "ランダム";
+    if (mode === "popular") return "人気"; // 人気モードを追加
+    if (mode === "award-race") return "賞レースから探す"; // 賞レースモードを追加
     if (channelId) {
       return fetchedChannelName ? `「${fetchedChannelName}」の検索結果` : "チャンネル内の検索結果";
     }
@@ -176,6 +266,25 @@ export function SearchResults({
     (query && containsNgWord(query)) ||
     (fetchedChannelName && containsNgWord(fetchedChannelName))
   );
+
+  // 賞レースモード時は専用コンポーネントを表示
+  if (mode === "award-race") {
+    return (
+      <AwardRacePage
+        onBackToTop={onBackToTop}
+        onComedianSearch={(name) => {
+          // 芸人名で検索を実行
+          if (typeof window !== "undefined") {
+            const params = new URLSearchParams();
+            params.set("q", name);
+            window.location.href = `/?${params.toString()}`;
+          }
+        }}
+        initialRace={initialRace}
+        initialYear={initialYear}
+      />
+    );
+  }
 
   return (
     // 検索結果ページもダークトーンへ合わせ、各状態メッセージの色味を丁寧に調整します。
@@ -197,18 +306,110 @@ export function SearchResults({
             <span>トップへ戻る</span>
           </button>
         </div>
-        {/* メインタイトルはh1へ切り替え、視覚的な見た目は既存スタイルを活用して変化させません。 */}
+        {/* メインタイトル: 全モードで表示 */}
         <div className={styles.sectionHeadingWrap}>
           <h1 className={styles.searchTitle}>
             {titleText}
           </h1>
         </div>
-        {/* タイトル下の行にシェアボタンを配置し、過度に視線を横移動させずに共有できます。 */}
+        {/* タイトル下の行にフィルタボタンを配置します。 */}
         {/* NGワードを含む検索時はシェアボタンを非表示にします。 */}
-        {shouldShowShareButton && (
-          <div className={styles.searchHeaderShare}>
-            <XShareButton className={styles.footerInlineShareButton} />
-          </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+          {/* ソート順フィルタボタン: 最近・ランダム・人気モード以外で、かつ検索結果が2件以上の時のみ表示 */}
+          {mode !== "random" && mode !== "new" && mode !== "popular" && (videos.length + playlists.length) >= 2 && (
+            <div className={styles.periodTabs} style={{ marginBottom: 0 }}>
+              <button
+                type="button"
+                className={`${styles.periodTab} ${selectedSort === "published" ? styles.periodTabActive : ""}`}
+                onClick={() => handleSortChange("published")}
+              >
+                公開日
+              </button>
+              <button
+                type="button"
+                className={`${styles.periodTab} ${selectedSort === "views" ? styles.periodTabActive : ""}`}
+                onClick={() => handleSortChange("views")}
+              >
+                再生数
+              </button>
+              <button
+                type="button"
+                className={`${styles.periodTab} ${selectedSort === "likes" ? styles.periodTabActive : ""}`}
+                onClick={() => handleSortChange("likes")}
+              >
+                高評価
+              </button>
+            </div>
+          )}
+          {/* 動画のみチェックボックス: プレイリストが含まれる場合のみ表示 */}
+          {playlists.length > 0 && (
+            <label className={styles.videosOnlyLabel}>
+              <input
+                type="checkbox"
+                checked={videosOnly}
+                onChange={(e) => handleVideosOnlyChange(e.target.checked)}
+                className={styles.videosOnlyCheckbox}
+              />
+              <span>動画のみ</span>
+            </label>
+          )}
+          {/* 人気モード以外でシェアボタンを表示 */}
+          {mode !== "popular" && shouldShowShareButton && (
+            <div className={styles.searchHeaderShare}>
+              <XShareButton className={styles.footerInlineShareButton} />
+            </div>
+          )}
+        </div>
+        {/* 人気モード時にタブと期間選択タブとシェアボタンを表示します。 */}
+        {mode === "popular" && (
+          <>
+            {/* 賞レース詳細画面と同じスタイルのタブ */}
+            <div className={styles.raceTabContainer}>
+              <button
+                className={`${styles.raceTab} ${selectedSort === "views" ? styles.active : ""}`}
+                onClick={() => handleSortChange("views")}
+              >
+                再生数
+              </button>
+              <button
+                className={`${styles.raceTab} ${selectedSort === "likes" ? styles.active : ""}`}
+                onClick={() => handleSortChange("likes")}
+              >
+                高評価
+              </button>
+            </div>
+            {/* 期間選択タブとシェアボタン */}
+            <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
+              <div className={styles.periodTabs} style={{ marginBottom: 0 }}>
+                <button
+                  type="button"
+                  className={`${styles.periodTab} ${selectedPeriod === "month" ? styles.periodTabActive : ""}`}
+                  onClick={() => handlePeriodChange("month")}
+                >
+                  1ヶ月
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.periodTab} ${selectedPeriod === "year" ? styles.periodTabActive : ""}`}
+                  onClick={() => handlePeriodChange("year")}
+                >
+                  1年
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.periodTab} ${selectedPeriod === "all" ? styles.periodTabActive : ""}`}
+                  onClick={() => handlePeriodChange("all")}
+                >
+                  累計
+                </button>
+              </div>
+              {shouldShowShareButton && (
+                <div className={styles.searchHeaderShare}>
+                  <XShareButton className={styles.footerInlineShareButton} />
+                </div>
+              )}
+            </div>
+          </>
         )}
       </div>
 
@@ -231,7 +432,8 @@ export function SearchResults({
         <p className={styles.statusText}>検索結果が見つかりませんでした。</p>
       ) : (
         <div className={styles.searchGrid}>
-          {playlists.map((playlist) => {
+          {/* 動画のみフラグがfalseの場合のみプレイリストを表示 */}
+          {!videosOnly && playlists.map((playlist) => {
             return (
               <PlaylistCard
                 key={`playlist-${playlist.id}`}
@@ -242,12 +444,21 @@ export function SearchResults({
             );
           })}
           {videos.map((video) => {
+            // 人気モードまたは検索結果でソート順が再生数/高評価の場合、統計情報を表示
+            const displayStat =
+              mode === "popular" && (selectedSort === "views" || selectedSort === "likes")
+                ? selectedSort
+                : !mode && (selectedSort === "views" || selectedSort === "likes")
+                  ? selectedSort
+                  : undefined;
+
             return (
               <VideoCard
                 key={video.id}
                 video={video}
                 onSelect={onVideoSelect}
                 onChannelSelect={onChannelSelect}
+                displayStat={displayStat}
               />
             );
           })}

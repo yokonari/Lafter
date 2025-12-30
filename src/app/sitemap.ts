@@ -11,6 +11,34 @@ export const dynamic = 'force-dynamic';
 
 const BASE_URL = 'https://lafter.day';
 
+/**
+ * Award Raceのページを動的に生成します。
+ * 2020年から2025年までの全年度を含めます。
+ * 新しい年度のページを作成したら、endYearを更新してください。
+ */
+function generateAwardRaceRoutes(): MetadataRoute.Sitemap {
+    const startYear = 2020;
+    const endYear = 2025; // 実際に存在する最新の年度
+    const currentYear = new Date().getFullYear();
+    const races = ['m1', 'koc'] as const;
+    const routes: MetadataRoute.Sitemap = [];
+
+    for (const race of races) {
+        for (let year = startYear; year <= endYear; year++) {
+            // 現在の年は更新頻度が高く、優先度も高い
+            const isCurrentYear = year === currentYear;
+            routes.push({
+                url: `${BASE_URL}/award-race/${race}/${year}`,
+                lastModified: new Date(),
+                changeFrequency: isCurrentYear ? 'daily' : 'yearly',
+                priority: isCurrentYear ? 0.8 : 0.7,
+            });
+        }
+    }
+
+    return routes;
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const staticRoutes: MetadataRoute.Sitemap = [
         {
@@ -18,6 +46,30 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             lastModified: new Date(),
             changeFrequency: 'daily',
             priority: 1,
+        },
+        {
+            url: `${BASE_URL}/new`,
+            lastModified: new Date(),
+            changeFrequency: 'daily',
+            priority: 0.8,
+        },
+        {
+            url: `${BASE_URL}/popular`,
+            lastModified: new Date(),
+            changeFrequency: 'daily',
+            priority: 0.8,
+        },
+        {
+            url: `${BASE_URL}/random`,
+            lastModified: new Date(),
+            changeFrequency: 'daily',
+            priority: 0.6,
+        },
+        {
+            url: `${BASE_URL}/award-race`,
+            lastModified: new Date(),
+            changeFrequency: 'daily',
+            priority: 0.7,
         },
         {
             url: `${BASE_URL}/about`,
@@ -45,12 +97,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         },
     ];
 
+    // Award Raceのページを動的に生成
+    const awardRaceRoutes = generateAwardRaceRoutes();
+
     try {
         const { env } = getCloudflareContext();
         // ビルド時や一部の環境で env が取得できない場合の安全策
         if (!env || !env.DB) {
             console.warn('Environment or DB binding not found. Returning partial sitemap.');
-            return staticRoutes;
+            return [...staticRoutes, ...awardRaceRoutes];
         }
 
         const db = createDatabase(env);
@@ -65,17 +120,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             .where(eq(channels.status, 1));
 
         const channelRoutes: MetadataRoute.Sitemap = activeChannels.map((channel) => ({
-            url: `${BASE_URL}/?channelId=${channel.id}`,
+            url: `${BASE_URL}/channel/${channel.id}`,
             lastModified: channel.createdAt ? new Date(channel.createdAt) : new Date(),
             changeFrequency: 'weekly',
             priority: 0.7,
         }));
 
-        return [...staticRoutes, ...channelRoutes];
+        return [...staticRoutes, ...awardRaceRoutes, ...channelRoutes];
 
     } catch (error) {
         console.error('Failed to generate dynamic sitemap:', error);
-        // エラー時でも最低限静的なページは返却するようにします。
-        return staticRoutes;
+        // エラー時でも最低限静的なページとAward Raceのページは返却するようにします。
+        return [...staticRoutes, ...awardRaceRoutes];
     }
 }

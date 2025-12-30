@@ -4,6 +4,8 @@ export type VideoItem = {
   thumbnail: string;
   channelId?: string;
   channelName?: string;
+  viewCount?: number; // 再生数を追加
+  likeCount?: number; // 高評価数を追加
 };
 
 export type PlaylistItem = {
@@ -21,6 +23,8 @@ type RawVideo = {
   title: string;
   channel_id?: string | null;
   channel_name?: string | null;
+  view_count?: number | null; // 再生数を追加
+  like_count?: number | null; // 高評価数を追加
 };
 
 type RawPlaylist = {
@@ -48,6 +52,8 @@ function mapRawVideo(video: RawVideo): VideoItem | null {
     thumbnail: buildThumbnailUrl(videoId),
     channelId: video.channel_id ?? undefined,
     channelName: video.channel_name ?? undefined,
+    viewCount: video.view_count ?? undefined, // 再生数をマッピング
+    likeCount: video.like_count ?? undefined, // 高評価数をマッピング
   };
 }
 
@@ -73,7 +79,9 @@ export type FetchVideoOptions = {
   query?: string;
   channelId?: string;
   signal?: AbortSignal;
-  mode?: "new" | "random";
+  mode?: "new" | "random" | "popular" | "award-race"; // "popular" と "award-race" を追加
+  period?: "all" | "month" | "year"; // 期間フィルタを追加
+  sort?: "published" | "views" | "likes"; // ソート順フィルタを追加
   limit?: number;
   offset?: number;
   includePlaylists?: boolean;
@@ -121,6 +129,14 @@ export async function fetchVideoItems(
   }
   if (options?.includePlaylists === false) {
     params.set("includePlaylists", "false");
+  }
+  if (options?.period) {
+    // 期間フィルタを API に渡します。
+    params.set("period", options.period);
+  }
+  if (options?.sort) {
+    // ソート順フィルタを API に渡します。
+    params.set("sort", options.sort);
   }
   if (options?.isHome) {
     // トップ画面専用の最適化フラグです。false 相当時はクエリを付けず既存挙動を保ちます。

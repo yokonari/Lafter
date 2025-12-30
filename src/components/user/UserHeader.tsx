@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, CircleQuestionMark, Search, X } from "lucide-react";
-import { ChangeEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { ChangeEvent, CompositionEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import styles from "./userTheme.module.scss";
 
 // ... (imports remain same)
@@ -39,6 +39,14 @@ export function UserHeader({
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
+  const [localQuery, setLocalQuery] = useState(query);
+
+  useEffect(() => {
+    if (!isComposing) {
+      setLocalQuery(query);
+    }
+  }, [query, isComposing]);
 
   // モバイル判定を行い、ビューポート変更時にも丁寧に追従します。
   useEffect(() => {
@@ -89,17 +97,36 @@ export function UserHeader({
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (isComposing) return;
     if (event.key === "Enter") {
       void triggerSearch(query);
     }
   };
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onQueryChange(event.target.value);
+    const nextValue = event.target.value;
+    setLocalQuery(nextValue);
+    if (!isComposing) {
+      onQueryChange(nextValue);
+    }
+    setIsHistoryOpen(true);
+  };
+
+  const handleCompositionStart = () => {
+    setIsComposing(true);
+  };
+
+  const handleCompositionEnd = (event: CompositionEvent<HTMLInputElement>) => {
+    const nextValue = event.currentTarget.value;
+    setIsComposing(false);
+    setLocalQuery(nextValue);
+    onQueryChange(nextValue);
     setIsHistoryOpen(true);
   };
 
   const handleHistoryItemSelect = (word: string) => {
+    setIsComposing(false);
+    setLocalQuery(word);
     onHistorySelect(word);
     setIsHistoryOpen(false);
     onMobileSearchClose();
@@ -108,6 +135,8 @@ export function UserHeader({
 
   // クリアボタンで入力を空にし、再フォーカスさせます。
   const handleClear = () => {
+    setIsComposing(false);
+    setLocalQuery("");
     onQueryChange("");
     setIsHistoryOpen(false);
     searchInputRef.current?.focus();
@@ -118,6 +147,8 @@ export function UserHeader({
     if (!query.trim()) return;
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
+      setIsComposing(false);
+      setLocalQuery("");
       onQueryChange("");
       setIsHistoryOpen(false);
       searchInputRef.current?.focus();
@@ -184,9 +215,11 @@ export function UserHeader({
             <Search aria-hidden className={styles.searchIcon} size={18} />
             <input
               type="search"
-              value={query}
+              value={localQuery}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
+              onCompositionStart={handleCompositionStart}
+              onCompositionEnd={handleCompositionEnd}
               onFocus={() => {
                 setIsHistoryOpen(true);
                 handleMobileSearchTrigger();

@@ -1,0 +1,182 @@
+import type { KVNamespace } from "@cloudflare/workers-types";
+import { Hono } from "hono";
+
+type CronEnv = Env & {
+    DB?: D1Database;
+    lafter_db?: D1Database;
+    LAFTER?: KVNamespace;
+};
+
+type LikesVideoRow = {
+    channel_id: string;
+    channel_name: string | null;
+    video_id: string;
+    video_title: string;
+};
+
+type LikesVideoPayload = {
+    channel_id: string;
+    channel_name: string;
+    video_id: string;
+    video_title: string;
+};
+
+type LikesVideoCache = {
+    updated_at: string;
+    items: LikesVideoPayload[];
+};
+
+type LikesPeriod = "all" | "year" | "month";
+
+type PeriodConfig = {
+    period: LikesPeriod;
+    key: string;
+    sinceIso?: string;
+};
+
+const CACHE_LIMIT = 500;
+const CACHE_KEYS: Record<LikesPeriod, string> = {
+    all: "likes_active_videos_all",
+    year: "likes_active_videos_year",
+    month: "likes_active_videos_month",
+};
+
+const app = new Hono();
+
+// Worker の稼働確認用の疎通エンドポイントを丁寧に用意しておきます。
+app.get("/", (c) => c.text("Likes videos cache cron worker is alive."));
+
+const scheduled: ExportedHandlerScheduledHandler = async (_event, env, ctx) => {
+    ctx.waitUntil(runLikesVideosCacheCron(env as CronEnv));
+};
+
+const cronWorker = {
+    fetch: app.fetch,
+    scheduled,
+};
+
+export default cronWorker;
+
+async function runLikesVideosCacheCron(env: CronEnv) {
+    const db = resolveDb(env);
+    const kv = env.LAFTER;
+    if (!db) {
+        console.error("[cron-likes-videos] D1 バインディング(DB/lafter_db)が見つかりません。");
+        return;
+    }
+    if (!kv) {
+        console.error("[cron-likes-videos] Workers KV LAFTER バインディングが設定されていません。");
+        return;
+    }
+
+    const now = Date.now();
+    const periodConfigs: PeriodConfig[] = [
+        {
+            period: "all",
+            key: CACHE_KEYS.all,
+        },
+        {
+            period: "year",
+            key: CACHE_KEYS.year,
+            sinceIso: new Date(now - 365 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+        {
+            period: "month",
+            key: CACHE_KEYS.month,
+            sinceIso: new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString(),
+        },
+    ];
+
+    for (const config of periodConfigs) {
+        const rows = await fetchLikesVideos(db, CACHE_LIMIT, config.sinceIso);
+        if (rows.length === 0) {
+            console.warn("[cron-likes-videos] KV へ保存する高評価動画が見つかりませんでした。", {
+                period: config.period,
+            });
+        }
+
+        const payload: LikesVideoPayload[] = rows.map((row) => ({
+            channel_id: row.channel_id,
+            channel_name: row.channel_name ?? row.channel_id,
+            video_id: row.video_id,
+            video_title: row.video_title,
+        }));
+
+        await saveToKv(kv, config.key, payload, config.period);
+    }
+}
+
+async function fetchLikesVideos(
+    db: D1Database,
+    limit: number,
+    sinceIso?: string,
+): Promise<LikesVideoRow[]> {
+    try {
+        const baseQuery = `
+        SELECT
+          v.channel_id AS channel_id,
+          c.name AS channel_name,
+          v.id AS video_id,
+          v.title AS video_title
+        FROM videos v
+        INNER JOIN channels c ON v.channel_id = c.id
+        WHERE
+          v.status IN (1, 3)
+          AND c.status = 1
+          AND v.like_count IS NOT NULL
+      `;
+
+        const whereClause = sinceIso ? `${baseQuery} AND v.published_at >= ?` : baseQuery;
+        const orderClause = `
+        ORDER BY v.like_count DESC, v.published_at DESC
+        LIMIT ?
+      `;
+
+        const statement = db.prepare(`${whereClause}${orderClause}`);
+        const bound = sinceIso ? statement.bind(sinceIso, limit) : statement.bind(limit);
+        const result = await bound.all<LikesVideoRow>();
+        const rows = Array.isArray(result?.results) ? result.results : [];
+        return rows.filter(
+            (row): row is LikesVideoRow =>
+                typeof row?.channel_id === "string" &&
+                row.channel_id !== "" &&
+                typeof row?.video_id === "string" &&
+                row.video_id !== "" &&
+                typeof row?.video_title === "string" &&
+                row.video_title !== "",
+        );
+    } catch (error) {
+        console.error("[cron-likes-videos] 高評価動画一覧の取得に失敗しました。", error);
+        return [];
+    }
+}
+
+async function saveToKv(
+    kv: KVNamespace,
+    key: string,
+    payload: LikesVideoPayload[],
+    period: LikesPeriod,
+): Promise<void> {
+    try {
+        const cache: LikesVideoCache = {
+            updated_at: new Date().toISOString(),
+            items: payload,
+        };
+        await kv.put(key, JSON.stringify(cache));
+        console.log("[cron-likes-videos] 高評価動画リストを KV へ保存しました。", {
+            count: payload.length,
+            key,
+            period,
+        });
+    } catch (error) {
+        console.error("[cron-likes-videos] 高評価動画リストの KV 保存に失敗しました。", {
+            key,
+            period,
+            error,
+        });
+    }
+}
+
+function resolveDb(env: CronEnv): D1Database | null {
+    return env.DB ?? env.lafter_db ?? null;
+}
