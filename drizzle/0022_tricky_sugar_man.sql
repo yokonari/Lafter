@@ -1,0 +1,2 @@
+CREATE INDEX `idx_videos_status_view_count_published` ON `videos` (`status`,`view_count`,`published_at`);--> statement-breakpoint
+CREATE INDEX `idx_videos_status_like_count_published` ON `videos` (`status`,`like_count`,`published_at`);

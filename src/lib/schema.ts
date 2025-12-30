@@ -95,6 +95,14 @@ export const videos = sqliteTable(
     idxVideosStatusLastCheckedPublished: index(
       "idx_videos_status_last_checked_published",
     ).on(table.status, table.lastCheckedAt, table.publishedAt),
+    // 再生数でのソートを最適化するための複合インデックスです (status, view_count DESC, published_at DESC)
+    idxVideosStatusViewCountPublished: index(
+      "idx_videos_status_view_count_published",
+    ).on(table.status, table.viewCount, table.publishedAt),
+    // 高評価数でのソートを最適化するための複合インデックスです (status, like_count DESC, published_at DESC)
+    idxVideosStatusLikeCountPublished: index(
+      "idx_videos_status_like_count_published",
+    ).on(table.status, table.likeCount, table.publishedAt),
   }),
 );
 

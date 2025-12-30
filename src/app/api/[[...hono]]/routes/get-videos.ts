@@ -179,28 +179,41 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     }
 
     if (kv && isCacheEligible && mode === "popular" && !shouldIncludePlaylists) {
-      // mode=popular の場合、sort パラメータに応じて再生数または高評価のキャッシュを取得します
-      if (sort === "likes") {
-        const likesCacheKey = resolveLikesCacheKey(period);
-        const likesCache = await loadCachedVideos(kv, likesCacheKey);
-        if (likesCache) {
-          return respondWithCache(c, likesCache, safeOffset, safeLimit, false);
-        }
-        console.warn(
-          "[get-videos] 高評価動画キャッシュが利用できなかったため DB で処理を継続します。",
-          likesCacheKey,
-        );
-      } else {
-        // sort が "views" または未指定の場合は再生数キャッシュを使用
-        const viewsCacheKey = resolveViewsCacheKey(period);
+      // ホーム画面の場合は条件を固定: 1ヶ月以内の再生数順キャッシュをシャッフルして10件返します
+      if (shouldShuffleCacheForHome) {
+        const viewsCacheKey = "views_active_videos_month";
         const viewsCache = await loadCachedVideos(kv, viewsCacheKey);
         if (viewsCache) {
-          return respondWithCache(c, viewsCache, safeOffset, safeLimit, false);
+          return respondWithCache(c, viewsCache, 0, HOME_CACHE_LIMIT, true);
         }
         console.warn(
-          "[get-videos] 再生数動画キャッシュが利用できなかったため DB で処理を継続します。",
+          "[get-videos] ホーム画面用の再生数動画キャッシュが利用できなかったため DB で処理を継続します。",
           viewsCacheKey,
         );
+      } else {
+        // 詳細画面や検索結果の場合は、sort パラメータに応じてキャッシュを取得します
+        if (sort === "likes") {
+          const likesCacheKey = resolveLikesCacheKey(period);
+          const likesCache = await loadCachedVideos(kv, likesCacheKey);
+          if (likesCache) {
+            return respondWithCache(c, likesCache, safeOffset, safeLimit, false);
+          }
+          console.warn(
+            "[get-videos] 高評価動画キャッシュが利用できなかったため DB で処理を継続します。",
+            likesCacheKey,
+          );
+        } else {
+          // sort が "views" または未指定の場合は再生数キャッシュを使用
+          const viewsCacheKey = resolveViewsCacheKey(period);
+          const viewsCache = await loadCachedVideos(kv, viewsCacheKey);
+          if (viewsCache) {
+            return respondWithCache(c, viewsCache, safeOffset, safeLimit, false);
+          }
+          console.warn(
+            "[get-videos] 再生数動画キャッシュが利用できなかったため DB で処理を継続します。",
+            viewsCacheKey,
+          );
+        }
       }
     }
 
