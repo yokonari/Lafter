@@ -304,10 +304,13 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       orderedVideoQuery = baseVideoQuery.orderBy(desc(videos.publishedAt));
     }
 
+    // ホーム画面の人気セクションでキャッシュがない場合、50件取得してシャッフルするため取得件数を調整します
+    const fetchLimit = shouldShuffleCacheForHome && mode === "popular" ? 50 : safeLimit;
+
     // 追加取得分の1件を含めておき、次ページの有無を丁寧に判断します。
-    const videoRowsRaw = await orderedVideoQuery.limit(safeLimit + 1).offset(safeOffset);
-    const hasNext = videoRowsRaw.length > safeLimit;
-    const videoRows = hasNext ? videoRowsRaw.slice(0, safeLimit) : videoRowsRaw;
+    const videoRowsRaw = await orderedVideoQuery.limit(fetchLimit + 1).offset(safeOffset);
+    const hasNext = videoRowsRaw.length > fetchLimit;
+    const videoRows = hasNext ? videoRowsRaw.slice(0, fetchLimit) : videoRowsRaw;
 
     let playlistRows:
       | Array<{
@@ -377,11 +380,26 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
 
     // ホーム画面の人気セクションでキャッシュが使えなかった場合、DBから取得したデータをシャッフルします
     if (shouldShuffleCacheForHome && mode === "popular") {
-      // Fisher-Yates シャッフルアルゴリズムを使用
+      // Fisher-Yates シャッフルアルゴリズムを使用して50件全体をシャッフル
       for (let i = videosPayload.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [videosPayload[i], videosPayload[j]] = [videosPayload[j], videosPayload[i]];
       }
+      // シャッフル後、上位10件のみを返す
+      const slicedVideos = videosPayload.slice(0, HOME_CACHE_LIMIT);
+      // 50件取得できていた場合、まだ続きがあることを示す
+      const shuffledHasNext = videosPayload.length >= 50;
+
+      return c.json(
+        {
+          videos: slicedVideos,
+          play_lists: [],
+          page: 1,
+          limit: HOME_CACHE_LIMIT,
+          hasNext: shuffledHasNext,
+        },
+        200,
+      );
     }
 
     const playlistsPayload = playlistRows.map((row) => ({
