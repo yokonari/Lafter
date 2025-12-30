@@ -11,21 +11,23 @@ type VideoCardProps = {
   displayStat?: "views" | "likes"; // 表示する統計情報を指定
 };
 
-// 数値を日本語形式でフォーマットする関数
-function formatNumber(num: number): string {
+// 数値を日本語形式でフォーマットする関数（単位付き）
+function formatNumber(num: number, unit: string): string {
   if (num >= 100000000) {
     // 1億以上は小数点なしで整数表示
-    return `${Math.round(num / 100000000)}億`;
+    return `${Math.round(num / 100000000)} 億${unit}`;
   }
   if (num >= 100000) {
     // 10万以上は小数点なしで整数表示
-    return `${Math.round(num / 10000)}万`;
+    return `${Math.round(num / 10000)} 万${unit}`;
   }
   if (num >= 10000) {
-    // 1万以上10万未満は小数点1桁表示
-    return `${(num / 10000).toFixed(1)}万`;
+    // 1万以上10万未満は、小数点以下が0なら整数表示、それ以外は小数点1桁表示
+    const manValue = num / 10000;
+    const rounded = Math.round(manValue * 10) / 10; // 小数点1桁に丸める
+    return rounded % 1 === 0 ? `${Math.round(rounded)} 万${unit}` : `${rounded.toFixed(1)} 万${unit}`;
   }
-  return num.toLocaleString("ja-JP");
+  return `${num.toLocaleString("ja-JP")} ${unit}`;
 }
 
 export function VideoCard({ video, onSelect, onChannelSelect, displayStat }: VideoCardProps) {
@@ -121,7 +123,7 @@ export function VideoCard({ video, onSelect, onChannelSelect, displayStat }: Vid
         {/* 統計情報を表示 */}
         {statValue !== undefined && statLabel && (
           <div className={styles.cardStat}>
-            {formatNumber(statValue)} {statLabel}
+            {formatNumber(statValue, statLabel)}
           </div>
         )}
       </div>
