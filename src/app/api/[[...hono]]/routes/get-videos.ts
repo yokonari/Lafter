@@ -375,6 +375,15 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       like_count: row.likeCount ?? undefined, // 高評価数を追加
     }));
 
+    // ホーム画面の人気セクションでキャッシュが使えなかった場合、DBから取得したデータをシャッフルします
+    if (shouldShuffleCacheForHome && mode === "popular") {
+      // Fisher-Yates シャッフルアルゴリズムを使用
+      for (let i = videosPayload.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [videosPayload[i], videosPayload[j]] = [videosPayload[j], videosPayload[i]];
+      }
+    }
+
     const playlistsPayload = playlistRows.map((row) => ({
       id: row.id,
       // プレイリスト名も同様にエンティティを整えます。
@@ -549,16 +558,24 @@ function respondWithCache(
       like_count: item?.like_count ?? undefined, // 高評価数を追加
     }));
 
-  return c.json(
-    {
-      videos: videosPayload,
-      play_lists: [],
-      page: Math.floor(offset / limit) + 1,
-      limit,
-      hasNext,
-    },
-    200,
-  );
+  const responseData = {
+    videos: videosPayload,
+    play_lists: [],
+    page: Math.floor(offset / limit) + 1,
+    limit,
+    hasNext,
+  };
+
+  // シャッフルする場合はブラウザキャッシュを無効化し、毎回新しい結果を取得できるようにします
+  if (shouldShuffle) {
+    return c.json(responseData, 200, {
+      "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+      "Pragma": "no-cache",
+      "Expires": "0",
+    });
+  }
+
+  return c.json(responseData, 200);
 }
 
 function resolveViewsCacheKey(period: string): string {
