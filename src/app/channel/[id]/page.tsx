@@ -99,11 +99,11 @@ export async function generateMetadata(
     if (absoluteFetch) {
         try {
             // チャンネル名を取得し、OG タイトルへ反映します。
-            const { videos, playlists } = await fetchVideoItems(absoluteFetch, {
+            const { videos } = await fetchVideoItems(absoluteFetch, {
                 channelId,
                 limit: 1,
             });
-            channelName = videos[0]?.channelName ?? playlists[0]?.channelName ?? undefined;
+            channelName = videos[0]?.channelName ?? undefined;
         } catch {
             // API 取得に失敗してもページ表示は継続します。
         }

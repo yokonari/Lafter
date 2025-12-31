@@ -961,19 +961,7 @@ $title-font-weight: 400;
   color: var(--user-text-secondary);
 }
 
-.playlistBadge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.1rem 0.5rem;
-  margin-bottom: 0.25rem;
-  border-radius: 9999px;
-  background: var(--user-surface-hover);
-  color: var(--user-accent);
-  font-size: clamp(0.5rem, 0.5rem + 0.25vw, 0.6rem);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
+
 
 /* ------- フッター ------- */
 .footer {

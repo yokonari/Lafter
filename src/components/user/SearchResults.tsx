@@ -1,19 +1,20 @@
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { fetchVideoItems, type VideoItem, type PlaylistItem } from "@/lib/videoService";
+import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
-import { PlaylistCard } from "./PlaylistCard";
 import { XShareButton } from "./XShareButton";
 import { containsNgWord } from "@/lib/ng-words";
 import { AwardRacePage } from "./AwardRacePage";
 import styles from "./userTheme.module.scss";
+
+
 
 type SearchResultsProps = {
   query: string;
   channelId?: string;
   mode?: "new" | "random" | "popular" | "award-race"; // "popular" と "award-race" を追加
   onVideoSelect: (video: VideoItem) => void;
-  onPlaylistSelect: (playlist: PlaylistItem) => void;
+
   onChannelSelect: (channelId: string) => void;
   onBackToTop: () => void;
   initialRace?: "m1" | "koc";
@@ -25,14 +26,14 @@ export function SearchResults({
   channelId,
   mode,
   onVideoSelect,
-  onPlaylistSelect,
+
   onChannelSelect,
   onBackToTop,
   initialRace,
   initialYear,
 }: SearchResultsProps) {
   const [videos, setVideos] = useState<VideoItem[]>([]);
-  const [playlists, setPlaylists] = useState<PlaylistItem[]>([]);
+
   const [fetchedChannelName, setFetchedChannelName] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -41,7 +42,6 @@ export function SearchResults({
   const [nextOffset, setNextOffset] = useState(0);
   const [selectedPeriod, setSelectedPeriod] = useState<"month" | "year" | "all">("month"); // 期間選択用のStateを追加
   const [selectedSort, setSelectedSort] = useState<"published" | "views" | "likes">("published"); // ソート順選択用のStateを追加
-  const [videosOnly, setVideosOnly] = useState(false); // 動画のみ表示フラグ
   const PAGE_SIZE = 20;
 
   // URLパラメータから期間とソート順を読み取り、初期値として設定します。
@@ -71,11 +71,7 @@ export function SearchResults({
       }
     }
 
-    // 動画のみフラグの読み取り
-    const videosOnlyParam = params.get("videosOnly");
-    if (videosOnlyParam === "true" || videosOnlyParam === "1") {
-      setVideosOnly(true);
-    }
+
   }, [mode]);
 
   // 期間変更ハンドラを実装します。
@@ -104,22 +100,7 @@ export function SearchResults({
     }
   }, []);
 
-  // 動画のみフラグ変更ハンドラを実装します。
-  const handleVideosOnlyChange = useCallback((checked: boolean) => {
-    setVideosOnly(checked);
 
-    // URLパラメータを更新します。
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      if (checked) {
-        params.set("videosOnly", "true");
-      } else {
-        params.delete("videosOnly");
-      }
-      const newUrl = `${window.location.pathname}?${params.toString()}`;
-      window.history.pushState({}, "", newUrl);
-    }
-  }, []);
 
 
   useEffect(() => {
@@ -130,7 +111,6 @@ export function SearchResults({
       setLoading(true);
       setError(null);
       setVideos([]);
-      setPlaylists([]);
       setFetchedChannelName(undefined);
       setHasMore(false);
       setNextOffset(0);
@@ -139,28 +119,22 @@ export function SearchResults({
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
       try {
-        const {
-          videos: fetchedVideos,
-          playlists: fetchedPlaylists,
-          hasNext,
-        } = await fetchVideoItems(fetch, {
+        const { videos: fetchedVideos, hasNext } = await fetchVideoItems(fetch, {
           query,
           channelId,
           mode,
           period: mode === "popular" ? selectedPeriod : undefined, // 人気モード時のみperiodを渡します
           sort: mode === "popular" ? selectedSort : (mode ? undefined : selectedSort), // 人気モード時はsortを渡します
-          // 「最近」「ランダム」モードではプレイリストを除外し、動画のみに絞り込みます。
-          includePlaylists: mode ? false : undefined,
+
           signal: controller.signal,
           limit: PAGE_SIZE,
           offset: 0,
         });
         if (canceled) return;
         setVideos(fetchedVideos);
-        setPlaylists(fetchedPlaylists);
 
         if (channelId) {
-          const name = fetchedVideos.find((v) => v.channelName)?.channelName || fetchedPlaylists.find((p) => p.channelName)?.channelName;
+          const name = fetchedVideos.find((v) => v.channelName)?.channelName;
           if (name) {
             setFetchedChannelName(name);
           }
@@ -197,23 +171,17 @@ export function SearchResults({
     setError(null);
 
     try {
-      const {
-        videos: fetchedVideos,
-        playlists: fetchedPlaylists,
-        hasNext,
-      } = await fetchVideoItems(fetch, {
+      const { videos: fetchedVideos, hasNext } = await fetchVideoItems(fetch, {
         query,
         channelId,
         mode,
         period: mode === "popular" ? selectedPeriod : undefined, // 人気モード時のみperiodを渡します
         sort: mode === "popular" ? selectedSort : (mode ? undefined : selectedSort), // 人気モード時はsortを渡します
-        // 初回と同様にモード指定時はプレイリストを取得しないようにします。
-        includePlaylists: mode ? false : undefined,
+
         limit: PAGE_SIZE,
         offset: nextOffset,
       });
       setVideos((prev) => [...prev, ...fetchedVideos]);
-      setPlaylists((prev) => [...prev, ...fetchedPlaylists]);
       setHasMore(hasNext);
       setNextOffset((prevOffset) => prevOffset + fetchedVideos.length);
     } catch (err) {
@@ -261,7 +229,7 @@ export function SearchResults({
   const titleText = buildTitle();
 
   // 検索クエリまたはチャンネル名にNGワードが含まれている場合、または検索結果が0件の場合はシェアボタンを表示しません。
-  const hasResults = videos.length > 0 || playlists.length > 0;
+  const hasResults = videos.length > 0;
   const shouldShowShareButton = hasResults && !(
     (query && containsNgWord(query)) ||
     (fetchedChannelName && containsNgWord(fetchedChannelName))
@@ -312,11 +280,12 @@ export function SearchResults({
             {titleText}
           </h1>
         </div>
+
         {/* タイトル下の行にフィルタボタンを配置します。 */}
         {/* NGワードを含む検索時はシェアボタンを非表示にします。 */}
         <div style={{ display: "flex", alignItems: "center", gap: "1rem", flexWrap: "wrap" }}>
           {/* ソート順フィルタボタン: 最近・ランダム・人気モード以外で、かつ検索結果が2件以上の時のみ表示 */}
-          {mode !== "random" && mode !== "new" && mode !== "popular" && (videos.length + playlists.length) >= 2 && (
+          {mode !== "random" && mode !== "new" && mode !== "popular" && videos.length >= 2 && (
             <div className={styles.periodTabs} style={{ marginBottom: 0 }}>
               <button
                 type="button"
@@ -341,18 +310,7 @@ export function SearchResults({
               </button>
             </div>
           )}
-          {/* 動画のみチェックボックス: プレイリストが含まれる場合のみ表示 */}
-          {playlists.length > 0 && (
-            <label className={styles.videosOnlyLabel}>
-              <input
-                type="checkbox"
-                checked={videosOnly}
-                onChange={(e) => handleVideosOnlyChange(e.target.checked)}
-                className={styles.videosOnlyCheckbox}
-              />
-              <span>動画のみ</span>
-            </label>
-          )}
+
           {/* 人気モード以外でシェアボタンを表示 */}
           {mode !== "popular" && shouldShowShareButton && (
             <div className={styles.searchHeaderShare}>
@@ -428,41 +386,33 @@ export function SearchResults({
       )}
 
       {/* ヒットがない場合は空メッセージを丁寧に表示します。 */}
-      {!loading && !error && videos.length === 0 && playlists.length === 0 ? (
+      {!loading && !error && videos.length === 0 ? (
         <p className={styles.statusText}>検索結果が見つかりませんでした。</p>
       ) : (
-        <div className={styles.searchGrid}>
-          {/* 動画のみフラグがfalseの場合のみプレイリストを表示 */}
-          {!videosOnly && playlists.map((playlist) => {
-            return (
-              <PlaylistCard
-                key={`playlist-${playlist.id}`}
-                playlist={playlist}
-                onSelect={onPlaylistSelect}
-                onChannelSelect={onChannelSelect}
-              />
-            );
-          })}
-          {videos.map((video) => {
-            // 人気モードまたは検索結果でソート順が再生数/高評価の場合、統計情報を表示
-            const displayStat =
-              mode === "popular" && (selectedSort === "views" || selectedSort === "likes")
-                ? selectedSort
-                : !mode && (selectedSort === "views" || selectedSort === "likes")
+        <>
+          {/* 動画グリッド */}
+          <div className={styles.searchGrid}>
+            {videos.map((video) => {
+              // 人気モードまたは検索結果でソート順が再生数/高評価の場合、統計情報を表示
+              const displayStat =
+                mode === "popular" && (selectedSort === "views" || selectedSort === "likes")
                   ? selectedSort
-                  : undefined;
+                  : !mode && (selectedSort === "views" || selectedSort === "likes")
+                    ? selectedSort
+                    : undefined;
 
-            return (
-              <VideoCard
-                key={video.id}
-                video={video}
-                onSelect={onVideoSelect}
-                onChannelSelect={onChannelSelect}
-                displayStat={displayStat}
-              />
-            );
-          })}
-        </div>
+              return (
+                <VideoCard
+                  key={video.id}
+                  video={video}
+                  onSelect={onVideoSelect}
+                  onChannelSelect={onChannelSelect}
+                  displayStat={displayStat}
+                />
+              );
+            })}
+          </div>
+        </>
       )}
 
       {hasMore && (

@@ -578,7 +578,6 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 
 /* ------- カード表示 ------- */
 .videoCard,
-.playlistCard,
 .card {
   @include card-shell;
 }

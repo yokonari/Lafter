@@ -8,15 +8,7 @@ export type VideoItem = {
   likeCount?: number; // 高評価数を追加
 };
 
-export type PlaylistItem = {
-  id: string;
-  title: string;
-  playlistId: string;
-  thumbnail?: string;
-  channelId?: string;
-  channelName?: string;
-  topVideoId?: string;
-};
+
 
 type RawVideo = {
   id: string;
@@ -27,13 +19,7 @@ type RawVideo = {
   like_count?: number | null; // 高評価数を追加
 };
 
-type RawPlaylist = {
-  id: string;
-  title: string;
-  channel_id?: string | null;
-  channel_name?: string | null;
-  top_video_id?: string | null;
-};
+
 
 
 function buildThumbnailUrl(videoId: string) {
@@ -57,23 +43,7 @@ function mapRawVideo(video: RawVideo): VideoItem | null {
   };
 }
 
-function mapRawPlaylist(playlist: RawPlaylist): PlaylistItem | null {
-  const playlistId = playlist.id;
-  if (!playlistId) {
-    return null;
-  }
 
-  // プレイリストは top_video_id があるときのみサムネイルを作成します。
-  return {
-    id: playlistId,
-    playlistId,
-    title: playlist.title,
-    channelId: playlist.channel_id ?? undefined,
-    channelName: playlist.channel_name ?? undefined,
-    topVideoId: playlist.top_video_id ?? undefined,
-    thumbnail: playlist.top_video_id ? buildThumbnailUrl(playlist.top_video_id) : undefined,
-  };
-}
 
 export type FetchVideoOptions = {
   query?: string;
@@ -84,7 +54,7 @@ export type FetchVideoOptions = {
   sort?: "published" | "views" | "likes"; // ソート順フィルタを追加
   limit?: number;
   offset?: number;
-  includePlaylists?: boolean;
+
   /**
    * userHome からのアクセス時のみ true を渡し、API 側でキャッシュの再抽選を行います。
    */
@@ -93,7 +63,7 @@ export type FetchVideoOptions = {
 
 export type FetchVideosResponse = {
   videos: VideoItem[];
-  playlists: PlaylistItem[];
+
   page: number;
   limit: number;
   hasNext: boolean;
@@ -101,7 +71,7 @@ export type FetchVideosResponse = {
 
 type VideosApiPayload = {
   videos?: RawVideo[];
-  play_lists?: RawPlaylist[];
+
   page?: number;
   limit?: number;
   hasNext?: boolean;
@@ -127,9 +97,7 @@ export async function fetchVideoItems(
   if (options?.offset) {
     params.set("offset", String(options.offset));
   }
-  if (options?.includePlaylists === false) {
-    params.set("includePlaylists", "false");
-  }
+
   if (options?.period) {
     // 期間フィルタを API に渡します。
     params.set("period", options.period);
@@ -160,13 +128,7 @@ export async function fetchVideoItems(
     }
   }
 
-  const playlistItems: PlaylistItem[] = [];
-  for (const raw of payload.play_lists ?? []) {
-    const mapped = mapRawPlaylist(raw);
-    if (mapped) {
-      playlistItems.push(mapped);
-    }
-  }
+
 
   const page = typeof payload.page === "number" && payload.page > 0 ? Math.floor(payload.page) : 1;
   const responseLimit =
@@ -177,7 +139,7 @@ export async function fetchVideoItems(
 
   return {
     videos: videoItems,
-    playlists: playlistItems,
+
     page,
     limit: responseLimit,
     hasNext,

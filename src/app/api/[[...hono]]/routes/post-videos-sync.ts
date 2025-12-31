@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
-import { channels, playlists, videos } from "@/lib/schema";
+import { channels, videos } from "@/lib/schema";
 import { NEGATIVE_KEYWORDS } from "@/lib/video-keywords";
 import { createDatabase, type AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -14,7 +14,7 @@ type CloudflareBindings = Parameters<typeof createDatabase>[0];
 type SearchItem = {
   idKind: string;
   videoId?: string;
-  playlistId?: string;
+
   channelId: string;
   channelTitle: string;
   publishedAt?: string;
@@ -23,7 +23,7 @@ type SearchItem = {
 };
 
 type SearchResponseItem = {
-  id?: { kind?: string; videoId?: string; playlistId?: string };
+  id?: { kind?: string; videoId?: string };
   snippet?: {
     channelId?: string;
     channelTitle?: string;
@@ -143,7 +143,7 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
       const summary = {
         artistsProcessed: limitedArtists.length,
         videosProcessed: 0,
-        playlistsProcessed: 0,
+
         errors: [] as string[],
       };
 
@@ -152,7 +152,7 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
         artist: string;
         channels: { channelId: string; channelTitle: string }[];
         videos: SearchItem[];
-        playlists: SearchItem[];
+
       }> = [];
 
       let hadForbiddenSearchError = false;
@@ -161,9 +161,8 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
         try {
           const searchItems = await searchVideos(query, apiKey);
           const videoItems = searchItems.filter((i) => i.idKind === "youtube#video");
-          const playlistItems = searchItems.filter((i) => i.idKind === "youtube#playlist");
 
-          const combinedChannels = [...videoItems, ...playlistItems].map((item) => ({
+          const combinedChannels = [...videoItems].map((item) => ({
             channelId: item.channelId,
             channelTitle: item.channelTitle ?? "",
           }));
@@ -179,7 +178,6 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
             artist,
             channels: uniqueChannels,
             videos: videoItems,
-            playlists: playlistItems,
           });
         } catch (error) {
           const message = (error as Error)?.message ?? "検索処理に失敗しました。";
@@ -205,7 +203,7 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
         options: { abortOnError: boolean },
       ) => {
         for (const result of pendingResults) {
-          const { artist, channels, videos: videoItems, playlists: playlistItems } = result;
+          const { artist, channels, videos: videoItems } = result;
           const channelTitleMap = new Map<string, string>();
           for (const entry of channels) {
             if (!entry.channelId) continue;
@@ -244,8 +242,7 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
               }
               logSqlError(error);
               summary.errors.push(
-                `${artist}: ${
-                  (error as Error)?.message ?? "動画情報の保存に失敗しました。"
+                `${artist}: ${(error as Error)?.message ?? "動画情報の保存に失敗しました。"
                 }`,
               );
               if (options.abortOnError) {
@@ -254,41 +251,7 @@ export function registerPostVideosSync(app: Hono<AdminEnv>) {
             }
           }
 
-          for (const item of playlistItems) {
-            if (!item.playlistId) continue;
-            if (!item.channelId || !ensuredChannels.has(item.channelId)) continue;
-            const resolvedChannelTitle =
-              channelTitleMap.get(item.channelId) ||
-              item.channelTitle ||
-              item.channelId ||
-              "";
-            if (shouldSkipChannel(resolvedChannelTitle)) continue;
 
-            try {
-              const exists = await playlistExists(client, item.playlistId);
-              if (exists) continue;
-              await insertPlaylist(client, {
-                id: item.playlistId,
-                title: item.title,
-                channelId: item.channelId,
-                topVideoId: item.topVideoId ?? null,
-              });
-              summary.playlistsProcessed += 1;
-            } catch (error) {
-              if (isUniqueConstraintError(error)) {
-                continue;
-              }
-              logSqlError(error);
-              summary.errors.push(
-                `${artist}: ${
-                  (error as Error)?.message ?? "再生リスト情報の保存に失敗しました。"
-                }`,
-              );
-              if (options.abortOnError) {
-                throw error;
-              }
-            }
-          }
         }
       };
 
@@ -482,7 +445,7 @@ async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]
   url.searchParams.set("part", "snippet");
   url.searchParams.set("maxResults", DEFAULT_MAX_RESULTS.toString());
   url.searchParams.set("q", query);
-  url.searchParams.set("type", "video,playlist");
+  url.searchParams.set("type", "video");
   url.searchParams.set("safeSearch", "none");
   url.searchParams.set("regionCode", "JP");
   url.searchParams.set("relevanceLanguage", "ja");
@@ -506,7 +469,7 @@ async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]
       return {
         idKind: item.id?.kind ?? "",
         videoId: item.id?.videoId ?? "",
-        playlistId: item.id?.playlistId ?? "",
+
         channelId: item.snippet?.channelId ?? "",
         channelTitle: item.snippet?.channelTitle ?? "",
         publishedAt: item.snippet?.publishedAt ?? undefined,
@@ -514,13 +477,7 @@ async function searchVideos(query: string, apiKey: string): Promise<SearchItem[]
         topVideoId: extractVideoIdFromThumbnailUrl(thumbnailUrl),
       };
     })
-    .filter((it) =>
-      it.idKind === "youtube#video"
-        ? Boolean(it.videoId && it.channelId && it.title)
-        : it.idKind === "youtube#playlist"
-          ? Boolean(it.playlistId && it.channelId && it.title)
-          : false,
-    );
+    .filter((it) => it.idKind === "youtube#video" && Boolean(it.videoId && it.channelId && it.title));
 }
 
 async function ensureChannel(
@@ -606,43 +563,22 @@ async function insertVideo(
   });
 }
 
-async function insertPlaylist(
-  db: DatabaseClient,
-  input: { id: string; title: string; channelId: string; topVideoId?: string | null },
-) {
-  await db.insert(playlists).values({
-    id: input.id,
-    channelId: input.channelId,
-    name: input.title,
-    topVideoId: input.topVideoId ?? null,
-    // プレイリストの最終確認日時を新しいカラムへ丁寧に記録します。
-    lastCheckedAt: new Date().toISOString(),
-  });
-}
 
-function shouldSkipVideo(title: string): boolean {
-  const normalized = title.toLowerCase();
+
+function shouldSkipChannel(name: string): boolean {
+  const normalized = name.toLowerCase();
   const hasNegative = NEGATIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
-  // NGワードが含まれている場合は、OKワードの有無に関係なく即座に除外します。
+  // NGワードを含むチャンネルは安全側で必ず除外します。
   if (hasNegative) {
     return true;
   }
   return false;
 }
 
-async function playlistExists(db: DatabaseClient, playlistId: string): Promise<boolean> {
-  const rows = await db
-    .select({ id: playlists.id })
-    .from(playlists)
-    .where(eq(playlists.id, playlistId))
-    .limit(1);
-  return rows.length > 0;
-}
-
-function shouldSkipChannel(name: string): boolean {
-  const normalized = name.toLowerCase();
+function shouldSkipVideo(title: string): boolean {
+  const normalized = title.toLowerCase();
   const hasNegative = NEGATIVE_KEYWORDS.some((w) => normalized.includes(w.toLowerCase()));
-  // NGワードを含むチャンネルは安全側で必ず除外します。
+  // NGワードが含まれている場合は、OKワードの有無に関係なく即座に除外します。
   if (hasNegative) {
     return true;
   }

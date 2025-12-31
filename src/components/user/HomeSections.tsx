@@ -44,7 +44,7 @@ export function HomeSections({
       // トップの「最近」は最新順でシンプルに並べます。
       mode: "new",
       limit: 10,
-      includePlaylists: false, // ホームではプレイリストを表示しないため取得を省きます。
+
       // userHome セクションでは API に isHome=true を伝えてキャッシュ再抽選の10件に限定します。
       isHome: true,
       signal: controller.signal,
@@ -78,7 +78,7 @@ export function HomeSections({
     fetchVideoItems(fetch, {
       mode: "random",
       limit: 10,
-      includePlaylists: false, // ホームではプレイリストを表示しないため取得を省きます。
+
       // ランダム表示も userHome 扱いのため isHome=true を付与し、サーバ側で丁寧に再シャッフルします。
       isHome: true,
       signal: controller.signal,
@@ -114,7 +114,7 @@ export function HomeSections({
       mode: "popular",
       period: "month", // トップ画面では「公開1ヶ月以内」を表示
       limit: 10,
-      includePlaylists: false,
+
       isHome: true,
       signal: controller.signal,
     })

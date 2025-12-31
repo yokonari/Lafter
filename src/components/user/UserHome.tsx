@@ -5,13 +5,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { VideoItem, PlaylistItem } from "@/lib/videoService";
+import type { VideoItem } from "@/lib/videoService";
 import { UserHeader } from "./UserHeader";
 import { HomeSections } from "./HomeSections";
 import { SearchResults } from "./SearchResults";
 import { UserFooter } from "./UserFooter";
 import { VideoDialog } from "./VideoDialog";
-import { PlaylistDialog } from "./PlaylistDialog";
 
 
 import { ReportDialog } from "./ReportDialog";
@@ -40,7 +39,6 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
   const [activeMode, setActiveMode] = useState<"new" | "random" | "popular" | "award-race" | undefined>(initialMode);
   const [isSearching, setIsSearching] = useState(initialChannelId || initialMode ? true : false);
   const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
-  const [dialogPlaylist, setDialogPlaylist] = useState<PlaylistItem | null>(null);
   const [reportVideo, setReportVideo] = useState<VideoItem | null>(null);
 
 
@@ -179,10 +177,7 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
   const handleVideoSelect = useCallback((video: VideoItem) => {
     setDialogVideo(video);
   }, []);
-  // プレイリストカードの選択でモーダル表示を開く
-  const handlePlaylistSelect = useCallback((playlist: PlaylistItem) => {
-    setDialogPlaylist(playlist);
-  }, []);
+
   // チャンネル名クリックで新しい /channel/[id] ルートへ遷移
   const handleChannelSelect = useCallback((channelId: string) => {
     router.push(`/channel/${channelId}`);
@@ -285,7 +280,6 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
                 channelId={activeChannelId}
                 mode={activeMode}
                 onVideoSelect={handleVideoSelect}
-                onPlaylistSelect={handlePlaylistSelect}
                 onChannelSelect={handleChannelSelect}
                 onBackToTop={handleReset}
                 initialRace={initialRace}
@@ -323,10 +317,7 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
         onClose={() => setDialogVideo(null)}
         onReport={handleReportSelect}
       />
-      <PlaylistDialog
-        playlist={dialogPlaylist}
-        onClose={() => setDialogPlaylist(null)}
-      />
+
 
       <ReportDialog open={Boolean(reportVideo)} video={reportVideo} onClose={handleReportClose} onSuccess={handleReportSuccess} />
 

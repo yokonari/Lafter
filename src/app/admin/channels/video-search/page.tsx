@@ -95,8 +95,8 @@ export default function VideoSearchPage() {
                 throw new Error(errorData.message || "動画検索に失敗しました");
             }
 
-            const data = await res.json() as { videosInserted: number, playlistsInserted: number };
-            toast.success(`検索完了: 動画${data.videosInserted}件、リスト${data.playlistsInserted}件を追加しました。`);
+            const data = await res.json() as { videosInserted: number };
+            toast.success(`検索完了: 動画${data.videosInserted}件を追加しました。`);
         } catch (err) {
             const msg = err instanceof Error ? err.message : "予期せぬエラーが発生しました";
             toast.error(msg);

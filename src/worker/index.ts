@@ -11,12 +11,14 @@ import cronVideoCheck from "./cron-video-check";
 import cronVideoCheckQueue from "./cron-video-check-queue";
 import cronVideoRss from "./cron-video-rss";
 
+
 type ScheduledEventParam = Parameters<ExportedHandlerScheduledHandler>[0];
 const MINUTES_PER_DAY = 24 * 60;
 const VIDEO_CHECK_RUNS_PER_DAY = 400;
 const VIDEO_CHECK_QUEUE_REBUILD_MINUTE = 4 * 60;
 const VIEW_COUNT_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 20;
 const LIKES_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 30;
+
 
 // OpenNext の fetch を明示的に型付けし、ビルド時の推論抜けを防ぎます。
 const fetchHandler: ExportedHandlerFetchHandler = (request, env, ctx) =>
@@ -45,6 +47,7 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
     const runRandomCache = shouldRunRandomVideosCacheJob(event);
     const runViewCountCache = shouldRunViewCountVideosCacheJob(event);
     const runLikesCache = shouldRunLikesVideosCacheJob(event);
+
     // 毎分トリガーのうち、エポック分が 31 の倍数の場合のみ LLM 判定を丁寧に実行します。
     if (runLlm) {
       if (typeof cronLlmClassify.scheduled === "function") {
@@ -109,6 +112,7 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
     } else {
       console.log("[worker] 高評価動画キャッシュ更新は日次 04:30 周期外のためスキップしました。");
     }
+
   } else {
     // マッチしない場合は念のため両方動かすか、ログを出して終了するか。
     // ここではログを出して、デフォルトで LLM 判定だけ動かすなどの安全策も考えられますが、
@@ -180,3 +184,5 @@ function shouldRunLikesVideosCacheJob(event: ScheduledEventParam): boolean {
   const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   return minuteOfDay === LIKES_VIDEOS_CACHE_RUN_MINUTE;
 }
+
+

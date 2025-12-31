@@ -1,7 +1,7 @@
 import type { Hono, Context } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
-import { channels, playlists, videos } from "@/lib/schema";
+import { channels, videos } from "@/lib/schema";
 import { NEGATIVE_KEYWORDS, POSITIVE_KEYWORDS } from "@/lib/video-keywords";
 import { createDatabase, type AppDatabase } from "../context";
 // 自動分類は一時的にコメントアウトします。触らないでください。
@@ -11,7 +11,7 @@ type TransactionClient = Parameters<Parameters<AppDatabase["transaction"]>[0]>[0
 type DatabaseClient = AppDatabase | TransactionClient;
 
 type SearchResponseItem = {
-  id?: { kind?: string; videoId?: string; playlistId?: string };
+  id?: { kind?: string; videoId?: string };
   snippet?: {
     channelId?: string;
     channelTitle?: string;
@@ -34,7 +34,7 @@ type SearchApiError = Error & { status?: number };
 type SearchItem = {
   idKind: string;
   videoId?: string;
-  playlistId?: string;
+
   channelId: string;
   channelTitle: string;
   publishedAt?: string;
@@ -118,12 +118,11 @@ export function registerPostChannelSearch<
         publishedAfter: publishedAfter || undefined,
       });
       const videoItems = searchItems.filter((i) => i.idKind === "youtube#video");
-      const playlistItems = searchItems.filter((i) => i.idKind === "youtube#playlist");
       // フルサーチであっても保存対象は 300 件までに抑え、DB/分類処理の負荷を丁寧にコントロールします。
       const limitedVideoItems = videoItems.slice(0, MAX_VIDEOS_TO_SAVE);
       // 取得件数をこまめに記録し、API 側の挙動を追跡しやすくします。
       console.log(
-        `[channel-search] 取得結果 チャンネル=${channelId} 動画=${videoItems.length}件(保存対象:${limitedVideoItems.length}件) 再生リスト=${playlistItems.length}件 合計=${searchItems.length}件`,
+        `[channel-search] 取得結果 チャンネル=${channelId} 動画=${videoItems.length}件(保存対象:${limitedVideoItems.length}件) 合計=${searchItems.length}件`,
       );
 
       const ensuredChannels = new Set<string>();
@@ -132,7 +131,7 @@ export function registerPostChannelSearch<
         maxPages,
         fetched: searchItems.length,
         videosInserted: 0,
-        playlistsInserted: 0,
+
         // サーチAPIで取得した動画タイトルをすべて返し、結果の確認をしやすくします。
         videoTitles: limitedVideoItems.map((v) => v.title),
         errors: [] as string[],
@@ -140,9 +139,7 @@ export function registerPostChannelSearch<
 
       // チャンネル名の候補は最初に得られた要素から丁寧に抽出します。
       const channelTitleFallback =
-        limitedVideoItems[0]?.channelTitle ||
-        playlistItems[0]?.channelTitle ||
-        channelId;
+        limitedVideoItems[0]?.channelTitle || channelId;
 
       // 検索APIを呼んだ時点でチャンネルの最終確認時刻を必ず更新し、存在しない場合は作成します。
       try {
@@ -200,43 +197,7 @@ export function registerPostChannelSearch<
       }
       console.log(`[channel-search] 動画登録 success=${summary.videosInserted} skipped(channel=${skipStats.channelFilter}, video=${skipStats.videoFilter}, exists=${skipStats.exists}, error=${skipStats.error})`);
 
-      for (const item of playlistItems) {
-        if (!item.playlistId || !item.channelId) continue;
-        const resolvedTitle = item.channelTitle || channelTitleFallback;
-        // if (shouldSkipChannel(resolvedTitle ?? "")) continue;
 
-        try {
-          const existing = await getPlaylist(db, item.playlistId);
-          if (!existing) {
-            await ensureChannel(db, ensuredChannels, item.channelId, resolvedTitle);
-            await insertPlaylist(db, {
-              id: item.playlistId,
-              title: item.title,
-              channelId: item.channelId,
-              topVideoId: item.topVideoId ?? null,
-            });
-            summary.playlistsInserted += 1;
-          } else {
-            // 名前かトップ動画が変わっていたら更新します
-            if (existing.name !== item.title || existing.topVideoId !== item.topVideoId) {
-              await updatePlaylist(db, item.playlistId, {
-                name: item.title,
-                topVideoId: item.topVideoId ?? null,
-              });
-            }
-          }
-        } catch (error) {
-          if (isUniqueConstraintError(error)) {
-            continue;
-          }
-          logSqlError(error);
-          summary.errors.push(
-            `playlist ${item.playlistId}: ${(error as Error)?.message ?? "再生リスト情報の保存に失敗しました。"
-            }`,
-          );
-        }
-      }
-      console.log(`[channel-search] 再生リスト登録 success count=${summary.playlistsInserted}`);
 
       // 保存直後に該当チャンネルの動画だけを丁寧に自動分類し、分類漏れを防ぎます。
       // 一時的にコメントアウトします。触らないでください。
@@ -288,7 +249,7 @@ async function searchChannelItems(
     url.searchParams.set("part", "snippet");
     url.searchParams.set("channelId", channelId);
     url.searchParams.set("q", "ネタ");
-    url.searchParams.set("type", "video,playlist");
+    url.searchParams.set("type", "video");
     url.searchParams.set("maxResults", String(MAX_RESULTS_PER_PAGE));
     url.searchParams.set("safeSearch", "none");
     url.searchParams.set("regionCode", "JP");
@@ -320,7 +281,7 @@ async function searchChannelItems(
           return {
             idKind: item.id?.kind ?? "",
             videoId: item.id?.videoId ?? "",
-            playlistId: item.id?.playlistId ?? "",
+
             channelId: item.snippet?.channelId ?? "",
             channelTitle: item.snippet?.channelTitle ?? "",
             publishedAt: item.snippet?.publishedAt ?? undefined,
@@ -328,13 +289,7 @@ async function searchChannelItems(
             topVideoId: extractVideoIdFromThumbnailUrl(thumbnailUrl),
           };
         })
-        .filter((it) =>
-          it.idKind === "youtube#video"
-            ? Boolean(it.videoId && it.channelId && it.title)
-            : it.idKind === "youtube#playlist"
-              ? Boolean(it.playlistId && it.channelId && it.title)
-              : false,
-        ),
+        .filter((it) => it.idKind === "youtube#video" && Boolean(it.videoId && it.channelId && it.title)),
     );
 
     pageToken = data.nextPageToken;
@@ -473,43 +428,7 @@ async function insertVideo(
   });
 }
 
-async function getPlaylist(db: DatabaseClient, playlistId: string) {
-  const rows = await db
-    .select()
-    .from(playlists)
-    .where(eq(playlists.id, playlistId))
-    .limit(1);
-  return rows[0];
-}
 
-async function updatePlaylist(
-  db: DatabaseClient,
-  id: string,
-  input: { name: string; topVideoId: string | null }
-) {
-  await db
-    .update(playlists)
-    .set({
-      name: input.name,
-      topVideoId: input.topVideoId,
-      lastCheckedAt: new Date().toISOString(),
-    })
-    .where(eq(playlists.id, id));
-}
-
-async function insertPlaylist(
-  db: DatabaseClient,
-  input: { id: string; title: string; channelId: string; topVideoId?: string | null },
-) {
-  await db.insert(playlists).values({
-    id: input.id,
-    channelId: input.channelId,
-    name: input.title,
-    topVideoId: input.topVideoId ?? null,
-    // プレイリストの最終確認日時を新しいカラムへ丁寧に保持します。
-    lastCheckedAt: new Date().toISOString(),
-  });
-}
 
 function shouldSkipVideo(title: string): boolean {
   const normalized = title.toLowerCase();

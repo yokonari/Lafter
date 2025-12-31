@@ -3,7 +3,7 @@ import type { KVNamespace } from "@cloudflare/workers-types";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { and, desc, eq, gte, inArray, like, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
-import { aliases, channels, playlists, videos } from "@/lib/schema";
+import { aliases, channels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -119,9 +119,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       Number.isFinite(limitParam) && limitParam > 0
         ? Math.min(limitParam, MAX_LIMIT)
         : MAX_LIMIT;
-    const includePlaylistsParam = c.req.query("includePlaylists");
-    const shouldIncludePlaylists =
-      includePlaylistsParam === "false" || includePlaylistsParam === "0" ? false : true;
+
     const isHomeParam = c.req.query("isHome");
     // userHome からの参照時のみ true を受け取り、キャッシュの再シャッフルを許可します。
     const shouldShuffleCacheForHome = isHomeParam === "true" || isHomeParam === "1";
@@ -144,7 +142,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const isCacheEligible =
       q.length === 0 && !channelIdFilter && normalizedPatternsPerWord.length === 0;
 
-    if (kv && isCacheEligible && mode === "new" && !shouldIncludePlaylists) {
+    if (kv && isCacheEligible && mode === "new") {
       // トップ画面の「最近」専用に、最新500件のキャッシュを利用してDBへアクセスせず高速に返します。
       const latestCache = await loadCachedVideos(kv, "latest_active_videos");
       if (latestCache) {
@@ -161,7 +159,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       console.warn("[get-videos] latest_active_videos キャッシュが利用できなかったため DB で処理を継続します。");
     }
 
-    if (kv && isCacheEligible && mode === "random" && !shouldIncludePlaylists) {
+    if (kv && isCacheEligible && mode === "random") {
       // トップ画面の「ランダム」専用に、事前に選定済みの500件をKVから配布します。
       const randomCache = await loadCachedVideos(kv, "random_active_videos");
       if (randomCache) {
@@ -178,7 +176,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       console.warn("[get-videos] random_active_videos キャッシュが利用できなかったため DB で処理を継続します。");
     }
 
-    if (kv && isCacheEligible && mode === "popular" && !shouldIncludePlaylists) {
+    if (kv && isCacheEligible && mode === "popular") {
       // ホーム画面の場合は条件を固定: 1ヶ月以内の再生数順キャッシュをシャッフルして10件返します
       if (shouldShuffleCacheForHome) {
         const viewsCacheKey = "views_active_videos_month";
@@ -312,61 +310,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const hasNext = videoRowsRaw.length > fetchLimit;
     const videoRows = hasNext ? videoRowsRaw.slice(0, fetchLimit) : videoRowsRaw;
 
-    let playlistRows:
-      | Array<{
-        id: string;
-        title: string;
-        channelId: string | null;
-        channelName: string | null;
-        topVideoId: string | null;
-      }>
-      | [] = [];
-    if (shouldIncludePlaylists) {
-      const playlistConditions = [eq(playlists.status, 1), eq(channels.status, 1)];
-      if (channelIdFilter) {
-        // チャンネルに紐づく動画一覧を閲覧している場合は、プレイリストも同一チャンネルに限定します。
-        playlistConditions.push(eq(playlists.channelId, channelIdFilter));
-      }
-      if (normalizedPatternsPerWord.length) {
-        // プレイリストもキーワードごとに AND で束ねます。
-        const playlistKeywordConditions: SQL<boolean>[] = normalizedPatternsPerWord.map((patterns) => {
-          const playlistNameMatches = patterns.map((pattern) => like(playlists.name, pattern) as SQL<boolean>);
-          const checks: SQL<boolean>[] = playlistNameMatches;
-          if (channelIdsMatchingQuery.length) {
-            checks.push(inArray(playlists.channelId, channelIdsMatchingQuery) as SQL<boolean>);
-          }
-          if (checks.length === 1) {
-            return checks[0];
-          }
-          const combinedPlaylistPattern = or(...checks);
-          return combinedPlaylistPattern as SQL<boolean>;
-        });
 
-        if (playlistKeywordConditions.length === 1) {
-          playlistConditions.push(playlistKeywordConditions[0]);
-        } else if (playlistKeywordConditions.length > 1) {
-          playlistConditions.push(and(...playlistKeywordConditions) as SQL<boolean>);
-        }
-      }
-      const playlistWhere =
-        playlistConditions.length === 1 ? playlistConditions[0] : and(...playlistConditions);
-
-      // channels.status=1 を JOIN で参照しつつ、プレイリストとチャンネル名称を同時に整えます。
-      playlistRows = await db
-        .select({
-          id: playlists.id,
-          title: playlists.name,
-          channelId: playlists.channelId,
-          channelName: channels.name,
-          topVideoId: playlists.topVideoId,
-        })
-        .from(playlists)
-        .innerJoin(channels, eq(playlists.channelId, channels.id))
-        .where(playlistWhere)
-        .orderBy(desc(playlists.createdAt))
-        .limit(safeLimit)
-        .offset(safeOffset);
-    }
 
     const videosPayload = videoRows.map((row) => ({
       id: row.id,
@@ -402,19 +346,12 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       );
     }
 
-    const playlistsPayload = playlistRows.map((row) => ({
-      id: row.id,
-      // プレイリスト名も同様にエンティティを整えます。
-      title: decodeHtmlEntities(row.title),
-      channel_id: row.channelId,
-      channel_name: row.channelId ? row.channelName ?? "" : "",
-      top_video_id: row.topVideoId,
-    }));
+
 
     return c.json(
       {
         videos: videosPayload,
-        play_lists: playlistsPayload,
+        play_lists: [], // プレイリストは常に空
         page: Math.floor(safeOffset / safeLimit) + 1,
         limit: safeLimit,
         hasNext,

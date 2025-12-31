@@ -91,7 +91,6 @@ async function runChannelSearchCron(env: CronEnv) {
             "[cron] search 実行済み",
             ch.id,
             `動画=${summary?.videosInserted ?? "?"}件`,
-            `再生リスト=${summary?.playlistsInserted ?? "?"}件`,
             `取得=${summary?.fetched ?? "?"}件`,
           );
         } catch {

@@ -17,6 +17,7 @@ export const channels = sqliteTable(
     name: text("name").notNull(),
     status: integer("status").notNull().default(0),
     lastCheckedAt: text("last_checked_at"),
+
     createdAt: text("created_at")
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
@@ -28,6 +29,7 @@ export const channels = sqliteTable(
     // lastCheckedAt による並び替えや抽出が頻繁なため、status, lastCheckedAt, createdAt をまとめたインデックスも追加します。
     idxChannelsStatusLastCheckedAtCreatedAt: index("idx_channels_status_last_checked_created")
       .on(table.status, table.lastCheckedAt, table.createdAt),
+
   }),
 );
 
@@ -106,25 +108,7 @@ export const videos = sqliteTable(
   }),
 );
 
-/* =========================
-   playlists
-   ========================= */
-export const playlists = sqliteTable(
-  "playlists",
-  {
-    id: text("id").primaryKey(),
-    channelId: text("channel_id")
-      .notNull()
-      .references(() => channels.id, { onDelete: "cascade", onUpdate: "cascade" }),
-    name: text("name").notNull(),
-    status: integer("status").notNull().default(0),
-    topVideoId: text("top_video_id"), // プレイリストの代表動画IDを任意で保持し、null も許容します。
-    lastCheckedAt: text("last_checked_at"),
-    createdAt: text("created_at")
-      .notNull()
-      .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
-  },
-);
+
 
 /* =========================
    search_logs

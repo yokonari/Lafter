@@ -4,11 +4,9 @@ import { registerGetVideos } from "./routes/get-videos";
 import { registerPostVideosSync } from "./routes/post-videos-sync";
 import { registerGetAdminVideos } from "./routes/get-admin-videos";
 import { registerPostAdminVideoBulk } from "./routes/post-admin-video-bulk";
-import { registerGetAdminPlaylists } from "./routes/get-admin-playlists";
 import { registerGetAdminChannels } from "./routes/get-admin-channels";
-import { registerPostAdminPlaylistBulk } from "./routes/post-admin-playlist-bulk";
 import { registerPostAdminChannelBulk } from "./routes/post-admin-channel-bulk";
-import { registerPostAdminPlaylistsCheck } from "./routes/post-admin-playlists-check";
+import { registerPostAdminChannelRegister } from "./routes/post-admin-channel-register";
 import { registerPostChannelSearch } from "./routes/post-channel-search";
 import { registerPostSearchLogs } from "./routes/post-search-logs";
 import { registerPostVideosAutoCategorize } from "./routes/post-videos-auto-categorize";
@@ -19,7 +17,7 @@ import { registerPostAdminVideosCache } from "./routes/post-admin-videos-cache";
 import { authMiddleware } from "@/lib/middleware/auth";
 import { apiSecretMiddleware } from "@/lib/middleware/api-secret";
 import type { AdminEnv } from "./types";
-import { registerPostAdminChannelRegister } from "./routes/post-admin-channel-register";
+
 
 const app = new Hono<AdminEnv>().basePath("/api");
 
@@ -34,12 +32,9 @@ registerGetVideos(app);
 registerPostVideosSync(app);
 registerGetAdminVideos(app);
 registerPostAdminVideoBulk(app);
-registerGetAdminPlaylists(app);
-registerPostAdminPlaylistBulk(app);
 registerGetAdminChannels(app);
 registerPostAdminChannelBulk(app);
 registerPostAdminChannelRegister(app);
-registerPostAdminPlaylistsCheck(app);
 registerPostVideosCheck(app);
 registerPostVideosRss(app);
 registerPostAdminVideosCache(app);
