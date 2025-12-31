@@ -40,6 +40,7 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
   const [isSearching, setIsSearching] = useState(initialChannelId || initialMode ? true : false);
   const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
   const [reportVideo, setReportVideo] = useState<VideoItem | null>(null);
+  const isAwardRaceMode = initialMode === "award-race" || activeMode === "award-race";
 
 
   // 検索履歴関連の状態
@@ -242,14 +243,74 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
 
 
 
-  return (
-    // 管理画面と同様に全体をダークトーンで包み込み、視覚的な統一感を丁寧に確保します。
-    <motion.div
-      className={styles.userLayout}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
-    >
+  const mainContent = isAwardRaceMode ? (
+    <>
+      {isSearching && (activeQuery || activeChannelId || activeMode) ? (
+        <SearchResults
+          query={activeQuery}
+          channelId={activeChannelId}
+          mode={activeMode}
+          onVideoSelect={handleVideoSelect}
+          onChannelSelect={handleChannelSelect}
+          onBackToTop={handleReset}
+          initialRace={initialRace}
+          initialYear={initialYear}
+        />
+      ) : (
+        <HomeSections
+          onVideoSelect={handleVideoSelect}
+          onChannelSelect={handleChannelSelect}
+          onShowNewList={handleShowNewList}
+          onShowRandomList={handleShowRandomList}
+          onShowPopularList={handleShowPopularList}
+          onShowAwardRaceList={handleShowAwardRaceList}
+        />
+      )}
+    </>
+  ) : (
+    <AnimatePresence mode="wait">
+      {isSearching && (activeQuery || activeChannelId || activeMode) ? (
+        <motion.div
+          key="search-results"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <SearchResults
+            query={activeQuery}
+            channelId={activeChannelId}
+            mode={activeMode}
+            onVideoSelect={handleVideoSelect}
+            onChannelSelect={handleChannelSelect}
+            onBackToTop={handleReset}
+            initialRace={initialRace}
+            initialYear={initialYear}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="home-sections"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <HomeSections
+            onVideoSelect={handleVideoSelect}
+            onChannelSelect={handleChannelSelect}
+            onShowNewList={handleShowNewList}
+            onShowRandomList={handleShowRandomList}
+            onShowPopularList={handleShowPopularList}
+            onShowAwardRaceList={handleShowAwardRaceList}
+          />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  const content = (
+    <>
       <UserHeader
         query={searchInput}
         onQueryChange={setSearchInput}
@@ -265,47 +326,7 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
 
       {/* メインも暗めの背景に切り替え、上部ヘッダーとの境界を自然に馴染ませます。 */}
       {/* ヘッダー高さに合わせて上部余白も56px（pt-14）に揃え、重なりを防ぎます。 */}
-      <main className={styles.main}>
-        <AnimatePresence mode="wait">
-          {isSearching && (activeQuery || activeChannelId || activeMode) ? (
-            <motion.div
-              key="search-results"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <SearchResults
-                query={activeQuery}
-                channelId={activeChannelId}
-                mode={activeMode}
-                onVideoSelect={handleVideoSelect}
-                onChannelSelect={handleChannelSelect}
-                onBackToTop={handleReset}
-                initialRace={initialRace}
-                initialYear={initialYear}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="home-sections"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <HomeSections
-                onVideoSelect={handleVideoSelect}
-                onChannelSelect={handleChannelSelect}
-                onShowNewList={handleShowNewList}
-                onShowRandomList={handleShowRandomList}
-                onShowPopularList={handleShowPopularList}
-                onShowAwardRaceList={handleShowAwardRaceList}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
+      <main className={styles.main}>{mainContent}</main>
 
       {/* スクロール可能なときにのみ表示し、ワンクリックでトップへ戻れる固定ボタンです。 */}
       <ScrollTopButton />
@@ -318,10 +339,23 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
         onReport={handleReportSelect}
       />
 
-
       <ReportDialog open={Boolean(reportVideo)} video={reportVideo} onClose={handleReportClose} onSuccess={handleReportSuccess} />
 
       <ToastContainer position="top-center" theme="dark" />
+    </>
+  );
+
+  return isAwardRaceMode ? (
+    <div className={styles.userLayout}>{content}</div>
+  ) : (
+    // 管理画面と同様に全体をダークトーンで包み込み、視覚的な統一感を丁寧に確保します。
+    <motion.div
+      className={styles.userLayout}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+    >
+      {content}
     </motion.div>
   );
 }

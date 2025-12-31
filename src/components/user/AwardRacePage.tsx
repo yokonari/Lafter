@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Trophy, Crown, Medal, ArrowLeft } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+
 import awardRacesData from '@/../../data/award-races/award-races.json';
 import { RACE_NAMES, AVAILABLE_YEARS, type RaceType, type AwardRacesData } from '@/../../data/award-races/types';
 import { XShareButton } from './XShareButton';
@@ -118,79 +118,64 @@ export function AwardRacePage({ onBackToTop, onComedianSearch, initialRace, init
             </div>
 
             {/* コンテンツエリア */}
-            <AnimatePresence mode="wait">
-                <motion.div
-                    key={`${selectedRace}-${selectedYear}`}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    transition={{ duration: 0.2 }}
-                    className={styles.awardRaceContent}
-                >
-                    {/* 決勝進出者（1-10位） */}
-                    <section className={styles.rankingSection}>
-                        <h2 className={styles.sectionTitle}>
-                            決勝進出者
-                        </h2>
-                        <div className={styles.finalistGrid}>
-                            {currentData.finalists.map((finalist) => (
-                                <motion.button
-                                    key={`${finalist.rank}-${finalist.name}`}
-                                    className={`${styles.finalistCard} ${styles[`rank${finalist.rank}`]}`}
-                                    onClick={() => handleComedianClick(finalist.name)}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    <div className={styles.rankBadge}>
-                                        <span className={styles.rankNumber}>{finalist.rank}</span>
-                                    </div>
-                                    <div className={styles.comedianName}>{finalist.name}</div>
-                                </motion.button>
-                            ))}
-                        </div>
-                    </section>
+            <div className={styles.awardRaceContent}>
+                {/* 決勝進出者（1-10位） */}
+                <section className={styles.rankingSection}>
+                    <h2 className={styles.sectionTitle}>
+                        決勝進出者
+                    </h2>
+                    <div className={styles.finalistGrid}>
+                        {currentData.finalists.map((finalist) => (
+                            <button
+                                key={`${finalist.rank}-${finalist.name}`}
+                                className={`${styles.finalistCard} ${styles[`rank${finalist.rank}`]}`}
+                                onClick={() => handleComedianClick(finalist.name)}
+                            >
+                                <div className={styles.rankBadge}>
+                                    <span className={styles.rankNumber}>{finalist.rank}</span>
+                                </div>
+                                <div className={styles.comedianName}>{finalist.name}</div>
+                            </button>
+                        ))}
+                    </div>
+                </section>
 
-                    {/* 準決勝進出者（11-30位） */}
-                    <section className={styles.listSection}>
-                        <h2 className={styles.sectionTitle}>
-                            準決勝進出者
-                        </h2>
-                        <div className={styles.comedianGrid}>
-                            {currentData.semifinalists.map((name) => (
-                                <motion.button
-                                    key={name}
-                                    className={styles.comedianCard}
-                                    onClick={() => handleComedianClick(name)}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    {name}
-                                </motion.button>
-                            ))}
-                        </div>
-                    </section>
+                {/* 準決勝進出者（11-30位） */}
+                <section className={styles.listSection}>
+                    <h2 className={styles.sectionTitle}>
+                        準決勝進出者
+                    </h2>
+                    <div className={styles.comedianGrid}>
+                        {currentData.semifinalists.map((name) => (
+                            <button
+                                key={name}
+                                className={styles.comedianCard}
+                                onClick={() => handleComedianClick(name)}
+                            >
+                                {name}
+                            </button>
+                        ))}
+                    </div>
+                </section>
 
-                    {/* 準々決勝進出者（31-50位） */}
-                    <section className={styles.listSection}>
-                        <h2 className={styles.sectionTitle}>
-                            準々決勝進出者
-                        </h2>
-                        <div className={styles.comedianGrid}>
-                            {currentData.quarterfinalists.map((name) => (
-                                <motion.button
-                                    key={name}
-                                    className={styles.comedianCard}
-                                    onClick={() => handleComedianClick(name)}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
-                                    {name}
-                                </motion.button>
-                            ))}
-                        </div>
-                    </section>
-                </motion.div>
-            </AnimatePresence>
+                {/* 準々決勝進出者（31-50位） */}
+                <section className={styles.listSection}>
+                    <h2 className={styles.sectionTitle}>
+                        準々決勝進出者
+                    </h2>
+                    <div className={styles.comedianGrid}>
+                        {currentData.quarterfinalists.map((name) => (
+                            <button
+                                key={name}
+                                className={styles.comedianCard}
+                                onClick={() => handleComedianClick(name)}
+                            >
+                                {name}
+                            </button>
+                        ))}
+                    </div>
+                </section>
+            </div>
         </div>
     );
 }

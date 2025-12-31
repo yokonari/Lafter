@@ -12,6 +12,7 @@ type PopularVideoRow = {
   channel_name: string | null;
   video_id: string;
   video_title: string;
+  view_count: number | null;
 };
 
 type PopularVideoPayload = {
@@ -19,6 +20,7 @@ type PopularVideoPayload = {
   channel_name: string;
   video_id: string;
   video_title: string;
+  view_count: number;
 };
 
 type PopularVideoCache = {
@@ -100,6 +102,7 @@ async function runPopularVideosCacheCron(env: CronEnv) {
       channel_name: row.channel_name ?? row.channel_id,
       video_id: row.video_id,
       video_title: row.video_title,
+      view_count: row.view_count ?? 0,
     }));
 
     await saveToKv(kv, config.key, payload, config.period);
@@ -117,7 +120,8 @@ async function fetchPopularVideos(
           v.channel_id AS channel_id,
           c.name AS channel_name,
           v.id AS video_id,
-          v.title AS video_title
+          v.title AS video_title,
+          v.view_count AS view_count
         FROM videos v
         INNER JOIN channels c ON v.channel_id = c.id
         WHERE

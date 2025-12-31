@@ -2170,7 +2170,6 @@ $title-font-weight: 400;
   color: $user-text-secondary; // 他のページと同じ色
   font-size: clamp(0.6rem, 0.6rem + 0.25vw, 0.7rem); // 他のページと同じフォントサイズ
   cursor: pointer;
-  transition: color 0.2s ease;
   width: fit-content;
 
   &:hover,
@@ -2205,7 +2204,6 @@ $title-font-weight: 400;
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
   border-bottom: 2px solid transparent;
   margin-bottom: -2px;
 
@@ -2235,7 +2233,6 @@ $title-font-weight: 400;
   color: var(--user-text);
   font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.2s ease;
   appearance: none; // ブラウザデフォルトの矢印を非表示
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -2318,7 +2315,6 @@ $title-font-weight: 400;
   border-radius: 0.5rem; // 角丸も小さく
   background: var(--user-surface);
   cursor: pointer;
-  transition: all 0.2s ease;
   min-height: 50px; // 高さをコンパクトに
 
   &:hover {
@@ -2470,7 +2466,6 @@ $title-font-weight: 400;
   font-size: 0.9rem;
   font-weight: 400;
   cursor: pointer;
-  transition: all 0.2s ease;
   text-align: center;
   word-break: break-word; // 長い名前を適切に改行
   overflow-wrap: break-word;
