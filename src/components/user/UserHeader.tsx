@@ -210,7 +210,11 @@ export function UserHeader({
             <ArrowLeft size={24} aria-hidden="true" />
           </button>
 
-          <div className={styles.searchArea} ref={searchAreaRef}>
+          <div
+            className={styles.searchArea}
+            data-has-clear={Boolean(query.trim())}
+            ref={searchAreaRef}
+          >
             {/* サンプルと同等の見た目になるよう入力フィールドをシンプルに整形 */}
             <Search aria-hidden className={styles.searchIcon} size={18} />
             <input

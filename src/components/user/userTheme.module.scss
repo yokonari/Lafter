@@ -331,7 +331,7 @@ $title-font-weight: 400;
   border: 1px solid $user-border; // サンプルの枠線色に合わせ、輪郭を落ち着かせます。
   color: $user-text;
   font-size: 1rem;
-  padding: 0 2.2rem 0 2.6rem; // 左はアイコン分、右はクリアボタン分のスペースを確保します。
+  padding: 0 0 0 2.6rem; // 左はアイコン分、右は通常の余白に抑えます。
   outline: none;
   transition:
     border-color 0.2s ease,
@@ -353,6 +353,12 @@ $title-font-weight: 400;
   &::-webkit-search-results-button,
   &::-webkit-search-results-decoration {
     display: none; // WebKit 系で自動追加される検索用クリアボタン群を丁寧に非表示にします。
+  }
+}
+
+.searchArea[data-has-clear="true"] {
+  .searchInput {
+    padding-right: 2.2rem; // クリアボタン表示時のみ右側のスペースを確保します。
   }
 }
 
@@ -379,7 +385,7 @@ $title-font-weight: 400;
   height: 28px;
   border: none;
   border-radius: 9999px;
-  background: transparent;
+  background: $user-surface;
   color: $user-text-secondary; // リンク色は on-surface-variant 系に合わせます。
   cursor: pointer;
 
