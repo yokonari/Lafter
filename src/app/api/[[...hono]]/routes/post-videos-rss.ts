@@ -127,6 +127,7 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
           .set(channelUpdate)
           .where(eq(channels.id, channel.id));
       }
+      await sleep(1000);
     }
 
     return c.json(
@@ -156,6 +157,10 @@ function normalizeLimit(value?: string | null): number {
     return MAX_CHANNELS_PER_RUN;
   }
   return normalized;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 async function loadTargetChannels(db: AppDatabase, options: {
