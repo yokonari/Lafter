@@ -14,7 +14,7 @@ import cronVideoRss from "./cron-video-rss";
 
 type ScheduledEventParam = Parameters<ExportedHandlerScheduledHandler>[0];
 const MINUTES_PER_DAY = 24 * 60;
-const VIDEO_CHECK_RUNS_PER_DAY = 400;
+const VIDEO_CHECK_RUNS_PER_DAY = 500;
 const VIDEO_CHECK_QUEUE_REBUILD_MINUTE = 4 * 60;
 const VIEW_COUNT_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 20;
 const LIKES_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 30;
