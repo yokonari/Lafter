@@ -28,8 +28,19 @@ function clampHeadingText(text: string): string {
 
 // ImageResponse の fonts オプションへ渡す情報を型で固定し、太字フォントの取り扱いを統一します。
 type OgFontOption = { name: string; data: ArrayBuffer; weight: 700; style: "normal" };
+
+// フォントをグローバルでキャッシュし、CPU時間制限を回避します。
+// リクエストごとにフォントを読み込むと数MBのファイル取得とArrayBuffer変換で大量のCPU時間を消費するため、
+// 初回読み込み後はキャッシュを再利用することで大幅にパフォーマンスを改善します。
+let cachedFont: OgFontOption | null | undefined = undefined;
+
 // リクエストが飛んできたオリジンを基準に public/fonts 配下のファイルへ HTTP でアクセスし、Node/Edge いずれの環境でも安定的に取得します。
 async function loadBoldFont(request: Request): Promise<OgFontOption | null> {
+  // キャッシュが存在する場合は即座に返します(undefined は未初期化、null は読み込み失敗)
+  if (cachedFont !== undefined) {
+    return cachedFont;
+  }
+
   // request.url から origin を抽出しておくことで、ローカル(host:3000)と本番(host:xxx)を問わず同一の fetch ロジックを使い回します。
   const { origin } = new URL(request.url);
   const fontUrl = new URL("/fonts/NotoSansJP-Bold.ttf", origin).toString();
@@ -38,12 +49,16 @@ async function loadBoldFont(request: Request): Promise<OgFontOption | null> {
     const response = await fetch(fontUrl);
     // 404 や 500 の場合には HTML など別コンテンツが返るため、ok チェックで確実に弾きます。
     if (!response.ok) {
+      cachedFont = null;
       return null;
     }
     const data = await response.arrayBuffer();
-    return { name: "NotoSansJP", data, weight: 700, style: "normal" };
+    const font = { name: "NotoSansJP", data, weight: 700, style: "normal" } as const;
+    cachedFont = font;
+    return font;
   } catch {
     // Cloudflare Workers 等でネットワーク障害が発生しても全体を落とさず、null を返してデフォルトフォントへフォールバックします。
+    cachedFont = null;
     return null;
   }
 }
@@ -62,23 +77,13 @@ const absoluteBackgroundImageUrl = (() => {
   }
 })();
 
-// OGP 専用背景画像を一度だけ読み込み、Base64 Data URL としてキャッシュします。
-const baseImageDataUrlPromise: Promise<string | null> = absoluteBackgroundImageUrl
+// OGP 専用背景画像を一度だけ読み込み、ArrayBuffer としてキャッシュします。
+// Base64変換は不要で、ArrayBufferを直接ImageResponseに渡すことでCPU時間を大幅に削減します。
+const baseImageBufferPromise: Promise<ArrayBuffer | null> = absoluteBackgroundImageUrl
   ? fetch(absoluteBackgroundImageUrl)
     .then((response) => response.arrayBuffer())
-    .then((buffer) => `data:image/png;base64,${arrayBufferToBase64(buffer)}`)
     .catch(() => null)
   : Promise.resolve(null);
-
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-  let binary = "";
-  const bytes = new Uint8Array(buffer);
-  const chunk = 0x8000;
-  for (let i = 0; i < bytes.length; i += chunk) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
-  }
-  return btoa(binary);
-}
 
 // heading クエリはユーザー入力のため、空白除去と過剰な長さのカットオフを丁寧に適用して安全に扱います。
 function sanitizeHeading(rawHeading: string | null): string | null {
@@ -110,7 +115,7 @@ export async function GET(request: Request) {
   const isLikelySingleLineHeading = Boolean(
     headingForDisplay && headingForDisplay.length <= approximateCharsPerLine,
   );
-  const backgroundImageUrl = (await baseImageDataUrlPromise) ?? "";
+  const backgroundImageBuffer = await baseImageBufferPromise;
   // リクエスト毎に current origin からフォントを取得し、404 やネットワーク失敗時はデフォルトフォントへフォールバックさせます。
   const notoBold = await loadBoldFont(request);
   const fonts: OgFontOption[] = notoBold ? [notoBold] : [];
@@ -127,14 +132,23 @@ export async function GET(request: Request) {
           alignItems: "center",
           justifyContent: "center",
           backgroundColor: "#000",
-          backgroundImage: `url(${backgroundImageUrl})`,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
           color: "#f8fafc",
           // ImageResponse で読み込むフォント名と CSS 側の font-family 名称をきちんと揃えます。
           fontFamily: fonts.length > 0 ? "NotoSansJP" : "sans-serif",
         }}
       >
+        {/* 背景画像をArrayBufferで直接指定することでBase64変換を回避し、CPU時間を削減します */}
+        {backgroundImageBuffer && (
+          <img
+            src={Uint8Array.from(new Uint8Array(backgroundImageBuffer)).buffer as unknown as string}
+            style={{
+              position: "absolute",
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+            }}
+          />
+        )}
         <div
           style={{
             width: textMaxWidth,
@@ -150,6 +164,8 @@ export async function GET(request: Request) {
             flexDirection: "column",
             alignItems: isLikelySingleLineHeading ? "center" : "flex-start",
             justifyContent: isLikelySingleLineHeading ? "center" : "flex-start",
+            position: "relative",
+            zIndex: 1,
           }}
         >
           {/* heading 単体で高さ制約内に収まるよう、flex wrap + 文字数制限で丁寧にレイアウトします。 */}

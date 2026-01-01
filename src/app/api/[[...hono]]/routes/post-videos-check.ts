@@ -23,7 +23,7 @@ type YouTubeVideosResponse = {
   }>;
 };
 
-const MAX_BATCH_SIZE = 50;
+const MAX_BATCH_SIZE = 30;
 const VIDEO_CHECK_QUEUE_KEY = "checkQueue:videos:v1";
 const VIDEO_CHECK_CURSOR_KEY = "checkQueue:videos:cursor";
 const FRESH_VIDEO_LOOKBACK_HOURS = 24;
@@ -176,21 +176,37 @@ export function registerPostVideosCheck(app: Hono<AdminEnv>) {
 
     const now = new Date().toISOString();
     if (existingIds.length > 0) {
-      // 存在確認できた動画は lastCheckedAt と統計情報を丁寧に更新します。
+      // 存在確認できた動画は lastCheckedAt と統計情報を一括で更新します。
+      // 個別のUPDATEクエリではなく、1回のクエリで全件更新することでCPU時間を大幅に削減します。
+      const { sql } = await import("drizzle-orm");
+
+      // CASE文を使って各動画IDに対応する統計情報を設定
+      const viewCountCase = sql`CASE ${videos.id}`;
+      const likeCountCase = sql`CASE ${videos.id}`;
+      const popularityScoreCase = sql`CASE ${videos.id}`;
+
       for (const videoId of existingIds) {
         const stats = videoStats.get(videoId);
         if (stats) {
-          await db
-            .update(videos)
-            .set({
-              lastCheckedAt: now,
-              viewCount: stats.viewCount,
-              likeCount: stats.likeCount,
-              popularityScore: stats.popularityScore,
-            })
-            .where(inArray(videos.id, [videoId]));
+          viewCountCase.append(sql` WHEN ${videoId} THEN ${stats.viewCount}`);
+          likeCountCase.append(sql` WHEN ${videoId} THEN ${stats.likeCount}`);
+          popularityScoreCase.append(sql` WHEN ${videoId} THEN ${stats.popularityScore}`);
         }
       }
+
+      viewCountCase.append(sql` END`);
+      likeCountCase.append(sql` END`);
+      popularityScoreCase.append(sql` END`);
+
+      await db
+        .update(videos)
+        .set({
+          lastCheckedAt: now,
+          viewCount: viewCountCase,
+          likeCount: likeCountCase,
+          popularityScore: popularityScoreCase,
+        })
+        .where(inArray(videos.id, existingIds));
     }
 
     let deletedCount = 0;

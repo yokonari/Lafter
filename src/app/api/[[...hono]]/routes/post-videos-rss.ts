@@ -127,7 +127,8 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
           .set(channelUpdate)
           .where(eq(channels.id, channel.id));
       }
-      await sleep(1000);
+      // YouTube API のレート制限を考慮しつつ、CPU時間制限を回避するため sleep を最小限に抑えます。
+      await sleep(100);
     }
 
     return c.json(
@@ -317,34 +318,64 @@ type InsertVideosResult = {
 };
 
 async function insertVideosSafely(db: AppDatabase, rows: VideoInsertRow[]): Promise<InsertVideosResult> {
-  let inserted = 0;
-  let skipped = 0;
-  for (const row of rows) {
-    // 既存レコードがあれば即座にスキップし、無駄な INSERT を避けつつ丁寧に処理します。
-    const exists = await videoExists(db, row.id);
-    if (exists) {
-      skipped += 1;
-      continue;
-    }
+  if (rows.length === 0) {
+    return { inserted: 0, skipped: 0 };
+  }
 
+  // N+1クエリ問題を解消するため、全動画IDの存在確認を1回のクエリで実行します。
+  const videoIds = rows.map((row) => row.id);
+  const existingVideos = await db
+    .select({ id: videos.id })
+    .from(videos)
+    .where(sql`${videos.id} IN (${sql.join(videoIds.map((id) => sql`${id}`), sql`, `)})`)
+    .then((results) => new Set(results.map((r) => r.id)));
+
+  // 既存の動画を除外し、新規動画のみを抽出します。
+  const newRows = rows.filter((row) => !existingVideos.has(row.id));
+  const skipped = rows.length - newRows.length;
+
+  if (newRows.length === 0) {
+    return { inserted: 0, skipped };
+  }
+
+  // 一括INSERTでCPU時間を大幅に削減します。
+  // SQLiteの制限を考慮し、100件ずつに分割して挿入します。
+  let inserted = 0;
+  const BATCH_SIZE = 100;
+
+  for (let i = 0; i < newRows.length; i += BATCH_SIZE) {
+    const batch = newRows.slice(i, i + BATCH_SIZE);
     try {
-      await db.insert(videos).values(row);
-      inserted += 1;
+      await db.insert(videos).values(batch);
+      inserted += batch.length;
     } catch (error) {
-      // レースコンディション等で INSERT が失敗した場合も、最終的に存在確認を行って静かにスキップします。
-      console.warn("[videos/rss-sync] INSERT 失敗のため存在確認を再実行してスキップします", row.id, error);
-      const existsAfterFailure = await videoExists(db, row.id);
-      if (!existsAfterFailure) {
-        throw error;
+      // バッチINSERTが失敗した場合は、個別に再試行します。
+      console.warn("[videos/rss-sync] バッチINSERT失敗、個別に再試行します", error);
+      for (const row of batch) {
+        try {
+          // レースコンディション対策: 再度存在確認してからINSERT
+          const exists = await videoExists(db, row.id);
+          if (!exists) {
+            await db.insert(videos).values(row);
+            inserted += 1;
+          }
+        } catch (individualError) {
+          // 個別INSERTも失敗した場合は、最終確認してスキップ
+          const existsAfterFailure = await videoExists(db, row.id);
+          if (!existsAfterFailure) {
+            console.error("[videos/rss-sync] 動画の挿入に失敗しました", row.id, individualError);
+          }
+        }
       }
-      skipped += 1;
     }
   }
+
   return { inserted, skipped };
 }
 
 async function videoExists(db: AppDatabase, videoId: string): Promise<boolean> {
   // 主キー検索で存在確認を行い、既知の動画を丁寧に除外します。
+  // この関数は一括チェック失敗時のフォールバック用です。
   const rows = await db
     .select({ id: videos.id })
     .from(videos)
