@@ -23,7 +23,7 @@ type YouTubeVideosResponse = {
   }>;
 };
 
-const MAX_BATCH_SIZE = 30;
+const MAX_BATCH_SIZE = 50;
 const VIDEO_CHECK_QUEUE_KEY = "checkQueue:videos:v1";
 const VIDEO_CHECK_CURSOR_KEY = "checkQueue:videos:cursor";
 const FRESH_VIDEO_LOOKBACK_HOURS = 24;
