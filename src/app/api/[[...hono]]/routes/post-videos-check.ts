@@ -176,37 +176,48 @@ export function registerPostVideosCheck(app: Hono<AdminEnv>) {
 
     const now = new Date().toISOString();
     if (existingIds.length > 0) {
-      // 存在確認できた動画は lastCheckedAt と統計情報を一括で更新します。
-      // 個別のUPDATEクエリではなく、1回のクエリで全件更新することでCPU時間を大幅に削減します。
-      const { sql } = await import("drizzle-orm");
+      // 存在確認できた動画は lastCheckedAt と統計情報を更新します。
+      // Cloudflare D1はCASE文をサポートしていないため、D1のbatch APIを使用して複数のUPDATEを効率的に実行します。
+      const { env } = getCloudflareContext();
 
-      // CASE文を使って各動画IDに対応する統計情報を設定
-      const viewCountCase = sql`CASE ${videos.id}`;
-      const likeCountCase = sql`CASE ${videos.id}`;
-      const popularityScoreCase = sql`CASE ${videos.id}`;
+      // D1のbatch APIが利用可能かチェック(本番環境のみ)
+      const isD1Available = env.DB && typeof env.DB.batch === "function";
 
-      for (const videoId of existingIds) {
-        const stats = videoStats.get(videoId);
-        if (stats) {
-          viewCountCase.append(sql` WHEN ${videoId} THEN ${stats.viewCount}`);
-          likeCountCase.append(sql` WHEN ${videoId} THEN ${stats.likeCount}`);
-          popularityScoreCase.append(sql` WHEN ${videoId} THEN ${stats.popularityScore}`);
+      if (isD1Available) {
+        // Cloudflare D1環境: batch APIで複数のUPDATEを一度に実行
+        const updateStatements = existingIds.map((videoId) => {
+          const stats = videoStats.get(videoId);
+          if (!stats) return null;
+
+          return env.DB.prepare(
+            `UPDATE videos SET last_checked_at = ?, view_count = ?, like_count = ?, popularity_score = ? WHERE id = ?`
+          ).bind(now, stats.viewCount, stats.likeCount, stats.popularityScore, videoId);
+        }).filter((stmt): stmt is NonNullable<typeof stmt> => stmt !== null);
+
+        // batch()は最大100ステートメントまで対応
+        const BATCH_SIZE = 100;
+        for (let i = 0; i < updateStatements.length; i += BATCH_SIZE) {
+          const batch = updateStatements.slice(i, i + BATCH_SIZE);
+          await env.DB.batch(batch);
+        }
+      } else {
+        // ローカル環境(SQLite): drizzle-ormで個別UPDATE
+        const { eq } = await import("drizzle-orm");
+        for (const videoId of existingIds) {
+          const stats = videoStats.get(videoId);
+          if (stats) {
+            await db
+              .update(videos)
+              .set({
+                lastCheckedAt: now,
+                viewCount: stats.viewCount,
+                likeCount: stats.likeCount,
+                popularityScore: stats.popularityScore,
+              })
+              .where(eq(videos.id, videoId));
+          }
         }
       }
-
-      viewCountCase.append(sql` END`);
-      likeCountCase.append(sql` END`);
-      popularityScoreCase.append(sql` END`);
-
-      await db
-        .update(videos)
-        .set({
-          lastCheckedAt: now,
-          viewCount: viewCountCase,
-          likeCount: likeCountCase,
-          popularityScore: popularityScoreCase,
-        })
-        .where(inArray(videos.id, existingIds));
     }
 
     let deletedCount = 0;
