@@ -24,6 +24,7 @@ export default function VideoSearchPage() {
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
     const [maxPages, setMaxPages] = useState(2);
     const [periodOption, setPeriodOption] = useState<"1y" | "none">("1y");
+    const [useKeyword, setUseKeyword] = useState(true);
     const [executing, setExecuting] = useState(false);
 
     // トースト通知の統一
@@ -86,10 +87,12 @@ export default function VideoSearchPage() {
                 body: JSON.stringify({
                     channelId: selectedChannelId,
                     publishedAfter,
+                    useKeyword,
                     body: JSON.stringify({
                         channelId: selectedChannelId,
                         publishedAfter,
                         maxPages,
+                        useKeyword,
                     }),
                 }),
             });
@@ -245,6 +248,20 @@ export default function VideoSearchPage() {
                                             >
                                                 <option value="1y">1年以内</option>
                                                 <option value="none">指定なし</option>
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center gap-2 mr-2 ml-2">
+                                            <label htmlFor="useKeyword" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                ワード:
+                                            </label>
+                                            <select
+                                                id="useKeyword"
+                                                value={useKeyword ? "on" : "off"}
+                                                onChange={(e) => setUseKeyword(e.target.value === "on")}
+                                                className="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                            >
+                                                <option value="on">ネタ使用</option>
+                                                <option value="off">使用しない</option>
                                             </select>
                                         </div>
                                         <button

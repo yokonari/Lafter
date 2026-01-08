@@ -74,6 +74,8 @@ export function registerPostChannelSearch<
     // デフォルトは6ページとします
     let maxPages = parseInt(c.req.query("maxPages") || "6", 10);
     let publishedAfter = (c.req.query("publishedAfter") ?? "").trim();
+    const useKeywordQuery = parseOptionalBoolean(c.req.query("useKeyword"));
+    let useKeyword = useKeywordQuery ?? true;
 
     let requestJsonBody: unknown = null;
     const contentType = c.req.header("content-type") ?? "";
@@ -85,7 +87,12 @@ export function registerPostChannelSearch<
       }
     }
     if (requestJsonBody && typeof requestJsonBody === "object") {
-      const body = requestJsonBody as { channelId?: unknown; maxPages?: unknown; publishedAfter?: unknown };
+      const body = requestJsonBody as {
+        channelId?: unknown;
+        maxPages?: unknown;
+        publishedAfter?: unknown;
+        useKeyword?: unknown;
+      };
       if (!channelId && typeof body.channelId === "string") {
         channelId = body.channelId.trim();
       }
@@ -98,6 +105,12 @@ export function registerPostChannelSearch<
       if (!publishedAfter && typeof body.publishedAfter === "string") {
         publishedAfter = body.publishedAfter.trim();
       }
+      if (body.useKeyword !== undefined) {
+        const parsed = parseOptionalBoolean(body.useKeyword);
+        if (parsed !== undefined) {
+          useKeyword = parsed;
+        }
+      }
     }
 
     if (!channelId) {
@@ -109,13 +122,16 @@ export function registerPostChannelSearch<
     if (maxPages < 1) maxPages = 1;
 
     // チャンネル検索の開始を丁寧にログへ残し、実行条件を把握しやすくします。
-    console.log(`[channel-search] チャンネル ${channelId} の検索を開始します (maxPages=${maxPages}, publishedAfter=${publishedAfter || "なし"})`);
+    console.log(
+      `[channel-search] チャンネル ${channelId} の検索を開始します (maxPages=${maxPages}, publishedAfter=${publishedAfter || "なし"}, useKeyword=${useKeyword ? "on" : "off"})`,
+    );
 
     try {
       // チャンネルに紐づく動画・再生リストを指定件数ずつ丁寧に収集します。
       const searchItems = await searchChannelItems(channelId, apiKey, {
         maxPages: maxPages,
         publishedAfter: publishedAfter || undefined,
+        useKeyword,
       });
       const videoItems = searchItems.filter((i) => i.idKind === "youtube#video");
       // フルサーチであっても保存対象は 300 件までに抑え、DB/分類処理の負荷を丁寧にコントロールします。
@@ -236,7 +252,7 @@ export function registerPostChannelSearch<
 async function searchChannelItems(
   channelId: string,
   apiKey: string,
-  options: { maxPages: number; publishedAfter?: string },
+  options: { maxPages: number; publishedAfter?: string; useKeyword?: boolean },
 ): Promise<SearchItem[]> {
   const items: SearchItem[] = [];
   let pageToken: string | undefined;
@@ -248,7 +264,9 @@ async function searchChannelItems(
     const url = new URL(SEARCH_BASE_URL);
     url.searchParams.set("part", "snippet");
     url.searchParams.set("channelId", channelId);
-    url.searchParams.set("q", "ネタ");
+    if (options.useKeyword !== false) {
+      url.searchParams.set("q", "ネタ");
+    }
     url.searchParams.set("type", "video");
     url.searchParams.set("maxResults", String(MAX_RESULTS_PER_PAGE));
     url.searchParams.set("safeSearch", "none");
@@ -309,6 +327,15 @@ function extractVideoIdFromThumbnailUrl(url?: string): string | null {
   }
   const match = url.match(/\/vi\/([^/]+)\//);
   return match ? match[1] : null;
+}
+
+function parseOptionalBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") return value;
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim().toLowerCase();
+  if (["true", "1", "yes", "on"].includes(normalized)) return true;
+  if (["false", "0", "no", "off"].includes(normalized)) return false;
+  return undefined;
 }
 
 
