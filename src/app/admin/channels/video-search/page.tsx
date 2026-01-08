@@ -110,7 +110,7 @@ export default function VideoSearchPage() {
             <div className={styles.section}>
                 <div className={styles.header}>
                     <h2 className={styles.headerTitle}>
-                        チャンネル指定でYoutube search APIを2P取得します。
+                        チャンネル指定でYouTube Search APIを最大6P取得します。
                     </h2>
                 </div>
 
@@ -218,15 +218,16 @@ export default function VideoSearchPage() {
                                             <label htmlFor="maxPages" className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                                 取得ページ数:
                                             </label>
-                                            <input
+                                            <select
                                                 id="maxPages"
-                                                type="number"
-                                                min={1}
-                                                max={6}
                                                 value={maxPages}
-                                                onChange={(e) => setMaxPages(Math.max(1, Math.min(10, parseInt(e.target.value) || 1)))}
-                                                className="w-16 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                            />
+                                                onChange={(e) => setMaxPages(parseInt(e.target.value, 10))}
+                                                className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                            >
+                                                {Array.from({ length: 6 }, (_, i) => i + 1).map((page) => (
+                                                    <option key={page} value={page}>{page}</option>
+                                                ))}
+                                            </select>
                                         </div>
                                         <button
                                             type="button"
