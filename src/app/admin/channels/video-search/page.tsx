@@ -23,6 +23,7 @@ export default function VideoSearchPage() {
     const [channels, setChannels] = useState<Channel[]>([]);
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
     const [maxPages, setMaxPages] = useState(2);
+    const [periodOption, setPeriodOption] = useState<"1y" | "none">("1y");
     const [executing, setExecuting] = useState(false);
 
     // トースト通知の統一
@@ -72,9 +73,12 @@ export default function VideoSearchPage() {
 
         setExecuting(true);
         try {
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            const publishedAfter = oneYearAgo.toISOString();
+            let publishedAfter: string | undefined;
+            if (periodOption === "1y") {
+                const oneYearAgo = new Date();
+                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                publishedAfter = oneYearAgo.toISOString();
+            }
 
             const res = await fetch("/api/admin/channels/search", {
                 method: "POST",
@@ -227,6 +231,20 @@ export default function VideoSearchPage() {
                                                 {Array.from({ length: 6 }, (_, i) => i + 1).map((page) => (
                                                     <option key={page} value={page}>{page}</option>
                                                 ))}
+                                            </select>
+                                        </div>
+                                        <div className="flex items-center gap-2 mr-2 ml-2">
+                                            <label htmlFor="periodOption" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                期間:
+                                            </label>
+                                            <select
+                                                id="periodOption"
+                                                value={periodOption}
+                                                onChange={(e) => setPeriodOption(e.target.value as "1y" | "none")}
+                                                className="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                            >
+                                                <option value="1y">1年以内</option>
+                                                <option value="none">指定なし</option>
                                             </select>
                                         </div>
                                         <button
