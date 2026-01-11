@@ -176,10 +176,10 @@ export function UserHeader({
           className={styles.headerInner}
           data-searching={isMobile && isMobileSearchOpen}
         >
-          <button
-            type="button"
-            onClick={onReset}
-            className={styles.brandButton}
+          <Link
+            href="/"
+            className={styles.brandButton} // 見た目はそのまま流用
+            aria-label="Lafter（ラフター）- お笑いネタ動画検索サイト"
             aria-hidden={isMobile && isMobileSearchOpen}
             tabIndex={isMobile && isMobileSearchOpen ? -1 : 0}
           >
@@ -190,14 +190,14 @@ export function UserHeader({
               {/* 画面幅が狭くなった際も丁寧にアスペクト比を保ったまま縮小させます。 */}
               <Image
                 src="/Lafter.png"
-                alt="Lafter"
+                alt="Lafter（ラフター） お笑いネタ動画検索サイト"
                 width={195}
                 height={49}
                 className={styles.brandLogo}
                 priority
               />
             </div>
-          </button>
+          </Link>
 
           <button
             type="button"
