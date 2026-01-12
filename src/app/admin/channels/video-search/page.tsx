@@ -25,6 +25,7 @@ export default function VideoSearchPage() {
     const [maxPages, setMaxPages] = useState(2);
     const [periodOption, setPeriodOption] = useState<"1y" | "none">("1y");
     const [useKeyword, setUseKeyword] = useState(true);
+    const [searchKeyword, setSearchKeyword] = useState("ネタ");
     const [executing, setExecuting] = useState(false);
 
     // トースト通知の統一
@@ -87,13 +88,9 @@ export default function VideoSearchPage() {
                 body: JSON.stringify({
                     channelId: selectedChannelId,
                     publishedAfter,
+                    maxPages,
                     useKeyword,
-                    body: JSON.stringify({
-                        channelId: selectedChannelId,
-                        publishedAfter,
-                        maxPages,
-                        useKeyword,
-                    }),
+                    searchKeyword: useKeyword ? searchKeyword.trim() : undefined,
                 }),
             });
 
@@ -260,10 +257,25 @@ export default function VideoSearchPage() {
                                                 onChange={(e) => setUseKeyword(e.target.value === "on")}
                                                 className="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                                             >
-                                                <option value="on">ネタ使用</option>
+                                                <option value="on">使用する</option>
                                                 <option value="off">使用しない</option>
                                             </select>
                                         </div>
+                                        {useKeyword && (
+                                            <div className="flex items-center gap-2 mr-2 ml-2">
+                                                <label htmlFor="searchKeyword" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    検索ワード:
+                                                </label>
+                                                <input
+                                                    id="searchKeyword"
+                                                    type="text"
+                                                    value={searchKeyword}
+                                                    onChange={(e) => setSearchKeyword(e.target.value)}
+                                                    placeholder="例: ネタ"
+                                                    className="w-32 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                />
+                                            </div>
+                                        )}
                                         <button
                                             type="button"
                                             onClick={handleExecute}
