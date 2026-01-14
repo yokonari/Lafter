@@ -327,8 +327,6 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
       {/* メインも暗めの背景に切り替え、上部ヘッダーとの境界を自然に馴染ませます。 */}
       {/* ヘッダー高さに合わせて上部余白も56px（pt-14）に揃え、重なりを防ぎます。 */}
       <main className={styles.main}>
-        {/* SEO と支援技術のために本物の h1 を配置し、視覚的には sr-only で非表示にします。 */}
-        <h1 className="sr-only">Lafter（ラフター）- お笑いネタ動画検索サイト</h1>
         {mainContent}
       </main>
 

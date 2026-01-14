@@ -5,9 +5,9 @@ import { VideoCard } from "./VideoCard";
 import { XShareButton } from "./XShareButton";
 import { containsNgWord } from "@/lib/ng-words";
 import { AwardRacePage } from "./AwardRacePage";
+import { buildPopularSeoMetadata } from "@/lib/popularMetadata";
+import { NEW_PAGE_SEO_TITLE } from "@/lib/newMetadata";
 import styles from "./userTheme.module.scss";
-
-
 
 type SearchResultsProps = {
   query: string;
@@ -43,6 +43,14 @@ export function SearchResults({
   const [selectedPeriod, setSelectedPeriod] = useState<"month" | "year" | "all">("month"); // 期間選択用のStateを追加
   const [selectedSort, setSelectedSort] = useState<"published" | "views" | "likes">("published"); // ソート順選択用のStateを追加
   const PAGE_SIZE = 20;
+
+  // 人気タブのUI操作に合わせて、クライアント側のタイトルも更新します。
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (mode !== "popular") return;
+    const { title } = buildPopularSeoMetadata(selectedPeriod, selectedSort);
+    document.title = title;
+  }, [mode, selectedPeriod, selectedSort]);
 
   // URLパラメータから期間とソート順を読み取り、初期値として設定します。
   useEffect(() => {
@@ -99,9 +107,6 @@ export function SearchResults({
       window.history.pushState({}, "", newUrl);
     }
   }, []);
-
-
-
 
   useEffect(() => {
     let canceled = false;
@@ -254,6 +259,14 @@ export function SearchResults({
     );
   }
 
+  const isSeoH2Mode = mode === "popular" || mode === "new" || mode === "random";
+  const srOnlyTitle =
+    mode === "popular"
+      ? buildPopularSeoMetadata(selectedPeriod, selectedSort).title
+      : mode === "new"
+        ? NEW_PAGE_SEO_TITLE
+        : titleText;
+
   return (
     // 検索結果ページもダークトーンへ合わせ、各状態メッセージの色味を丁寧に調整します。
     <div className={styles.searchContainer}>
@@ -276,9 +289,15 @@ export function SearchResults({
         </div>
         {/* メインタイトル: 全モードで表示 */}
         <div className={styles.sectionHeadingWrap}>
-          <h1 className={styles.searchTitle}>
-            {titleText}
-          </h1>
+          {/* 人気・最近・ランダムのみ視覚見出しを h2 に下げます。 */}
+          {isSeoH2Mode ? (
+            <>
+              <h1 className="sr-only">{srOnlyTitle}</h1>
+              <h2 className={styles.searchTitle}>{titleText}</h2>
+            </>
+          ) : (
+            <h1 className={styles.searchTitle}>{titleText}</h1>
+          )}
         </div>
 
         {/* タイトル下の行にフィルタボタンを配置します。 */}

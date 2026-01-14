@@ -1,6 +1,7 @@
 'use client';
 
 import { ArrowRight } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
@@ -23,6 +24,9 @@ export function HomeSections({
   onShowPopularList,
   onShowAwardRaceList,
 }: HomeSectionsProps) {
+  const pathname = usePathname();
+  // トップ以外では h1 を避け、見出し構造の重複を防ぎます。
+  const TopHeadingTag = pathname === "/" ? "h1" : "div";
   const [newVideos, setNewVideos] = useState<VideoItem[]>([]);
   const [randomVideos, setRandomVideos] = useState<VideoItem[]>([]);
   const [popularVideos, setPopularVideos] = useState<VideoItem[]>([]); // 人気動画用のStateを追加
@@ -152,8 +156,8 @@ export function HomeSections({
         </div>
       ) : (
         <>
-          {/* 視覚的には非表示にしつつ、sr-only で支援技術へトップページの説明を丁寧に伝えます。 */}
-          <h1 className="sr-only">お笑いネタ動画検索サイト「Lafter」トップページ</h1>
+          {/* 視覚的には非表示にしつつ、sr-only でトップページの説明を丁寧に伝えます。 */}
+          <TopHeadingTag className="sr-only">お笑いネタ動画検索サイト「Lafter」トップページ</TopHeadingTag>
 
           {/* 賞レースから探すリンクを一番上に配置 */}
           <div className={styles.awardRaceLinkContainer}>
