@@ -166,7 +166,7 @@ export function HomeSections({
               onClick={onShowAwardRaceList}
               className={styles.awardRaceLink}
             >
-              賞レースから探す
+              賞レース出場芸人から探す
               <ArrowRight size={16} aria-hidden="true" />
             </button>
           </div>
@@ -181,7 +181,7 @@ export function HomeSections({
               >
                 {/* タイトル左にアクセントバーを置き、視線を自然に誘導します。 */}
                 <span className={styles.sectionHeadingBar} aria-hidden="true" />
-                <h2 className={styles.sectionHeading}>最近</h2>
+                <h2 className={styles.sectionHeading}>最近のネタ動画</h2>
               </button>
               <button
                 type="button"
@@ -219,7 +219,7 @@ export function HomeSections({
               >
                 {/* タイトル左にアクセントバーを置き、視線を自然に誘導します。 */}
                 <span className={styles.sectionHeadingBar} aria-hidden="true" />
-                <h2 className={styles.sectionHeading}>人気</h2>
+                <h2 className={styles.sectionHeading}>人気のネタ動画</h2>
               </button>
               <button
                 type="button"
@@ -255,7 +255,7 @@ export function HomeSections({
               >
                 {/* タイトル左にアクセントバーを置き、視線を自然に誘導します。 */}
                 <span className={styles.sectionHeadingBar} aria-hidden="true" />
-                <h2 className={styles.sectionHeading}>ランダム</h2>
+                <h2 className={styles.sectionHeading}>ランダムなネタ動画</h2>
               </button>
               <button
                 type="button"

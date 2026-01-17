@@ -76,7 +76,7 @@ export function AwardRacePage({ onBackToTop, onComedianSearch, initialRace, init
                     <span>トップに戻る</span>
                 </button>
                 <h1 className={styles.awardRaceTitle}>
-                    賞レースから探す
+                    賞レース出場芸人から探す
                 </h1>
             </div>
 

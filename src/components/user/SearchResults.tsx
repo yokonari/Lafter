@@ -219,10 +219,9 @@ export function SearchResults({
   }, [hasMore, loadingMore, loading, handleLoadMore]);
 
   const buildTitle = () => {
-    if (mode === "new") return "最近";
-    if (mode === "random") return "ランダム";
-    if (mode === "popular") return "人気"; // 人気モードを追加
-    if (mode === "award-race") return "賞レースから探す"; // 賞レースモードを追加
+    if (mode === "new") return "最近のネタ動画";
+    if (mode === "random") return "ランダムなネタ動画";
+    if (mode === "popular") return "人気のネタ動画"; // 人気モードを追加
     if (channelId) {
       return fetchedChannelName ? `「${fetchedChannelName}」の検索結果` : "チャンネル内の検索結果";
     }
