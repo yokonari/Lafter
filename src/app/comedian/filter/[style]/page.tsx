@@ -1,0 +1,85 @@
+import type { Metadata } from "next";
+import { Suspense } from "react";
+import { notFound } from "next/navigation";
+import { UserHome } from "@/components/user/UserHome";
+import { getDB } from "@/lib/db";
+import { ArtistRepository } from "@/lib/repositories/artistRepository";
+import { AgencyRepository } from "@/lib/repositories/agencyRepository";
+import { STYLE_LABELS } from "@/lib/styleLabels";
+
+export const dynamic = 'force-dynamic';
+
+type ArtistListItem = {
+  slug: string;
+  name: string;
+  kana?: string;
+  startedOn?: string;
+  styles?: string[];
+  agencyId: string;
+};
+
+// 有効な芸風IDのリスト
+const VALID_STYLES = Object.keys(STYLE_LABELS);
+
+export async function generateMetadata(
+  { params }: { params: Promise<{ style: string }> },
+): Promise<Metadata> {
+  const resolvedParams = await params;
+  const styleLabel = STYLE_LABELS[resolvedParams.style] ?? resolvedParams.style;
+  const title = `${styleLabel}の芸人一覧 | Lafter`;
+  const ogImageUrl = `/opengraph-image?heading=${encodeURIComponent(`${styleLabel}の芸人一覧`)}`;
+
+  return {
+    title,
+    description: `${styleLabel}を得意とする芸人の公式ネタ動画一覧ページへ移動できます。`,
+    alternates: {
+      canonical: `https://lafter.day/comedian/filter/${resolvedParams.style}`,
+    },
+    openGraph: {
+      title,
+      description: `${styleLabel}を得意とする芸人の公式ネタ動画一覧ページへ移動できます。`,
+      images: [{ url: ogImageUrl }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: `${styleLabel}を得意とする芸人の公式ネタ動画一覧ページへ移動できます。`,
+      images: [ogImageUrl],
+    },
+  };
+}
+
+export default async function ComedianStyleFilterPage({ params }: { params: Promise<{ style: string }> }) {
+  const resolvedParams = await params;
+
+  // 有効な芸風IDかチェック
+  if (!VALID_STYLES.includes(resolvedParams.style)) {
+    notFound();
+  }
+
+  const db = getDB();
+  const artistRepo = new ArtistRepository(db);
+  const agencyRepo = new AgencyRepository(db);
+
+  const artists = await artistRepo.getAllWithAgency();
+  const agencyLabels = await agencyRepo.getLabels();
+
+  const items: ArtistListItem[] = artists.map((artist) => ({
+    slug: artist.slug,
+    name: artist.name,
+    kana: artist.kana,
+    startedOn: artist.startedOn,
+    styles: artist.styles,
+    agencyId: artist.agencyId,
+  }));
+
+  return (
+    <Suspense fallback={null}>
+      <UserHome
+        initialComedianList={items}
+        agencyLabels={agencyLabels}
+        initialStyleFilter={resolvedParams.style}
+      />
+    </Suspense>
+  );
+}

@@ -52,6 +52,8 @@ type UserHomeProps = {
   agencyChannelIds?: string[];
   mediaChannelIds?: string[];
   agencyLabels?: Record<string, string>;
+  initialStyleFilter?: string;
+  initialAgencyFilter?: string;
 };
 
 const agencyData = agencyJson as AgenciesById;
@@ -70,6 +72,8 @@ export function UserHome({
   agencyChannelIds: agencyChannelIdsProp,
   mediaChannelIds: mediaChannelIdsProp,
   agencyLabels: agencyLabelsProp,
+  initialStyleFilter,
+  initialAgencyFilter,
 }: UserHomeProps = {}) {
   // propsが渡された場合はそちらを使用、なければJSONフォールバック
   const artists = artistsProp ?? flattenArtistsByAgency(artistsJson as ArtistsByAgency);
@@ -333,7 +337,13 @@ export function UserHome({
 
 
   const mainContent = isComedianListMode ? (
-    <ComedianIndexContent artists={initialComedianList ?? []} agencyLabels={agencyLabels} onBackToTop={handleReset} />
+    <ComedianIndexContent
+      artists={initialComedianList ?? []}
+      agencyLabels={agencyLabels}
+      onBackToTop={handleReset}
+      initialStyleFilter={initialStyleFilter}
+      initialAgencyFilter={initialAgencyFilter}
+    />
   ) : isComedianPageMode ? (
     <SearchResults
       query=""
@@ -463,7 +473,7 @@ export function UserHome({
     </>
   );
 
-  return isAwardRaceMode ? (
+  return isAwardRaceMode || isComedianListMode || isComedianPageMode ? (
     <div className={styles.userLayout}>{content}</div>
   ) : (
     // 管理画面と同様に全体をダークトーンで包み込み、視覚的な統一感を丁寧に確保します。

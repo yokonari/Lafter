@@ -437,6 +437,38 @@ export const artistStyles = sqliteTable(
 );
 
 /* =========================
+   artist_aliases (芸人別名・旧名)
+   ========================= */
+export const artistAliases = sqliteTable(
+  "artist_aliases",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    // 芸人ID（外部キー）
+    artistId: integer("artist_id")
+      .notNull()
+      .references(() => artists.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    // 別名・旧名（例：旧コンビ名、改名前の名前）
+    name: text("name").notNull(),
+    // 読み仮名（オプション）
+    kana: text("kana"),
+
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+  },
+  (table) => ({
+    // 名前検索を高速化（完全一致検索用）
+    idxArtistAliasesName: index("idx_artist_aliases_name").on(table.name),
+    // 読み仮名検索を高速化
+    idxArtistAliasesKana: index("idx_artist_aliases_kana").on(table.kana),
+    // 芸人ごとの別名一覧を効率的に取得
+    idxArtistAliasesArtistId: index("idx_artist_aliases_artist_id").on(table.artistId),
+    // 芸人ID + 名前の複合インデックス
+    idxArtistAliasesArtistName: index("idx_artist_aliases_artist_name").on(table.artistId, table.name),
+  })
+);
+
+/* =========================
    Relations (Drizzle ORM)
    ========================= */
 
@@ -454,6 +486,7 @@ export const artistsRelations = relations(artists, ({ one, many }) => ({
   }),
   channels: many(artistChannels),
   styles: many(artistStyles),
+  aliases: many(artistAliases),
 }));
 
 // artistChannels のリレーション
@@ -477,6 +510,14 @@ export const artistStylesRelations = relations(artistStyles, ({ one }) => ({
   style: one(styles, {
     fields: [artistStyles.styleId],
     references: [styles.id],
+  }),
+}));
+
+// artistAliases のリレーション
+export const artistAliasesRelations = relations(artistAliases, ({ one }) => ({
+  artist: one(artists, {
+    fields: [artistAliases.artistId],
+    references: [artists.id],
   }),
 }));
 

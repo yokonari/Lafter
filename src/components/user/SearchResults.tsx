@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { useEffect, useState, useRef, useCallback, Fragment } from "react";
-import { Link as LinkIcon } from "lucide-react";
+import { Activity, Link as LinkIcon } from "lucide-react";
 import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
 import { BackToTopLink } from "./BackToTopLink";
@@ -111,31 +111,49 @@ export function SearchResults({
   // URLパラメータから期間とソート順を読み取り、初期値として設定します。
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
 
-    // 期間パラメータの読み取り(人気モード時のみ)
-    if (mode === "popular") {
-      const periodParam = params.get("period");
-      if (periodParam === "month" || periodParam === "year" || periodParam === "all") {
-        setSelectedPeriod(periodParam);
-      }
-      // 人気モードではsortパラメータを使用します
-      const sortParam = params.get("sort");
-      if (sortParam === "views" || sortParam === "likes") { // Added "likes"
-        setSelectedSort(sortParam);
+    const readUrlParams = () => {
+      const params = new URLSearchParams(window.location.search);
+
+      // 期間パラメータの読み取り(人気モード時のみ)
+      if (mode === "popular") {
+        const periodParam = params.get("period");
+        if (periodParam === "month" || periodParam === "year" || periodParam === "all") {
+          setSelectedPeriod(periodParam);
+        }
+        // 人気モードではsortパラメータを使用します
+        const sortParam = params.get("sort");
+        if (sortParam === "views" || sortParam === "likes") {
+          setSelectedSort(sortParam);
+        } else {
+          // デフォルトは再生数
+          setSelectedSort("views");
+        }
       } else {
-        // デフォルトは再生数
-        setSelectedSort("views");
+        // その他のモードのソート順パラメータの読み取り
+        const sortParam = params.get("sort");
+        if (sortParam === "published" || sortParam === "views" || sortParam === "likes") {
+          setSelectedSort(sortParam);
+        } else {
+          // パラメータがない場合はデフォルトの「公開日」を設定
+          setSelectedSort("published");
+        }
       }
-    } else {
-      // その他のモードのソート順パラメータの読み取り
-      const sortParam = params.get("sort");
-      if (sortParam === "published" || sortParam === "views" || sortParam === "likes") {
-        setSelectedSort(sortParam);
-      }
-    }
+    };
 
+    // 初回読み込み
+    readUrlParams();
 
+    // ブラウザバック/フォワード時にURLパラメータを再読み込み
+    const handlePopState = () => {
+      readUrlParams();
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
   }, [mode]);
 
   // 期間変更ハンドラを実装します。
@@ -344,6 +362,10 @@ export function SearchResults({
       { key: "popular", label: "人気", href: "/popular" },
       { key: "random", label: "ランダム", href: "/random" },
     ];
+    // 芸人個別ページの場合は芸人一覧へのリンクを追加します。
+    if (showComedianListLink) {
+      return [{ key: "comedian", label: "芸人一覧", href: "/comedian" }];
+    }
     if (mode === "new") return allModes.filter((item) => item.key !== "new");
     if (mode === "popular") return allModes.filter((item) => item.key !== "popular");
     if (mode === "random") return allModes.filter((item) => item.key !== "random");
@@ -410,7 +432,12 @@ export function SearchResults({
         {/* 芸人個別ページではタイトル直下に芸歴と芸風タグを並べます。 */}
         {shouldShowComedianTags && (
           <div className={`${styles.comedianMetaRow} ${styles.comedianMetaRowInline}`}>
-            {comedianCareerYears && <span className={styles.comedianCareerTag}>芸歴{comedianCareerYears}年</span>}
+            {comedianCareerYears && (
+              <span className={styles.comedianCareerTag}>
+                <Activity size={14} />
+                {comedianCareerYears}年
+              </span>
+            )}
             {comedianStyles.length > 0 && (
               <span className={styles.comedianStyleTags}>
                 {comedianStyles.map((style) => (

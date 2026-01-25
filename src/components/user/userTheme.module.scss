@@ -2422,8 +2422,6 @@ $title-font-weight: 400;
   font-family: var(--font-racing-sans-one), sans-serif; // Racing Sans Oneフォントを適用
   font-size: 1.2rem; // アイコンとのバランス調整
   font-weight: 400; // Racing Sans Oneは400のみ
-  // 数字の位置を微調整
-  transform: translateY(1px);
 }
 
 .comedianName {
@@ -2433,8 +2431,11 @@ $title-font-weight: 400;
   text-align: center;
   word-break: break-word; // 長い名前を適切に改行
   overflow-wrap: break-word;
-  line-height: 1.3;
+  line-height: 1.4; // line-heightを少し増やして読みやすく
   width: 100%; // 幅いっぱいを使ってセンタリング
+  display: flex; // flexを追加して中央配置を強化
+  align-items: center; // 垂直方向の中央揃え
+  justify-content: center; // 水平方向の中央揃え
 }
 
 // 準決勝・準々決勝グリッド
@@ -2465,7 +2466,7 @@ $title-font-weight: 400;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
-  padding: 0.8rem;
+  padding: 0.9rem 0.8rem 0.8rem 0.8rem; // 上側のパディングを増やして中央配置を改善
   border: none; // ボーダーを削除
   border-radius: 0.5rem;
   background: var(--user-surface);
@@ -2476,6 +2477,7 @@ $title-font-weight: 400;
   text-align: center;
   word-break: break-word; // 長い名前を適切に改行
   overflow-wrap: break-word;
+  min-height: 3rem; // 最小高さを設定して中央配置を安定化
 
   &:hover {
     background: var(--user-surface-hover);
@@ -2483,7 +2485,7 @@ $title-font-weight: 400;
 
   // 画面が小さい場合のみ余白を狭くする
   @media (max-width: 640px) {
-    padding: 0.6rem;
+    padding: 0.7rem 0.6rem 0.6rem 0.6rem;
   }
 }
 
@@ -2628,7 +2630,7 @@ $title-font-weight: 400;
   color: var(--user-text-secondary);
   font-size: 0.7rem;
   font-weight: 500;
-  line-height: 1;
+  line-height: 1.4; // アイコンが切れないようにline-heightを増やす
   white-space: nowrap;
   max-width: 100%; // 親要素の幅を超えないように制限
   overflow: hidden; // はみ出した部分を隠す
@@ -2636,6 +2638,8 @@ $title-font-weight: 400;
   // アイコン（SVG）のサイズを固定
   svg {
     flex-shrink: 0;
+    display: block; // inline要素のデフォルトの隙間を削除
+    margin-top: -3px; // アイコンを少し上に移動
   }
 }
 

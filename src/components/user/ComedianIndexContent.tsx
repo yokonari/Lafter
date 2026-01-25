@@ -1,7 +1,8 @@
 'use client';
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Activity, Link as LinkIcon } from "lucide-react";
 import { BackToTopLink } from "./BackToTopLink";
 import { XShareButton } from "./XShareButton";
@@ -12,6 +13,8 @@ type ComedianIndexContentProps = {
   artists: { slug: string; name: string; kana?: string; startedOn?: string; styles?: string[]; agencyId: string }[];
   agencyLabels: Record<string, string>;
   onBackToTop: () => void;
+  initialStyleFilter?: string;
+  initialAgencyFilter?: string;
 };
 
 function calculateCareerYears(startedOn?: string): number | null {
@@ -25,10 +28,45 @@ function calculateCareerYears(startedOn?: string): number | null {
   return years > 0 ? years : null;
 }
 
-export function ComedianIndexContent({ artists, agencyLabels, onBackToTop }: ComedianIndexContentProps) {
+export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initialStyleFilter, initialAgencyFilter }: ComedianIndexContentProps) {
+  const router = useRouter();
   const [careerSort, setCareerSort] = useState<"long" | "short" | "name">("long");
-  const [styleFilter, setStyleFilter] = useState<string>("all");
-  const [agencyFilter, setAgencyFilter] = useState<string>("all");
+  const [styleFilter, setStyleFilter] = useState<string>(initialStyleFilter || "all");
+  const [agencyFilter, setAgencyFilter] = useState<string>(initialAgencyFilter || "all");
+
+  // 初期値が変更された場合に状態を更新
+  useEffect(() => {
+    if (initialStyleFilter !== undefined) {
+      setStyleFilter(initialStyleFilter);
+    }
+  }, [initialStyleFilter]);
+
+  useEffect(() => {
+    if (initialAgencyFilter !== undefined) {
+      setAgencyFilter(initialAgencyFilter);
+    }
+  }, [initialAgencyFilter]);
+
+  // タイトルを動的に更新
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+
+    let title = "芸人一覧";
+    const parts: string[] = [];
+
+    if (styleFilter !== "all") {
+      parts.push(STYLE_LABELS[styleFilter] ?? styleFilter);
+    }
+    if (agencyFilter !== "all") {
+      parts.push(agencyFilter === "other" ? "その他" : (agencyLabels[agencyFilter] ?? agencyFilter));
+    }
+
+    if (parts.length > 0) {
+      title = `${parts.join(" × ")}の芸人一覧`;
+    }
+
+    document.title = `${title} | Lafter`;
+  }, [styleFilter, agencyFilter, agencyLabels]);
 
   const availableStyles = useMemo(() => {
     // 一覧に含まれる芸風タグを抽出してフィルタ候補に使います。
@@ -42,17 +80,20 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop }: Com
   }, [artists]);
 
   const availableAgencies = useMemo(() => {
-    // 一覧に含まれる事務所を抽出してフィルタ候補に使います（"other"を除外）。
-    const unique = new Set<string>();
+    // 事務所ごとの所属芸人数をカウントします。
+    const agencyCounts = new Map<string, number>();
     for (const artist of artists) {
-      if (artist.agencyId && artist.agencyId !== "other") {
-        unique.add(artist.agencyId);
+      if (artist.agencyId) {
+        agencyCounts.set(artist.agencyId, (agencyCounts.get(artist.agencyId) ?? 0) + 1);
       }
     }
-    return Array.from(unique).sort((a, b) => {
-      const aName = agencyLabels[a] ?? a;
-      const bName = agencyLabels[b] ?? b;
-      return aName.localeCompare(bName, "ja");
+    // 所属芸人数が多い順にソートし、「その他」は常に最後に配置します。
+    return Array.from(agencyCounts.keys()).sort((a, b) => {
+      // 「その他」を常に最後に配置
+      if (a === "other") return 1;
+      if (b === "other") return -1;
+      // それ以外は所属芸人数でソート
+      return (agencyCounts.get(b) ?? 0) - (agencyCounts.get(a) ?? 0);
     });
   }, [artists]);
 
@@ -92,6 +133,50 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop }: Com
     return sorted;
   }, [artists, careerSort, styleFilter, agencyFilter]);
 
+  // フィルタ変更時にURLを更新（パスベース）
+  const updateUrl = (newStyleFilter: string, newAgencyFilter: string) => {
+    let newUrl = "/comedian";
+
+    // 芸風が選択されている場合
+    if (newStyleFilter !== "all") {
+      newUrl += `/filter/${newStyleFilter}`;
+
+      // 芸風と事務所両方が選択されている場合
+      if (newAgencyFilter !== "all") {
+        newUrl += `/${newAgencyFilter}`;
+      }
+    } else if (newAgencyFilter !== "all") {
+      // 事務所のみの場合
+      newUrl += `/filter/all/${newAgencyFilter}`;
+    }
+
+    router.push(newUrl);
+  };
+
+  // 芸風フィルタ変更ハンドラ
+  const handleStyleFilterChange = (value: string) => {
+    setStyleFilter(value);
+    updateUrl(value, agencyFilter);
+  };
+
+  // 事務所フィルタ変更ハンドラ
+  const handleAgencyFilterChange = (value: string) => {
+    setAgencyFilter(value);
+    updateUrl(styleFilter, value);
+  };
+
+  // ページタイトル用の文字列を生成
+  const pageTitle = useMemo(() => {
+    const parts: string[] = [];
+    if (styleFilter !== "all") {
+      parts.push(STYLE_LABELS[styleFilter] ?? styleFilter);
+    }
+    if (agencyFilter !== "all") {
+      parts.push(agencyFilter === "other" ? "その他" : (agencyLabels[agencyFilter] ?? agencyFilter));
+    }
+    return parts.length > 0 ? `${parts.join(" × ")}の芸人一覧` : "芸人一覧";
+  }, [styleFilter, agencyFilter, agencyLabels]);
+
   return (
     <div className={styles.searchContainer}>
       <div className={styles.searchHeader}>
@@ -106,7 +191,7 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop }: Com
           </div>
         </div>
         <div className={styles.sectionHeadingWrap}>
-          <h1 className={styles.searchTitle}>芸人一覧</h1>
+          <h1 className={styles.searchTitle}>{pageTitle}</h1>
         </div>
         <div className={styles.comedianHeaderRow}>
           <div className={`${styles.periodTabs} ${styles.comedianSortGroup} ${styles.comedianTabsRow}`}>
@@ -136,7 +221,7 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop }: Com
             <div className={styles.comedianAgencySelectContainer}>
               <select
                 value={styleFilter}
-                onChange={(e) => setStyleFilter(e.target.value)}
+                onChange={(e) => handleStyleFilterChange(e.target.value)}
                 className={styles.comedianAgencySelect}
                 aria-label="芸風で絞り込み"
               >
@@ -153,14 +238,14 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop }: Com
             <div className={styles.comedianAgencySelectContainer}>
               <select
                 value={agencyFilter}
-                onChange={(e) => setAgencyFilter(e.target.value)}
+                onChange={(e) => handleAgencyFilterChange(e.target.value)}
                 className={styles.comedianAgencySelect}
                 aria-label="事務所で絞り込み"
               >
                 <option value="all">すべての事務所</option>
                 {availableAgencies.map((agencyId) => (
                   <option key={agencyId} value={agencyId}>
-                    {agencyLabels[agencyId] ?? agencyId}
+                    {agencyId === "other" ? "その他" : (agencyLabels[agencyId] ?? agencyId)}
                   </option>
                 ))}
               </select>
@@ -172,53 +257,57 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop }: Com
         </div>
       </div>
 
-      <div className={styles.comedianGrid}>
-        {/* 芸人一覧はslugごとのリンクとして表示します。 */}
-        {sortedArtists.map((artist) => (
-          <Link
-            key={artist.slug}
-            href={`/comedian/${artist.slug}`}
-            className={styles.comedianIndexCard}
-          >
-            {/* 背景色の上に薄い黒レイヤーを重ねるため、内容をラップします。 */}
-            <span className={styles.comedianIndexCardContent}>
-              <span className={styles.comedianIndexName}>{artist.name}</span>
-              <span className={styles.comedianIndexMetaRow}>
-                {(() => {
-                  const careerYears = calculateCareerYears(artist.startedOn);
-                  if (!careerYears) return null;
-                  return (
-                    <span className={styles.comedianCareerTag}>
-                      <Activity size={14} />
-                      {careerYears}年
-                    </span>
-                  );
-                })()}
-                {Array.isArray(artist.styles) && artist.styles.length > 0 && (
-                  <span className={styles.comedianIndexStyleTags}>
-                    {artist.styles.map((style) => (
-                      <span
-                        key={style}
-                        className={`${styles.comedianStyleTag} ${styles[`styleTag_${style}`] ?? ""}`}
-                      >
-                        {STYLE_LABELS[style] ?? style}
+      {sortedArtists.length === 0 ? (
+        <p className={styles.statusText}>該当する芸人が見つかりませんでした。</p>
+      ) : (
+        <div className={styles.comedianGrid}>
+          {/* 芸人一覧はslugごとのリンクとして表示します。 */}
+          {sortedArtists.map((artist) => (
+            <Link
+              key={artist.slug}
+              href={`/comedian/${artist.slug}`}
+              className={styles.comedianIndexCard}
+            >
+              {/* 背景色の上に薄い黒レイヤーを重ねるため、内容をラップします。 */}
+              <span className={styles.comedianIndexCardContent}>
+                <span className={styles.comedianIndexName}>{artist.name}</span>
+                <span className={styles.comedianIndexMetaRow}>
+                  {(() => {
+                    const careerYears = calculateCareerYears(artist.startedOn);
+                    if (!careerYears) return null;
+                    return (
+                      <span className={styles.comedianCareerTag}>
+                        <Activity size={14} />
+                        {careerYears}年
                       </span>
-                    ))}
+                    );
+                  })()}
+                  {Array.isArray(artist.styles) && artist.styles.length > 0 && (
+                    <span className={styles.comedianIndexStyleTags}>
+                      {artist.styles.map((style) => (
+                        <span
+                          key={style}
+                          className={`${styles.comedianStyleTag} ${styles[`styleTag_${style}`] ?? ""}`}
+                        >
+                          {STYLE_LABELS[style] ?? style}
+                        </span>
+                      ))}
+                    </span>
+                  )}
+                </span>
+                {artist.agencyId && artist.agencyId !== "other" && (
+                  <span className={styles.comedianAgencyTag}>
+                    <LinkIcon size={12} />
+                    <span className={styles.comedianAgencyTagText}>
+                      {agencyLabels[artist.agencyId] ?? artist.agencyId}
+                    </span>
                   </span>
                 )}
               </span>
-              {artist.agencyId && artist.agencyId !== "other" && (
-                <span className={styles.comedianAgencyTag}>
-                  <LinkIcon size={12} />
-                  <span className={styles.comedianAgencyTagText}>
-                    {agencyLabels[artist.agencyId] ?? artist.agencyId}
-                  </span>
-                </span>
-              )}
-            </span>
-          </Link>
-        ))}
-      </div>
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
