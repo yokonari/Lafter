@@ -29,27 +29,46 @@ export async function generateMetadata(
   const agencyRepo = new AgencyRepository(db);
   const agencyLabels = await agencyRepo.getLabels();
 
-  const styleLabel = STYLE_LABELS[resolvedParams.style] ?? resolvedParams.style;
+  // 芸風が「all」の場合は事務所名のみ、それ以外は「芸風 × 事務所名」の形式
   const agencyLabel = agencyLabels[resolvedParams.agency] ?? resolvedParams.agency;
 
-  const title = `${styleLabel} × ${agencyLabel}の芸人一覧 | Lafter`;
-  const ogImageUrl = `/opengraph-image?heading=${encodeURIComponent(`${styleLabel} × ${agencyLabel}の芸人一覧`)}`;
+  let pageTitle: string;
+  let ogHeading: string;
+
+  if (resolvedParams.style === "all") {
+    // 芸風が「all」の場合は事務所名のみ
+    pageTitle = `${agencyLabel}の芸人一覧`;
+    ogHeading = `${agencyLabel}の芸人一覧`;
+  } else {
+    // 芸風が指定されている場合は「芸風 × 事務所名」
+    const styleLabel = STYLE_LABELS[resolvedParams.style] ?? resolvedParams.style;
+    pageTitle = `${styleLabel} × ${agencyLabel}の芸人一覧`;
+    ogHeading = `${styleLabel} × ${agencyLabel}の芸人一覧`;
+  }
+
+  const title = `${pageTitle} | Lafter`;
+  const ogImageUrl = `/opengraph-image?heading=${encodeURIComponent(ogHeading)}`;
+
+  // descriptionも芸風に応じて変更
+  const description = resolvedParams.style === "all"
+    ? `${agencyLabel}所属の芸人一覧ページです。`
+    : `${STYLE_LABELS[resolvedParams.style] ?? resolvedParams.style}を得意とする${agencyLabel}所属の芸人一覧ページです。`;
 
   return {
     title,
-    description: `${styleLabel}を得意とする${agencyLabel}所属の芸人の公式ネタ動画一覧ページへ移動できます。`,
+    description,
     alternates: {
       canonical: `https://lafter.day/comedian/filter/${resolvedParams.style}/${resolvedParams.agency}`,
     },
     openGraph: {
       title,
-      description: `${styleLabel}を得意とする${agencyLabel}所属の芸人の公式ネタ動画一覧ページへ移動できます。`,
+      description,
       images: [{ url: ogImageUrl }],
     },
     twitter: {
       card: "summary_large_image",
       title,
-      description: `${styleLabel}を得意とする${agencyLabel}所属の芸人の公式ネタ動画一覧ページへ移動できます。`,
+      description,
       images: [ogImageUrl],
     },
   };

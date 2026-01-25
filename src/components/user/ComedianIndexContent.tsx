@@ -168,9 +168,11 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
   // ページタイトル用の文字列を生成
   const pageTitle = useMemo(() => {
     const parts: string[] = [];
+    // 芸風が「all」でない場合のみ追加
     if (styleFilter !== "all") {
       parts.push(STYLE_LABELS[styleFilter] ?? styleFilter);
     }
+    // 事務所が「all」でない場合のみ追加
     if (agencyFilter !== "all") {
       parts.push(agencyFilter === "other" ? "その他" : (agencyLabels[agencyFilter] ?? agencyFilter));
     }
