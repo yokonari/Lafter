@@ -183,6 +183,11 @@ export function SearchResults({
   }, []);
 
   useEffect(() => {
+    // 賞レースモード時は動画取得をスキップします。
+    if (mode === "award-race") {
+      return;
+    }
+
     let canceled = false;
     const controller = new AbortController();
 
@@ -251,7 +256,7 @@ export function SearchResults({
       canceled = true;
       controller.abort();
     };
-    }, [query, channelId, channelIdsKey, channelQuery, channelIdsForQueryKey, mode, selectedPeriod, selectedSort]); // selectedSortを依存配列に追加
+  }, [query, channelId, channelIdsKey, channelQuery, channelIdsForQueryKey, mode, selectedPeriod, selectedSort]); // selectedSortを依存配列に追加
 
   const handleLoadMore = useCallback(async () => {
     if (loadingMore) return;
@@ -319,9 +324,9 @@ export function SearchResults({
   // ヘッド要素の動的メタ情報は App Router の generateMetadata で付与するため、ここでは画面表示に専念します。
   const titleText =
     titleOverride
-      ?? (titleMode === "channelName" && channelId
-        ? (fetchedChannelName ?? "チャンネル動画")
-        : buildTitle());
+    ?? (titleMode === "channelName" && channelId
+      ? (fetchedChannelName ?? "チャンネル動画")
+      : buildTitle());
 
   // 検索クエリまたはチャンネル名にNGワードが含まれている場合、または検索結果が0件の場合はシェアボタンを表示しません。
   const hasResults = videos.length > 0;

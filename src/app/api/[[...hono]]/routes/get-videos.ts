@@ -111,6 +111,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const keywords = q ? q.split(/\s+/u).filter(Boolean) : [];
     const normalizedPatternsPerWord = keywords.map((word) => buildLikePatterns(word));
     const mode = c.req.query("mode");
+
     const period = c.req.query("period") ?? "month"; // 期間フィルタ: all, month, year
     const sort = c.req.query("sort") ?? "published"; // ソート順フィルタ: published, popular, views
     const channelIdFilter = c.req.query("channelId");
