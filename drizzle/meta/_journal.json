@@ -169,6 +169,13 @@
       "when": 1767159229332,
       "tag": "0023_smart_mikhail_rasputin",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1769324442233,
+      "tag": "0024_grey_texas_twister",
+      "breakpoints": true
     }
   ]
 }

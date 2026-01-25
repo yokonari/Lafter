@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
@@ -15,7 +15,14 @@ import { VideoDialog } from "./VideoDialog";
 
 import { ReportDialog } from "./ReportDialog";
 import { ScrollTopButton } from "./ScrollTopButton";
+import { ComedianIndexContent } from "./ComedianIndexContent";
 import styles from "./userTheme.module.scss";
+import artistsJson from "../../../data/artists/artists.json";
+import agencyJson from "../../../data/agencies/agency.json";
+import mediaJson from "../../../data/media/media.json";
+import { flattenArtistsByAgency, type ArtistsByAgency } from "../../../data/artists/types";
+import type { AgenciesById } from "../../../data/agencies/types";
+import type { MediaChannels } from "../../../data/media/types";
 
 // トースト通知の外観を統一し、暗色テーマの世界観を崩さないよう共有設定を用意します。
 const userToastAppearanceOptions = {
@@ -27,9 +34,46 @@ type UserHomeProps = {
   initialMode?: "new" | "random" | "popular" | "award-race";
   initialRace?: "m1" | "koc";
   initialYear?: number;
+  initialComedianList?: { slug: string; name: string; kana?: string; startedOn?: string; styles?: string[]; agencyId: string }[];
+  initialComedian?: {
+    slug: string;
+    name: string;
+    colors?: string[];
+    startedOn?: string; // 芸歴タグ表示用の開始年です。
+    styles?: string[]; // 芸風タグ表示用のコードです。
+    agencyId?: string; // 事務所チャンネルの参照に使います。
+    channels: {
+      channelId: string;
+      role: string;
+    }[];
+  };
+  // データベースから取得したデータ（オプション、未指定の場合はJSONフォールバック）
+  artists?: { slug: string; name: string; kana?: string; startedOn?: string; styles?: string[]; agencyId: string; channels: { channelId: string; role: string; }[] }[];
+  agencyChannelIds?: string[];
+  mediaChannelIds?: string[];
+  agencyLabels?: Record<string, string>;
 };
 
-export function UserHome({ initialChannelId, initialMode, initialRace, initialYear }: UserHomeProps = {}) {
+const agencyData = agencyJson as AgenciesById;
+const mediaData = mediaJson as MediaChannels;
+// 事務所別データを検索用の配列に展開します。
+const artists = flattenArtistsByAgency(artistsJson as ArtistsByAgency);
+
+export function UserHome({
+  initialChannelId,
+  initialMode,
+  initialRace,
+  initialYear,
+  initialComedianList,
+  initialComedian,
+  artists: artistsProp,
+  agencyChannelIds: agencyChannelIdsProp,
+  mediaChannelIds: mediaChannelIdsProp,
+  agencyLabels: agencyLabelsProp,
+}: UserHomeProps = {}) {
+  // propsが渡された場合はそちらを使用、なければJSONフォールバック
+  const artists = artistsProp ?? flattenArtistsByAgency(artistsJson as ArtistsByAgency);
+  const agencyLabels = agencyLabelsProp ?? {};
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -41,12 +85,48 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
   const [dialogVideo, setDialogVideo] = useState<VideoItem | null>(null);
   const [reportVideo, setReportVideo] = useState<VideoItem | null>(null);
   const isAwardRaceMode = initialMode === "award-race" || activeMode === "award-race";
+  const isComedianListMode = Boolean(initialComedianList && initialComedianList.length > 0);
+  const isComedianPageMode = Boolean(initialComedian);
+  // official は全動画、official以外は芸人名キーワード検索で絞り込みます。
+  const comedianName = initialComedian?.name ?? "";
+  const officialChannelIds =
+    initialComedian?.channels.filter((channel) => channel.role === "official")
+      .map((channel) => channel.channelId) ?? [];
+  const agencyChannelIds = useMemo(() => {
+    // 所属事務所のチャンネルIDを取得します。
+    if (!initialComedian?.agencyId) return [];
+    return agencyData.agency[initialComedian.agencyId]?.channels.map((ch) => ch.channelId) ?? [];
+  }, [initialComedian?.agencyId]);
+  const keywordChannelIds = [
+    ...(mediaData.media ?? []).map((channel) => channel.channelId),
+    ...agencyChannelIds,
+    ...(initialComedian?.channels.filter((channel) => channel.role !== "official")
+      .map((channel) => channel.channelId) ?? []),
+  ];
 
 
   // 検索履歴関連の状態
   const [history, setHistory] = useState<string[]>([]);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const HISTORY_KEY = "userSearchHistory";
+  const matchedArtists = useMemo(() => {
+    // 2文字以上のキーワードのみで芸人名の一致判定を行います。
+    const keywords = activeQuery
+      .split(/\s+/u)
+      .map((word) => word.trim())
+      .filter((word) => word.length >= 2);
+    if (!activeQuery || keywords.length === 0) {
+      return [];
+    }
+    const normalizedKeywords = keywords.map((word) => word.normalize("NFC").toLowerCase());
+    return artists
+      .filter((artist) => {
+        const nameNfc = artist.name.normalize("NFC").toLowerCase();
+        const nameNfd = artist.name.normalize("NFD").toLowerCase();
+        return normalizedKeywords.every((word) => nameNfc.includes(word) || nameNfd.includes(word));
+      })
+      .map((artist) => ({ slug: artist.slug, name: artist.name }));
+  }, [activeQuery]);
 
   // URL パラメーターを置換し、検索条件を共有するためのヘルパーです。
   // モードは固定パスで処理されるため、periodパラメータのみを管理します。
@@ -95,6 +175,11 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
       return;
     }
 
+    // 芸人ページ/一覧が固定表示の場合は検索状態を変更しません。
+    if (isComedianListMode || isComedianPageMode) {
+      return;
+    }
+
     // initialMode がある場合は、URL パラメータを無視してモード表示を維持します。
     if (initialMode) {
       setActiveMode(initialMode);
@@ -109,7 +194,7 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
     setActiveMode(undefined);
     // クエリが指定されていれば一覧表示へ切り替えます。
     setIsSearching(Boolean(urlQuery));
-  }, [searchParams, initialChannelId, initialMode]);
+  }, [searchParams, initialChannelId, initialMode, isComedianListMode, isComedianPageMode]);
 
   // ローカルストレージから検索履歴を丁寧に読み込みます。
   useEffect(() => {
@@ -160,7 +245,7 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
   const handleReset = useCallback(() => {
     // initialChannelId や initialMode がある場合（固定パスから呼ばれた場合）は、
     // トップページにリダイレクトします。
-    if (initialChannelId || initialMode) {
+    if (initialChannelId || initialMode || isComedianListMode || isComedianPageMode) {
       router.push("/");
       return;
     }
@@ -200,6 +285,10 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
   const handleShowAwardRaceList = useCallback(() => {
     // デフォルトの賞レースページ（M-1 2025）にナビゲート
     router.push("/award-race/m1/2025");
+  }, [router]);
+  const handleShowComedianList = useCallback(() => {
+    // 芸人一覧ページへ遷移します。
+    router.push("/comedian");
   }, [router]);
 
   // 報告の選択で確認ダイアログを開きます。
@@ -243,13 +332,36 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
 
 
 
-  const mainContent = isAwardRaceMode ? (
+  const mainContent = isComedianListMode ? (
+    <ComedianIndexContent artists={initialComedianList ?? []} agencyLabels={agencyLabels} onBackToTop={handleReset} />
+  ) : isComedianPageMode ? (
+    <SearchResults
+      query=""
+      channelIds={officialChannelIds}
+      channelQuery={keywordChannelIds.length > 0 ? comedianName : undefined}
+      channelIdsForQuery={keywordChannelIds}
+      comedianMeta={{
+        // 芸人個別ページで芸歴・芸風・事務所タグを表示します。
+        startedOn: initialComedian?.startedOn,
+        styles: initialComedian?.styles,
+        agencyId: initialComedian?.agencyId,
+      }}
+      titleOverride={`${comedianName}の公式ネタ動画`}
+      showComedianListLink
+      agencyLabels={agencyLabels}
+      onVideoSelect={handleVideoSelect}
+      onChannelSelect={handleChannelSelect}
+      onBackToTop={handleReset}
+    />
+  ) : isAwardRaceMode ? (
     <>
       {isSearching && (activeQuery || activeChannelId || activeMode) ? (
         <SearchResults
           query={activeQuery}
           channelId={activeChannelId}
           mode={activeMode}
+          artistMatches={matchedArtists}
+          agencyLabels={agencyLabels}
           onVideoSelect={handleVideoSelect}
           onChannelSelect={handleChannelSelect}
           onBackToTop={handleReset}
@@ -264,6 +376,7 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
           onShowRandomList={handleShowRandomList}
           onShowPopularList={handleShowPopularList}
           onShowAwardRaceList={handleShowAwardRaceList}
+          onShowComedianList={handleShowComedianList}
         />
       )}
     </>
@@ -281,6 +394,8 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
             query={activeQuery}
             channelId={activeChannelId}
             mode={activeMode}
+            artistMatches={matchedArtists}
+            agencyLabels={agencyLabels}
             onVideoSelect={handleVideoSelect}
             onChannelSelect={handleChannelSelect}
             onBackToTop={handleReset}
@@ -303,6 +418,7 @@ export function UserHome({ initialChannelId, initialMode, initialRace, initialYe
             onShowRandomList={handleShowRandomList}
             onShowPopularList={handleShowPopularList}
             onShowAwardRaceList={handleShowAwardRaceList}
+            onShowComedianList={handleShowComedianList}
           />
         </motion.div>
       )}

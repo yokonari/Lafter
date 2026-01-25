@@ -48,6 +48,9 @@ function mapRawVideo(video: RawVideo): VideoItem | null {
 export type FetchVideoOptions = {
   query?: string;
   channelId?: string;
+  channelIds?: string[]; // 複数チャンネル指定のためのID配列
+  channelQuery?: string; // 特定チャンネル群だけに適用する検索キーワード
+  channelIdsForQuery?: string[]; // キーワード検索対象のチャンネルID配列
   signal?: AbortSignal;
   mode?: "new" | "random" | "popular" | "award-race"; // "popular" と "award-race" を追加
   period?: "all" | "month" | "year"; // 期間フィルタを追加
@@ -87,6 +90,18 @@ export async function fetchVideoItems(
   }
   if (options?.channelId) {
     params.set("channelId", options.channelId);
+  }
+  if (!options?.channelId && options?.channelIds && options.channelIds.length > 0) {
+    // 複数チャンネルをまとめて指定できるようカンマ区切りで渡します。
+    params.set("channelIds", options.channelIds.join(","));
+  }
+  if (options?.channelQuery) {
+    // 特定チャンネルだけに適用する検索キーワードを渡します。
+    params.set("channelQuery", options.channelQuery);
+  }
+  if (options?.channelIdsForQuery && options.channelIdsForQuery.length > 0) {
+    // キーワード検索対象チャンネルをカンマ区切りで渡します。
+    params.set("channelIdsForQuery", options.channelIdsForQuery.join(","));
   }
   if (options?.mode) {
     params.set("mode", options.mode);

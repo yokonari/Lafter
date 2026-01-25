@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Trophy, Crown, Medal, ArrowLeft } from 'lucide-react';
+import { Trophy, Crown, Medal } from 'lucide-react';
 
 import awardRacesData from '@/../../data/award-races/award-races.json';
 import { RACE_NAMES, AVAILABLE_YEARS, type RaceType, type AwardRacesData } from '@/../../data/award-races/types';
 import { XShareButton } from './XShareButton';
+import { BackToTopLink } from './BackToTopLink';
 import styles from './userTheme.module.scss';
 
 interface AwardRacePageProps {
@@ -71,13 +73,19 @@ export function AwardRacePage({ onBackToTop, onComedianSearch, initialRace, init
         <div className={styles.awardRaceContainer}>
             {/* ヘッダー */}
             <div className={styles.awardRaceHeader}>
-                <button onClick={onBackToTop} className={styles.backButton}>
-                    <ArrowLeft size={16} aria-hidden="true" />
-                    <span>トップに戻る</span>
-                </button>
-                <h1 className={styles.awardRaceTitle}>
-                    賞レース出場芸人から探す
-                </h1>
+                <div className={styles.searchBackRow}>
+                    <BackToTopLink onClick={onBackToTop} />
+                    {/* 賞レース画面から芸人一覧へ誘導します。 */}
+                    <span className={styles.searchBackSeparator}>/</span>
+                    <Link href="/comedian" className={styles.searchBackLink}>
+                        芸人一覧
+                    </Link>
+                </div>
+                <div className={styles.sectionHeadingWrap}>
+                    <h1 className={`${styles.searchTitle}`}>
+                        賞レース出場芸人から探す
+                    </h1>
+                </div>
             </div>
 
             {/* 賞レース選択タブ（第1段階） */}

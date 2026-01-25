@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/d1";
 import type { D1Database, KVNamespace } from "@cloudflare/workers-types";
+import * as schema from "@/lib/schema";
 
 // Cloudflare 環境の DB バインディングを型として明示させていただきます。
 declare global {
@@ -14,11 +15,11 @@ declare global {
   }
 }
 
-export type AppDatabase = ReturnType<typeof drizzle>;
+export type AppDatabase = ReturnType<typeof drizzle<typeof schema>>;
 
 export function createDatabase(env: CloudflareEnv): AppDatabase {
   // 型定義済みの env から丁寧に Drizzle インスタンスを生成いたします。
-  return drizzle(env.DB);
+  return drizzle(env.DB, { schema });
 }
 
 export {};

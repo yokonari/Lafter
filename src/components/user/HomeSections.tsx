@@ -14,6 +14,7 @@ type HomeSectionsProps = {
   onShowRandomList: () => void;
   onShowPopularList: () => void; // 人気セクション用のハンドラを追加
   onShowAwardRaceList: () => void; // 賞レースセクション用のハンドラを追加
+  onShowComedianList: () => void; // 芸人一覧へのハンドラを追加
 };
 
 export function HomeSections({
@@ -23,6 +24,7 @@ export function HomeSections({
   onShowRandomList,
   onShowPopularList,
   onShowAwardRaceList,
+  onShowComedianList,
 }: HomeSectionsProps) {
   const pathname = usePathname();
   // トップ以外では h1 を避け、見出し構造の重複を防ぎます。
@@ -159,15 +161,21 @@ export function HomeSections({
           {/* 視覚的には非表示にしつつ、sr-only でトップページの説明を丁寧に伝えます。 */}
           <TopHeadingTag className="sr-only">お笑いネタ動画検索サイト「Lafter」トップページ</TopHeadingTag>
 
-          {/* 賞レースから探すリンクを一番上に配置 */}
-          <div className={styles.awardRaceLinkContainer}>
+          {/* 賞レース/芸人一覧の導線を横並びのアウトラインボタンで配置 */}
+          <div className={styles.awardRaceLinkRow}>
             <button
               type="button"
               onClick={onShowAwardRaceList}
-              className={styles.awardRaceLink}
+              className={styles.awardRaceLinkOutline}
             >
               賞レース出場芸人から探す
-              <ArrowRight size={16} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={onShowComedianList}
+              className={styles.awardRaceLinkOutline}
+            >
+              芸人一覧から探す
             </button>
           </div>
 

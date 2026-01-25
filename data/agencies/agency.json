@@ -1,0 +1,139 @@
+{
+  "agency": {
+    "grape": {
+      "name": "グレープカンパニー",
+      "channels": [
+        {
+          "channelId": "UCIPIoslhqBLMrnU3EU1wrlA",
+          "name": "【公式】グレープカンパニーチャンネル"
+        }
+      ]
+    },
+    "yoshimoto": {
+      "name": "吉本興業",
+      "channels": [
+        {
+          "channelId": "UCfhfIBo7PhDzpK_Yuyk2OXg",
+          "name": "吉本興業チャンネル"
+        },
+        {
+          "channelId": "UCVA4X6BRToV9IemGORDjo5A",
+          "name": "デイリーよしもと"
+        },
+        {
+          "channelId": "UC1HFvQiR8x712JlMZftYfMA",
+          "name": "よしもと漫才劇場チャンネル"
+        },
+        {
+          "channelId": "UC2oELUawnuPPxe6XdezCRqA",
+          "name": "よしもとアカデミー"
+        },
+        {
+          "channelId": "UC8K0u7OYjVcF1xjPLWQcXgA",
+          "name": "ヨシモト∞ホール公式チャンネル"
+        },
+        {
+          "channelId": "UCD2eG3CA_-tKkiix0mHaHRg",
+          "name": "吉本興業 ルミネtheよしもと"
+        },
+        {
+          "channelId": "UCB1hPXm83fHgwZuZiRSNDDw",
+          "name": "【公式】渋谷よしもと漫才劇場・神保町よしもと漫才劇場YouTubeチャンネル"
+        },
+        {
+          "channelId": "UCeRVXUm_rFa5KYZehMwCWgA",
+          "name": "大阪よしもと漫才博覧会"
+        },
+        {
+          "channelId": "UC9YkGUg7WL6kUOYMCCByLKg",
+          "name": "よしもとアラカルトチャンネル"
+        },
+        {
+          "channelId": "UC372V7D6Tyt0VQIzdP6kOYg",
+          "name": "よしもとモノマネアワー"
+        },
+        {
+          "channelId": "UCG4x69oJBbWp2KmDJJyuIVg",
+          "name": "よしもと福岡劇場チャンネル"
+        }
+      ]
+    },
+    "watanabe": {
+      "name": "ワタナベエンターテインメント",
+      "channels": [
+        {
+          "channelId": "UCeAqLjrIu7NCD7bpBZZjJJg",
+          "name": "ワタナベエンターテインメント【公式】"
+        },
+        {
+          "channelId": "UCkbsaflnDnqZs5LQQo9rEcA",
+          "name": "ワタナベお笑い公式チャンネル"
+        }
+      ]
+    },
+    "kdash": {
+      "name": "ケイダッシュステージ",
+      "channels": [
+        {
+          "channelId": "UC4H1L0xeL7Soj13RuX_iMaQ",
+          "name": "ケイダッシュステージ公式チャンネル"
+        }
+      ]
+    },
+    "maseki": {
+      "name": "マセキ芸能社",
+      "channels": []
+    },
+    "shochiku": {
+      "name": "松竹芸能",
+      "channels": [
+        {
+          "channelId": "UCDjHZjauLNCj8iwKaVgiH2g",
+          "name": "松竹芸能 公式チャンネル/SHOCHIKU GEINO ch"
+        }
+      ]
+    },
+    "ota": {
+      "name": "太田プロダクション",
+      "channels": [
+        {
+          "channelId": "UCiGurCPdaxCBZNh8dbpCWeA",
+          "name": "太田プロチャンネル"
+        }
+      ]
+    },
+    "jinrikisha": {
+      "name": "プロダクション人力舎",
+      "channels": []
+    },
+    "sony": {
+      "name": "ソニー・ミュージックアーティスツ",
+      "channels": []
+    },
+    "avex": {
+      "name": "エイベックス",
+      "channels": []
+    },
+    "sunmusic": {
+      "name": "サンミュージック",
+      "channels": []
+    },
+    "aun": {
+      "name": "プロデューサーハウスあ・うん",
+      "channels": [
+        {
+          "channelId": "UCXQM-HOvah2zj2XJar8o3Aw",
+          "name": "プロデューサーハウスあ・うん"
+        }
+      ]
+    },
+    "100company": {
+      "name": "100company",
+      "channels": []
+    },
+    "other": {
+      "name": "その他",
+      "channels": []
+    }
+  }
+}

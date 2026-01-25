@@ -1,18 +1,45 @@
-import { ArrowLeft } from "lucide-react";
-import { useEffect, useState, useRef, useCallback } from "react";
+import Link from "next/link";
+import { useEffect, useState, useRef, useCallback, Fragment } from "react";
+import { Link as LinkIcon } from "lucide-react";
 import { fetchVideoItems, type VideoItem } from "@/lib/videoService";
 import { VideoCard } from "./VideoCard";
+import { BackToTopLink } from "./BackToTopLink";
 import { XShareButton } from "./XShareButton";
 import { containsNgWord } from "@/lib/ng-words";
 import { AwardRacePage } from "./AwardRacePage";
 import { buildPopularSeoMetadata } from "@/lib/popularMetadata";
 import { NEW_PAGE_SEO_TITLE } from "@/lib/newMetadata";
+import { STYLE_LABELS } from "@/lib/styleLabels";
 import styles from "./userTheme.module.scss";
+
+function calculateCareerYears(startedOn?: string): number | null {
+  // "YYYY" または "YYYY-MM" を想定して年数を計算します。
+  if (!startedOn) return null;
+  const yearPart = startedOn.split("-")[0];
+  const startYear = Number(yearPart);
+  if (!Number.isFinite(startYear) || startYear <= 0) return null;
+  const currentYear = new Date().getFullYear();
+  const years = currentYear - startYear + 1;
+  return years > 0 ? years : null;
+}
 
 type SearchResultsProps = {
   query: string;
   channelId?: string;
+  channelIds?: string[]; // 複数チャンネル指定を受け付けます。
+  channelQuery?: string; // 特定チャンネルのキーワード検索を指定します。
+  channelIdsForQuery?: string[]; // キーワード検索対象チャンネルを指定します。
+  comedianMeta?: { startedOn?: string; styles?: string[]; agencyId?: string }; // 芸人個別ページのタグ表示用です。
+  artistMatches?: { slug: string; name: string }[]; // 芸人名に一致した候補を表示します。
+  showComedianListLink?: boolean; // 芸人個別ページのみ芸人一覧への導線を表示します。
   mode?: "new" | "random" | "popular" | "award-race"; // "popular" と "award-race" を追加
+  titleOverride?: string; // タイトルを固定したい場合に指定します。
+  titleMode?: "default" | "channelName"; // チャンネル名のみを使うタイトルに切り替えます。
+  headingLevel?: "h1" | "h2" | "h3"; // 見出しレベルを上書きします。
+  headingLinkHref?: string; // 見出しをリンクにしたい場合に指定します。
+  showBackLink?: boolean; // 先頭の戻るリンク表示を制御します。
+  showShareButton?: boolean; // シェアボタン表示を制御します。
+  agencyLabels?: Record<string, string>; // 事務所ID→名前のマッピング
   onVideoSelect: (video: VideoItem) => void;
 
   onChannelSelect: (channelId: string) => void;
@@ -24,7 +51,20 @@ type SearchResultsProps = {
 export function SearchResults({
   query,
   channelId,
+  channelIds,
+  channelQuery,
+  channelIdsForQuery,
+  comedianMeta,
+  artistMatches,
+  showComedianListLink,
   mode,
+  titleOverride,
+  titleMode = "default",
+  headingLevel,
+  headingLinkHref,
+  showBackLink = true,
+  showShareButton = true,
+  agencyLabels = {},
   onVideoSelect,
 
   onChannelSelect,
@@ -42,7 +82,23 @@ export function SearchResults({
   const [nextOffset, setNextOffset] = useState(0);
   const [selectedPeriod, setSelectedPeriod] = useState<"month" | "year" | "all">("month"); // 期間選択用のStateを追加
   const [selectedSort, setSelectedSort] = useState<"published" | "views" | "likes">("published"); // ソート順選択用のStateを追加
+  const isInitialSearchRestore = useRef(true);
   const PAGE_SIZE = 20;
+  // 芸人個別ページに表示する芸歴・芸風・事務所タグの判定をまとめます。
+  const comedianCareerYears = calculateCareerYears(comedianMeta?.startedOn);
+  const comedianStyles = comedianMeta?.styles ?? [];
+  const comedianAgencyId = comedianMeta?.agencyId;
+  const shouldShowComedianTags = Boolean(comedianCareerYears || comedianStyles.length > 0 || (comedianAgencyId && comedianAgencyId !== "other"));
+  // channelIds は順序や重複を整えてから比較・送信します。
+  const normalizedChannelIds = (channelIds ?? []).map((id) => id.trim()).filter((id) => id.length > 0);
+  const uniqueChannelIds = Array.from(new Set(normalizedChannelIds));
+  const channelIdsKey = uniqueChannelIds.join(",");
+  // キーワード検索対象のチャンネルIDを正規化します。
+  const normalizedChannelIdsForQuery = (channelIdsForQuery ?? [])
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0);
+  const uniqueChannelIdsForQuery = Array.from(new Set(normalizedChannelIdsForQuery));
+  const channelIdsForQueryKey = uniqueChannelIdsForQuery.join(",");
 
   // 人気タブのUI操作に合わせて、クライアント側のタイトルも更新します。
   useEffect(() => {
@@ -119,14 +175,24 @@ export function SearchResults({
       setFetchedChannelName(undefined);
       setHasMore(false);
       setNextOffset(0);
-      // 新しい検索を開始したら、結果表示の先頭がすぐ見えるよう必ずページ最上部へスクロールします。
+      // ブラウザバックでの初回復元時はスクロールを抑止します。
       if (typeof window !== "undefined") {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        const navigationEntry = typeof performance !== "undefined"
+          ? (performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined)
+          : undefined;
+        const shouldSkipInitial = isInitialSearchRestore.current && navigationEntry?.type === "back_forward";
+        if (!shouldSkipInitial) {
+          window.scrollTo({ top: 0, behavior: "smooth" });
+        }
+        isInitialSearchRestore.current = false;
       }
       try {
         const { videos: fetchedVideos, hasNext } = await fetchVideoItems(fetch, {
           query,
           channelId,
+          channelIds: channelId ? undefined : uniqueChannelIds,
+          channelQuery,
+          channelIdsForQuery: channelId ? undefined : uniqueChannelIdsForQuery,
           mode,
           period: mode === "popular" ? selectedPeriod : undefined, // 人気モード時のみperiodを渡します
           sort: mode === "popular" ? selectedSort : (mode ? undefined : selectedSort), // 人気モード時はsortを渡します
@@ -167,7 +233,7 @@ export function SearchResults({
       canceled = true;
       controller.abort();
     };
-  }, [query, channelId, mode, selectedPeriod, selectedSort]); // selectedSortを依存配列に追加
+    }, [query, channelId, channelIdsKey, channelQuery, channelIdsForQueryKey, mode, selectedPeriod, selectedSort]); // selectedSortを依存配列に追加
 
   const handleLoadMore = useCallback(async () => {
     if (loadingMore) return;
@@ -179,6 +245,9 @@ export function SearchResults({
       const { videos: fetchedVideos, hasNext } = await fetchVideoItems(fetch, {
         query,
         channelId,
+        channelIds: channelId ? undefined : uniqueChannelIds,
+        channelQuery,
+        channelIdsForQuery: channelId ? undefined : uniqueChannelIdsForQuery,
         mode,
         period: mode === "popular" ? selectedPeriod : undefined, // 人気モード時のみperiodを渡します
         sort: mode === "popular" ? selectedSort : (mode ? undefined : selectedSort), // 人気モード時はsortを渡します
@@ -194,7 +263,7 @@ export function SearchResults({
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, query, channelId, mode, selectedPeriod, selectedSort, nextOffset]); // selectedSortを依存配列に追加
+  }, [loadingMore, query, channelId, channelIdsKey, channelQuery, channelIdsForQueryKey, mode, selectedPeriod, selectedSort, nextOffset]); // selectedSortを依存配列に追加
 
   const observerTarget = useRef<HTMLDivElement>(null);
 
@@ -230,7 +299,11 @@ export function SearchResults({
   };
 
   // ヘッド要素の動的メタ情報は App Router の generateMetadata で付与するため、ここでは画面表示に専念します。
-  const titleText = buildTitle();
+  const titleText =
+    titleOverride
+      ?? (titleMode === "channelName" && channelId
+        ? (fetchedChannelName ?? "チャンネル動画")
+        : buildTitle());
 
   // 検索クエリまたはチャンネル名にNGワードが含まれている場合、または検索結果が0件の場合はシェアボタンを表示しません。
   const hasResults = videos.length > 0;
@@ -238,6 +311,9 @@ export function SearchResults({
     (query && containsNgWord(query)) ||
     (fetchedChannelName && containsNgWord(fetchedChannelName))
   );
+  const canShowShareButton = showShareButton && shouldShowShareButton;
+  // 検索語に一致した芸人候補がある場合のみ表示対象にします。
+  const hasArtistMatches = Boolean(artistMatches && artistMatches.length > 0);
 
   // 賞レースモード時は専用コンポーネントを表示
   if (mode === "award-race") {
@@ -259,6 +335,20 @@ export function SearchResults({
   }
 
   const isSeoH2Mode = mode === "popular" || mode === "new" || mode === "random";
+  const shouldRenderSeoH1 = !titleOverride && !headingLevel && isSeoH2Mode;
+  const HeadingTag = headingLevel ?? (shouldRenderSeoH1 ? "h2" : "h1");
+  // 検索結果ヘッダーは現在開いていないモードのみを表示します。
+  const backLinks = (() => {
+    const allModes = [
+      { key: "new", label: "最近", href: "/new" },
+      { key: "popular", label: "人気", href: "/popular" },
+      { key: "random", label: "ランダム", href: "/random" },
+    ];
+    if (mode === "new") return allModes.filter((item) => item.key !== "new");
+    if (mode === "popular") return allModes.filter((item) => item.key !== "popular");
+    if (mode === "random") return allModes.filter((item) => item.key !== "random");
+    return allModes;
+  })();
   const srOnlyTitle =
     mode === "popular"
       ? buildPopularSeoMetadata(selectedPeriod, selectedSort).title
@@ -271,33 +361,100 @@ export function SearchResults({
     <div className={styles.searchContainer}>
       <div className={styles.searchHeader}>
         {/* 一覧画面の冒頭にトップへ戻る導線を設け、ホームへの遷移を丁寧に補助します。 */}
-        <div>
-          <button
-            type="button"
-            className={styles.searchBackLink}
-            onClick={() => {
-              onBackToTop();
-              if (typeof window !== "undefined") {
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }
-            }}
-          >
-            <ArrowLeft aria-hidden="true" size={16} />
-            <span>トップへ戻る</span>
-          </button>
-        </div>
+        {showBackLink && (
+          <div className={styles.searchBackRow}>
+            <BackToTopLink
+              onClick={() => {
+                onBackToTop();
+                if (typeof window !== "undefined") {
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
+            />
+            {/* トップへ戻るリンクの右側にセクション導線を並べます。 */}
+            {backLinks.map((link) => (
+              <Fragment key={link.key}>
+                <span className={styles.searchBackSeparator}>/</span>
+                <Link href={link.href} className={styles.searchBackLink}>
+                  {link.label}
+                </Link>
+              </Fragment>
+            ))}
+          </div>
+        )}
         {/* メインタイトル: 全モードで表示 */}
         <div className={styles.sectionHeadingWrap}>
           {/* 人気・最近・ランダムのみ視覚見出しを h2 に下げます。 */}
-          {isSeoH2Mode ? (
+          {shouldRenderSeoH1 ? (
             <>
               <h1 className="sr-only">{srOnlyTitle}</h1>
-              <h2 className={styles.searchTitle}>{titleText}</h2>
+              {headingLinkHref ? (
+                <Link href={headingLinkHref} className={styles.sectionHeadingLink}>
+                  <HeadingTag className={styles.searchTitle}>{titleText}</HeadingTag>
+                </Link>
+              ) : (
+                <HeadingTag className={styles.searchTitle}>{titleText}</HeadingTag>
+              )}
             </>
           ) : (
-            <h1 className={styles.searchTitle}>{titleText}</h1>
+            headingLinkHref ? (
+              <Link href={headingLinkHref} className={styles.sectionHeadingLink}>
+                <HeadingTag className={styles.searchTitle}>{titleText}</HeadingTag>
+              </Link>
+            ) : (
+              <HeadingTag className={styles.searchTitle}>{titleText}</HeadingTag>
+            )
           )}
         </div>
+
+        {/* 芸人個別ページではタイトル直下に芸歴と芸風タグを並べます。 */}
+        {shouldShowComedianTags && (
+          <div className={`${styles.comedianMetaRow} ${styles.comedianMetaRowInline}`}>
+            {comedianCareerYears && <span className={styles.comedianCareerTag}>芸歴{comedianCareerYears}年</span>}
+            {comedianStyles.length > 0 && (
+              <span className={styles.comedianStyleTags}>
+                {comedianStyles.map((style) => (
+                  <span
+                    key={style}
+                    className={`${styles.comedianStyleTag} ${styles[`styleTag_${style}`] ?? ""}`}
+                  >
+                    {STYLE_LABELS[style] ?? style}
+                  </span>
+                ))}
+              </span>
+            )}
+            {comedianAgencyId && comedianAgencyId !== "other" && (
+              <span className={styles.comedianAgencyTag}>
+                <LinkIcon size={12} />
+                <span className={styles.comedianAgencyTagText}>
+                  {agencyLabels[comedianAgencyId] ?? comedianAgencyId}
+                </span>
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* タイトル直下の行に芸人名の候補を表示します。 */}
+        {hasArtistMatches && (
+          <div>
+            <div className={styles.artistMatchRow}>
+              {/* 芸人名の一致候補をラベル右側に並べて表示します。 */}
+              <div className={styles.artistMatchButtons}>
+                {artistMatches?.map((artist) => (
+                  <Link
+                    key={artist.slug}
+                    href={`/comedian/${artist.slug}`}
+                    className={`${styles.comedianCard} ${styles.artistMatchButton}`}
+                  >
+                    <span className={styles.comedianCardContent}>
+                      <span>{artist.name}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* タイトル下の行にフィルタボタンを配置します。 */}
         {/* NGワードを含む検索時はシェアボタンを非表示にします。 */}
@@ -330,7 +487,7 @@ export function SearchResults({
           )}
 
           {/* 人気モード以外でシェアボタンを表示 */}
-          {mode !== "popular" && shouldShowShareButton && (
+          {mode !== "popular" && canShowShareButton && (
             <div className={styles.searchHeaderShare}>
               <XShareButton className={styles.footerInlineShareButton} />
             </div>
@@ -379,7 +536,7 @@ export function SearchResults({
                   累計
                 </button>
               </div>
-              {shouldShowShareButton && (
+              {canShowShareButton && (
                 <div className={styles.searchHeaderShare}>
                   <XShareButton className={styles.footerInlineShareButton} />
                 </div>

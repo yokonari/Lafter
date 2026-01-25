@@ -92,7 +92,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       return c.json(
         {
           videos: [],
-          play_lists: [],
           page: 1,
           limit: 0,
           hasNext: false,
@@ -102,8 +101,11 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     }
 
     const qRaw = c.req.query("q") ?? "";
+    // デバッグ: 実際に受け取った検索クエリをログ出力
+    console.log("[get-videos] 受け取った検索クエリ (raw):", qRaw);
     // サニタイズ処理: UTF-8正規化、制御文字除去、連続スペース除去、文字数制限
     const q = sanitizeSearchQuery(qRaw);
+    console.log("[get-videos] サニタイズ後の検索クエリ:", q);
     // 複数キーワードは半角・全角スペースで区切り、すべてを AND で満たすように扱います。
     // 「ダ/ダ」などの正規化差異も吸収するため、NFC/NFD 両方のパターンを用意します。
     const keywords = q ? q.split(/\s+/u).filter(Boolean) : [];
@@ -112,6 +114,30 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const period = c.req.query("period") ?? "month"; // 期間フィルタ: all, month, year
     const sort = c.req.query("sort") ?? "published"; // ソート順フィルタ: published, popular, views
     const channelIdFilter = c.req.query("channelId");
+    // 複数チャンネル指定のため、カンマ区切りのIDを安全に分解します。
+    const channelIdsParam = c.req.query("channelIds") ?? "";
+    const channelIdsFilter = Array.from(
+      new Set(
+        channelIdsParam
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0),
+      ),
+    );
+    // role=official 以外のチャンネルに対してだけキーワード検索を適用するためのパラメータです。
+    const channelQueryRaw = c.req.query("channelQuery") ?? "";
+    const channelQuery = sanitizeSearchQuery(channelQueryRaw);
+    const channelQueryKeywords = channelQuery ? channelQuery.split(/\s+/u).filter(Boolean) : [];
+    const channelQueryPatternsPerWord = channelQueryKeywords.map((word) => buildLikePatterns(word));
+    const channelIdsForQueryParam = c.req.query("channelIdsForQuery") ?? "";
+    const channelIdsForQuery = Array.from(
+      new Set(
+        channelIdsForQueryParam
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id.length > 0),
+      ),
+    );
     const offsetParam = Number(c.req.query("offset") ?? 0);
     const safeOffset = Number.isFinite(offsetParam) && offsetParam > 0 ? offsetParam : 0;
     const limitParam = Number(c.req.query("limit") ?? MAX_LIMIT);
@@ -140,7 +166,12 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     }
 
     const isCacheEligible =
-      q.length === 0 && !channelIdFilter && normalizedPatternsPerWord.length === 0;
+      q.length === 0 &&
+      !channelIdFilter &&
+      channelIdsFilter.length === 0 &&
+      channelIdsForQuery.length === 0 &&
+      channelQueryPatternsPerWord.length === 0 &&
+      normalizedPatternsPerWord.length === 0;
 
     if (kv && isCacheEligible && mode === "new") {
       // トップ画面の「最近」専用に、最新500件のキャッシュを利用してDBへアクセスせず高速に返します。
@@ -219,6 +250,29 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     if (channelIdFilter) {
       // チャンネル指定がある場合は最優先でそのチャンネルに絞ります。
       videoConditions.push(eq(videos.channelId, channelIdFilter));
+    } else {
+      let channelScopeCondition: SQL<boolean> | null = null;
+      if (channelIdsFilter.length > 0 && channelIdsForQuery.length > 0 && channelQueryPatternsPerWord.length > 0) {
+        // official とそれ以外で条件を分け、非公式チャンネルにはキーワード検索を適用します。
+        const keywordCondition = buildTitleKeywordCondition(channelQueryPatternsPerWord);
+        channelScopeCondition = or(
+          inArray(videos.channelId, channelIdsFilter) as SQL<boolean>,
+          and(inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>, keywordCondition) as SQL<boolean>,
+        ) as SQL<boolean>;
+      } else if (channelIdsFilter.length > 0) {
+        // 複数チャンネル指定時はまとめて対象に含めます。
+        channelScopeCondition = inArray(videos.channelId, channelIdsFilter) as SQL<boolean>;
+      } else if (channelIdsForQuery.length > 0 && channelQueryPatternsPerWord.length > 0) {
+        // キーワード検索対象のチャンネルだけで絞り込みます。
+        const keywordCondition = buildTitleKeywordCondition(channelQueryPatternsPerWord);
+        channelScopeCondition = and(
+          inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>,
+          keywordCondition,
+        ) as SQL<boolean>;
+      }
+      if (channelScopeCondition) {
+        videoConditions.push(channelScopeCondition);
+      }
     }
 
     // 人気度順モードの場合は使用しないため、条件を削除しました。
@@ -337,7 +391,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       return c.json(
         {
           videos: slicedVideos,
-          play_lists: [],
           page: 1,
           limit: HOME_CACHE_LIMIT,
           hasNext: shuffledHasNext,
@@ -351,7 +404,6 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     return c.json(
       {
         videos: videosPayload,
-        play_lists: [], // プレイリストは常に空
         page: Math.floor(safeOffset / safeLimit) + 1,
         limit: safeLimit,
         hasNext,
@@ -368,6 +420,24 @@ function buildLikePatterns(keyword: string): string[] {
     const escaped = word.replace(/[%_]/g, (m) => `\\${m}`);
     return `%${escaped}%`;
   });
+}
+
+function buildTitleKeywordCondition(patternsPerWord: string[][]): SQL<boolean> {
+  // NFC/NFD を含むタイトル一致条件を AND で束ね、名前検索用の判定に使います。
+  const perWordConditions = patternsPerWord.map((patterns) => {
+    const titleMatches = patterns.map((pattern) => like(videos.title, pattern) as SQL<boolean>);
+    if (titleMatches.length === 1) {
+      return titleMatches[0];
+    }
+    return or(...titleMatches) as SQL<boolean>;
+  });
+  if (perWordConditions.length === 0) {
+    return sql`1 = 1` as SQL<boolean>;
+  }
+  if (perWordConditions.length === 1) {
+    return perWordConditions[0];
+  }
+  return and(...perWordConditions) as SQL<boolean>;
 }
 
 function findChannelIdsByKeyword(
@@ -515,7 +585,6 @@ function respondWithCache(
 
   const responseData = {
     videos: videosPayload,
-    play_lists: [],
     page: Math.floor(offset / limit) + 1,
     limit,
     hasNext,
