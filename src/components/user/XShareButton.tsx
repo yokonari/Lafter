@@ -65,7 +65,7 @@ export function XShareButton({ className, showLabel = true, useStaticTopShare = 
     }
 
     const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(targetUrl)}`;
-    window.open(intentUrl, "x-share-dialog", "width=600,height=400,noopener,noreferrer")?.focus();
+    window.open(intentUrl, "_blank", "noopener,noreferrer")?.focus();
   }, [useStaticTopShare]);
 
   // NGワードが含まれている場合はボタンを表示しない（useStaticTopShare時は常に表示）
