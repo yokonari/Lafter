@@ -53,6 +53,7 @@ export class ArtistRepository {
             style: true,
           },
         },
+        aliases: true,
       },
     });
 
@@ -74,6 +75,10 @@ export class ArtistRepository {
         description: ch.description ?? undefined,
       })),
       styles: artist.styles.map((s) => s.styleId),
+      aliases: artist.aliases.map((a) => ({
+        name: a.name,
+        kana: a.kana ?? undefined,
+      })),
     };
   }
 

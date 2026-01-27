@@ -221,7 +221,7 @@ export function ComedianFormDialog({
         kana: formData.kana.trim() || undefined,
         startedOn: formData.startedOn.trim() || undefined,
         agencyId: formData.agencyId,
-        styles: formData.styles.length > 0 ? formData.styles : undefined,
+        styles: formData.styles.length > 0 ? formData.styles : [],
         channels:
           formData.channels.length > 0
             ? formData.channels.map((ch) => ({
@@ -229,14 +229,14 @@ export function ComedianFormDialog({
                 role: ch.role,
                 description: ch.description || undefined,
               }))
-            : undefined,
+            : [],
         aliases:
           formData.aliases.length > 0
             ? formData.aliases.map((a) => ({
                 name: a.name.trim(),
                 kana: a.kana.trim() || undefined,
               }))
-            : undefined,
+            : [],
         description: formData.description.trim() || undefined,
       };
 

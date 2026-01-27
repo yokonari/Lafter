@@ -128,8 +128,11 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     // role=official 以外のチャンネルに対してだけキーワード検索を適用するためのパラメータです。
     const channelQueryRaw = c.req.query("channelQuery") ?? "";
     const channelQuery = sanitizeSearchQuery(channelQueryRaw);
-    const channelQueryKeywords = channelQuery ? channelQuery.split(/\s+/u).filter(Boolean) : [];
-    const channelQueryPatternsPerWord = channelQueryKeywords.map((word) => buildLikePatterns(word));
+    // 「/」区切りで渡された別名を OR 条件として扱うため、まず候補のフレーズに分解します。
+    const channelQueryPhrases = splitChannelQueryPhrases(channelQuery);
+    const channelQueryPatternsPerPhrase = channelQueryPhrases
+      .map((phrase) => phrase.split(/\s+/u).filter(Boolean).map((word) => buildLikePatterns(word)))
+      .filter((patterns) => patterns.length > 0);
     const channelIdsForQueryParam = c.req.query("channelIdsForQuery") ?? "";
     const channelIdsForQuery = Array.from(
       new Set(
@@ -171,7 +174,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       !channelIdFilter &&
       channelIdsFilter.length === 0 &&
       channelIdsForQuery.length === 0 &&
-      channelQueryPatternsPerWord.length === 0 &&
+      channelQueryPatternsPerPhrase.length === 0 &&
       normalizedPatternsPerWord.length === 0;
 
     if (kv && isCacheEligible && mode === "new") {
@@ -253,9 +256,9 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       videoConditions.push(eq(videos.channelId, channelIdFilter));
     } else {
       let channelScopeCondition: SQL<boolean> | null = null;
-      if (channelIdsFilter.length > 0 && channelIdsForQuery.length > 0 && channelQueryPatternsPerWord.length > 0) {
+      if (channelIdsFilter.length > 0 && channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
         // official とそれ以外で条件を分け、非公式チャンネルにはキーワード検索を適用します。
-        const keywordCondition = buildTitleKeywordCondition(channelQueryPatternsPerWord);
+        const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase);
         channelScopeCondition = or(
           inArray(videos.channelId, channelIdsFilter) as SQL<boolean>,
           and(inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>, keywordCondition) as SQL<boolean>,
@@ -263,9 +266,9 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       } else if (channelIdsFilter.length > 0) {
         // 複数チャンネル指定時はまとめて対象に含めます。
         channelScopeCondition = inArray(videos.channelId, channelIdsFilter) as SQL<boolean>;
-      } else if (channelIdsForQuery.length > 0 && channelQueryPatternsPerWord.length > 0) {
+      } else if (channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
         // キーワード検索対象のチャンネルだけで絞り込みます。
-        const keywordCondition = buildTitleKeywordCondition(channelQueryPatternsPerWord);
+        const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase);
         channelScopeCondition = and(
           inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>,
           keywordCondition,
@@ -423,6 +426,18 @@ function buildLikePatterns(keyword: string): string[] {
   });
 }
 
+function splitChannelQueryPhrases(query: string): string[] {
+  if (!query) {
+    return [];
+  }
+  // 「/」や縦棒で区切られた別名をフレーズとして扱います。
+  const parts = query
+    .split(/[\/|｜]/u)
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts : [query];
+}
+
 function buildTitleKeywordCondition(patternsPerWord: string[][]): SQL<boolean> {
   // NFC/NFD を含むタイトル一致条件を AND で束ね、名前検索用の判定に使います。
   const perWordConditions = patternsPerWord.map((patterns) => {
@@ -439,6 +454,22 @@ function buildTitleKeywordCondition(patternsPerWord: string[][]): SQL<boolean> {
     return perWordConditions[0];
   }
   return and(...perWordConditions) as SQL<boolean>;
+}
+
+function buildTitleKeywordConditionForPhrases(
+  patternsPerPhrase: string[][][],
+): SQL<boolean> {
+  if (patternsPerPhrase.length === 0) {
+    return sql`1 = 1` as SQL<boolean>;
+  }
+  const phraseConditions = patternsPerPhrase.map((patternsPerWord) =>
+    buildTitleKeywordCondition(patternsPerWord),
+  );
+  if (phraseConditions.length === 1) {
+    return phraseConditions[0];
+  }
+  // 複数の別名フレーズを OR で束ねて、いずれかが一致すればヒットさせます。
+  return or(...phraseConditions) as SQL<boolean>;
 }
 
 function findChannelIdsByKeyword(

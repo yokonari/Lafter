@@ -13,6 +13,7 @@ export type Artist = {
   startedOn?: string;
   styles?: string[];
   channels: ArtistChannel[];
+  aliases?: Array<{ name: string; kana?: string }>; // 別名・旧名
 };
 
 export type AgencyArtistGroup = {

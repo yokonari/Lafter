@@ -46,6 +46,7 @@ type UserHomeProps = {
       channelId: string;
       role: string;
     }[];
+    aliases?: Array<{ name: string; kana?: string }>; // 別名・旧名
   };
   // データベースから取得したデータ（オプション、未指定の場合はJSONフォールバック）
   artists?: { slug: string; name: string; kana?: string; startedOn?: string; styles?: string[]; agencyId: string; channels: { channelId: string; role: string; }[] }[];
@@ -94,7 +95,17 @@ export function UserHome({
   const isComedianListMode = Boolean(initialComedianList && initialComedianList.length > 0);
   const isComedianPageMode = Boolean(initialComedian);
   // official は全動画、official以外は芸人名キーワード検索で絞り込みます。
+  // 芸人名と別名(artist_aliases)を結合してchannelQueryに渡します。
   const comedianName = initialComedian?.name ?? "";
+  const comedianQueryWithAliases = initialComedian
+    ? [
+        initialComedian.name,
+        ...(initialComedian.aliases?.map((alias) => alias.name) ?? []),
+      ]
+        .filter((name, index, self) => self.indexOf(name) === index)
+        // エイリアスは「/」区切りで OR 検索として扱います。
+        .join(" / ")
+    : "";
   const officialChannelIds =
     initialComedian?.channels.filter((channel) => channel.role === "official")
       .map((channel) => channel.channelId) ?? [];
@@ -351,7 +362,7 @@ export function UserHome({
     <SearchResults
       query=""
       channelIds={officialChannelIds}
-      channelQuery={keywordChannelIds.length > 0 ? comedianName : undefined}
+      channelQuery={keywordChannelIds.length > 0 ? comedianQueryWithAliases : undefined}
       channelIdsForQuery={keywordChannelIds}
       comedianMeta={{
         // 芸人個別ページで芸歴・芸風・事務所タグを表示します。

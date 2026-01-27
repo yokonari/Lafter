@@ -1,37 +1,92 @@
 /* 管理画面全体をダークトーンで統一するための共通スタイル定義です。 */
 
-// カラーパレット
-$admin-bg: #020617;
-$admin-surface: #0b1120;
-$admin-surface-alt: #040b18;
-$admin-surface-muted: #0b1220;
-$admin-surface-strong: #020817;
-$admin-surface-hover: #111c33;
-$admin-surface-disabled: #070b13;
-$admin-text: #f8fafc;
-$admin-text-light: #e2e8f0;
-$admin-text-muted: #94a3b8;
-$admin-border-strong: #1f2937;
-$admin-border: #334155;
-$admin-accent: #fbbf24;
-$admin-accent-strong: #f59e0b;
-$admin-accent-outline: rgba(251, 191, 36, 0.35);
+// カラーパレット（Material dark high contrast ベース - userTheme と統一）
+$admin-bg: #141313;
+$admin-surface: #201f1f;
+$admin-surface-alt: #1a1919;
+$admin-surface-muted: #1e1d1d;
+$admin-surface-strong: #161515;
+$admin-surface-hover: #313030;
+$admin-surface-disabled: #1a1919;
+$admin-text: #ffffff;
+$admin-text-light: #ffffff;
+$admin-text-muted: #737373;
+$admin-text-secondary: #c6c6c6;
+$admin-border-strong: #3a3838;
+$admin-border: #48464667;
+$admin-accent: #e5bd69;
+$admin-accent-strong: #f9bd22;
+$admin-accent-outline: rgba(229, 189, 105, 0.35);
 $admin-success: #34d399;
 $admin-success-contrast: #052318;
 $admin-info: #60a5fa;
 $admin-info-contrast: #021126;
 $admin-danger: #f87171;
 $admin-danger-contrast: #2b0404;
-$admin-muted-text: #cbd5f5;
-$admin-disabled: #475569;
-$admin-primary-text: #0f172a;
+$admin-muted-text: #c6c6c6;
+$admin-disabled: #5a5858;
+$admin-primary-text: #141313;
 $admin-error-border: rgba(248, 113, 113, 0.65);
 $admin-error-bg: rgba(69, 10, 10, 0.65);
 $admin-error-text: #fecaca;
-$admin-overlay: rgba(7, 11, 20, 0.85);
-$admin-link-underline: rgba(248, 250, 252, 0.6);
+$admin-overlay: rgba(20, 19, 19, 0.85);
+$admin-link-underline: rgba(255, 255, 255, 0.6);
+
+// タイポグラフィ（userTheme と統一）
+$title-font-size: 1.2rem;
+$title-font-weight: 400;
 
 // 共通ミックスイン
+
+// リンクスタイル（userTheme と統一）
+@mixin section-title-link() {
+  border: none;
+  background: none;
+  color: var(--admin-text);
+  text-decoration: none;
+  transition: color 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--admin-accent);
+    background: none;
+    cursor: pointer;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--admin-accent);
+    outline-offset: 2px;
+  }
+}
+
+@mixin subtle-admin-link() {
+  border: none;
+  background: none;
+  color: var(--admin-text-secondary);
+  text-decoration: none;
+  transition: color 0.2s ease, text-decoration-color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: var(--admin-text);
+    cursor: pointer;
+  }
+}
+
+@mixin accent-action-link() {
+  border: none;
+  background: none;
+  color: var(--admin-accent);
+  text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover,
+  &:focus-visible {
+    color: color-mix(in srgb, var(--admin-accent) 85%, var(--admin-text));
+    cursor: pointer;
+  }
+}
+
 @mixin pill-button-base {
   border-radius: 9999px;
   border: 1px solid var(--admin-border);
@@ -143,6 +198,7 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   --admin-text: #{$admin-text};
   --admin-text-light: #{$admin-text-light};
   --admin-text-muted: #{$admin-text-muted};
+  --admin-text-secondary: #{$admin-text-secondary};
   --admin-border-strong: #{$admin-border-strong};
   --admin-border: #{$admin-border};
   --admin-accent: #{$admin-accent};
@@ -817,9 +873,9 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 
 .loginTitle {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--admin-text-light);
+  font-size: $title-font-size;
+  font-weight: $title-font-weight;
+  color: var(--admin-text);
 }
 
 .loginSubtitle {
@@ -935,7 +991,8 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 .headerTitle {
   @extend .headerText;
   margin: 0;
-  font-size: 1.25rem;
+  font-size: $title-font-size;
+  font-weight: $title-font-weight;
 }
 
 .registerDescription {
@@ -972,9 +1029,9 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 
 .sectionTitle {
   margin: 0;
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--admin-text-light);
+  font-size: $title-font-size;
+  font-weight: $title-font-weight;
+  color: var(--admin-text);
 }
 
 // ステータステキスト
@@ -1002,14 +1059,14 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   font-size: 0.875rem;
 
   thead {
-    background: var(--admin-surface-alt);
-    border-bottom: 1px solid var(--admin-border-strong);
+    background: var(--admin-surface);
+    border-bottom: 1px solid var(--admin-border);
 
     th {
       padding: 0.75rem 1rem;
       text-align: left;
-      font-weight: 600;
-      color: var(--admin-text-light);
+      font-weight: $title-font-weight;
+      color: var(--admin-text);
       white-space: nowrap;
     }
   }
@@ -1146,7 +1203,8 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 .dialogOverlay {
   position: fixed;
   inset: 0;
-  background: var(--admin-overlay);
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1159,7 +1217,7 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   background: var(--admin-surface);
   border-radius: 1rem;
   border: 1px solid var(--admin-border);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   width: 100%;
   max-width: 32rem;
   max-height: 90vh;
@@ -1186,9 +1244,9 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
 
 .dialogTitle {
   margin: 0;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: var(--admin-text-light);
+  font-size: $title-font-size;
+  font-weight: $title-font-weight;
+  color: var(--admin-text);
 }
 
 .dialogCloseButton {
@@ -1278,6 +1336,8 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   width: 100%;
   padding: 0.625rem 0.875rem;
   border-radius: 0.5rem;
+  background-color: var(--admin-surface-muted);
+  color: var(--admin-text);
   @include focusable-input;
   font-size: 1rem;
 
