@@ -5,6 +5,7 @@ import { toast } from "react-toastify";
 import { X } from "lucide-react";
 import type { ComedianRow } from "../ComedianAdminSection";
 import { ChannelSelector, type SelectedChannel } from "./ChannelSelector";
+import { AliasSelector, type ArtistAlias } from "./AliasSelector";
 import styles from "../../adminTheme.module.scss";
 
 type ComedianFormDialogProps = {
@@ -21,6 +22,7 @@ type FormData = {
   agencyId: string;
   styles: string[];
   channels: SelectedChannel[];
+  aliases: ArtistAlias[];
   description: string;
 };
 
@@ -48,6 +50,7 @@ export function ComedianFormDialog({
     agencyId: comedian?.agencyId || "",
     styles: comedian?.styles || [],
     channels: [],
+    aliases: [],
     description: "",
   });
 
@@ -121,6 +124,10 @@ export function ComedianFormDialog({
                 role: "official" | "group";
                 description?: string;
               }>;
+              aliases: Array<{
+                name: string;
+                kana: string;
+              }>;
             };
           };
 
@@ -163,6 +170,7 @@ export function ComedianFormDialog({
           setFormData((prev) => ({
             ...prev,
             channels: channelsWithNames,
+            aliases: data.comedian.aliases || [],
           }));
         } catch (error) {
           console.error("Failed to fetch comedian details:", error);
@@ -220,6 +228,13 @@ export function ComedianFormDialog({
                 channelId: ch.channelId,
                 role: ch.role,
                 description: ch.description || undefined,
+              }))
+            : undefined,
+        aliases:
+          formData.aliases.length > 0
+            ? formData.aliases.map((a) => ({
+                name: a.name.trim(),
+                kana: a.kana.trim() || undefined,
               }))
             : undefined,
         description: formData.description.trim() || undefined,
@@ -553,6 +568,13 @@ export function ComedianFormDialog({
               selectedChannels={formData.channels}
               onChange={(channels) =>
                 setFormData({ ...formData, channels })
+              }
+            />
+
+            <AliasSelector
+              selectedAliases={formData.aliases}
+              onChange={(aliases) =>
+                setFormData({ ...formData, aliases })
               }
             />
 

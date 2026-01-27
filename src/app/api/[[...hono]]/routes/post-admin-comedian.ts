@@ -33,6 +33,15 @@ const comedianSchema = z.object({
       })
     )
     .optional(),
+  aliases: z
+    .array(
+      z.object({
+        name: z.string().min(1, "別名は必須です。").max(100, "別名は100文字以内で入力してください。"),
+        kana: z.string().max(100, "読み仮名は100文字以内で入力してください。").optional(),
+      })
+    )
+    .max(10, "別名は最大10件まで登録できます。")
+    .optional(),
   description: z.string().max(500, "説明は500文字以内で入力してください。").optional(),
 });
 
@@ -64,9 +73,18 @@ export function registerPostAdminComedian<
     const artistRepository = new ArtistRepository(db);
 
     try {
+      // 芸人名の一意性チェック
+      const isNameUnique = await artistRepository.isNameUnique(data.name);
+      if (!isNameUnique) {
+        return c.json(
+          { message: "この芸人名は既に登録されています。別の名前を入力してください。" },
+          400
+        );
+      }
+
       // スラッグの一意性チェック
-      const isUnique = await artistRepository.isSlugUnique(data.slug);
-      if (!isUnique) {
+      const isSlugUnique = await artistRepository.isSlugUnique(data.slug);
+      if (!isSlugUnique) {
         return c.json(
           { message: "このスラッグは既に使用されています。別のスラッグを入力してください。" },
           400
@@ -106,6 +124,15 @@ export function registerPostAdminComedian<
         }
       }
 
+      // 別名の重複チェック
+      if (data.aliases && data.aliases.length > 0) {
+        const names = data.aliases.map((a) => a.name);
+        const uniqueNames = new Set(names);
+        if (names.length !== uniqueNames.size) {
+          return c.json({ message: "別名に重複があります。" }, 400);
+        }
+      }
+
       // 芸人を作成
       const result = await artistRepository.create({
         name: data.name,
@@ -115,6 +142,7 @@ export function registerPostAdminComedian<
         agencyId: data.agencyId,
         styles: data.styles,
         channels: data.channels,
+        aliases: data.aliases,
         description: data.description,
       });
 

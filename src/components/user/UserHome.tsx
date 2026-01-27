@@ -54,6 +54,7 @@ type UserHomeProps = {
   agencyLabels?: Record<string, string>;
   initialStyleFilter?: string;
   initialAgencyFilter?: string;
+  initialCareerSort?: "long" | "short" | "name";
 };
 
 const agencyData = agencyJson as AgenciesById;
@@ -74,6 +75,7 @@ export function UserHome({
   agencyLabels: agencyLabelsProp,
   initialStyleFilter,
   initialAgencyFilter,
+  initialCareerSort,
 }: UserHomeProps = {}) {
   // propsが渡された場合はそちらを使用、なければJSONフォールバック
   const artists = artistsProp ?? flattenArtistsByAgency(artistsJson as ArtistsByAgency);
@@ -343,6 +345,7 @@ export function UserHome({
       onBackToTop={handleReset}
       initialStyleFilter={initialStyleFilter}
       initialAgencyFilter={initialAgencyFilter}
+      initialCareerSort={initialCareerSort}
     />
   ) : isComedianPageMode ? (
     <SearchResults

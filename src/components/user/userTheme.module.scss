@@ -1097,6 +1097,8 @@ $title-font-weight: 400;
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(4px); // 問い合わせモーダルと同じぼかし量に揃え、奥行き感を統一します。
   padding: 1.5rem 0;
+  min-height: 100vh; // フォールバック
+  min-height: 100dvh; // モバイルブラウザのUI変化に対応した動的な viewport 高さ
 
   @media (min-width: 640px) {
     padding: 1.5rem;

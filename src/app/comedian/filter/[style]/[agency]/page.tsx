@@ -74,7 +74,12 @@ export async function generateMetadata(
   };
 }
 
-export default async function ComedianStyleAgencyFilterPage({ params }: { params: Promise<{ style: string; agency: string }> }) {
+type PageProps = {
+  params: Promise<{ style: string; agency: string }>;
+  searchParams: Promise<{ sort?: string }>;
+};
+
+export default async function ComedianStyleAgencyFilterPage({ params, searchParams }: PageProps) {
   const resolvedParams = await params;
 
   // 有効な芸風IDかチェック（"all"も許可）
@@ -103,6 +108,11 @@ export default async function ComedianStyleAgencyFilterPage({ params }: { params
     agencyId: artist.agencyId,
   }));
 
+  // クエリパラメータからソート順を取得
+  const params2 = await searchParams;
+  const sort = params2.sort;
+  const initialCareerSort = sort === "short" || sort === "name" ? sort : "long";
+
   return (
     <Suspense fallback={null}>
       <UserHome
@@ -110,6 +120,7 @@ export default async function ComedianStyleAgencyFilterPage({ params }: { params
         agencyLabels={agencyLabels}
         initialStyleFilter={resolvedParams.style === "all" ? undefined : resolvedParams.style}
         initialAgencyFilter={resolvedParams.agency}
+        initialCareerSort={initialCareerSort}
       />
     </Suspense>
   );

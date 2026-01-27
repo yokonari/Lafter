@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next'
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createDatabase } from "@/app/api/[[...hono]]/context";
-import { channels } from "@/lib/schema";
+import { channels, artists } from "@/lib/schema";
 import { eq } from "drizzle-orm";
 
 /**
@@ -95,6 +95,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             changeFrequency: 'yearly',
             priority: 0.3,
         },
+        {
+            url: `${BASE_URL}/comedian`,
+            lastModified: new Date(),
+            changeFrequency: 'weekly',
+            priority: 0.8,
+        },
     ];
 
     // Award Raceのページを動的に生成
@@ -126,7 +132,22 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             priority: 0.7,
         }));
 
-        return [...staticRoutes, ...awardRaceRoutes, ...channelRoutes];
+        // 芸人ページを動的に生成
+        const allArtists = await db
+            .select({
+                slug: artists.slug,
+                updatedAt: artists.updatedAt,
+            })
+            .from(artists);
+
+        const artistRoutes: MetadataRoute.Sitemap = allArtists.map((artist) => ({
+            url: `${BASE_URL}/comedian/${artist.slug}`,
+            lastModified: artist.updatedAt ? new Date(artist.updatedAt) : new Date(),
+            changeFrequency: 'weekly',
+            priority: 0.7,
+        }));
+
+        return [...staticRoutes, ...awardRaceRoutes, ...channelRoutes, ...artistRoutes];
 
     } catch (error) {
         console.error('Failed to generate dynamic sitemap:', error);

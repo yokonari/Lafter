@@ -39,7 +39,11 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function ComedianIndexPage() {
+type PageProps = {
+  searchParams: Promise<{ sort?: string }>;
+};
+
+export default async function ComedianIndexPage({ searchParams }: PageProps) {
   // データベースから全芸人と事務所ラベルを取得します。
   const db = getDB();
   const artistRepo = new ArtistRepository(db);
@@ -58,9 +62,18 @@ export default async function ComedianIndexPage() {
     agencyId: artist.agencyId,
   }));
 
+  // クエリパラメータからソート順を取得
+  const params = await searchParams;
+  const sort = params.sort;
+  const initialCareerSort = sort === "short" || sort === "name" ? sort : "long";
+
   return (
     <Suspense fallback={null}>
-      <UserHome initialComedianList={items} agencyLabels={agencyLabels} />
+      <UserHome
+        initialComedianList={items}
+        agencyLabels={agencyLabels}
+        initialCareerSort={initialCareerSort}
+      />
     </Suspense>
   );
 }

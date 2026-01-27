@@ -62,7 +62,11 @@ export function ComedianList({
             {comedians.map((comedian) => {
               const careerYears = calculateCareerYears(comedian.startedOn);
               return (
-                <tr key={comedian.id}>
+                <tr
+                  key={comedian.id}
+                  onClick={() => onEdit(comedian)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <td>{comedian.name}</td>
                   <td className={styles.secondaryText}>{comedian.kana ?? "-"}</td>
                   <td className={styles.secondaryText}>{comedian.agencyName}</td>
@@ -89,14 +93,20 @@ export function ComedianList({
                     <div className={styles.actionButtons}>
                       <button
                         type="button"
-                        onClick={() => onEdit(comedian)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEdit(comedian);
+                        }}
                         className={styles.editButton}
                       >
                         編集
                       </button>
                       <button
                         type="button"
-                        onClick={() => onDelete(comedian)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(comedian);
+                        }}
                         className={styles.deleteButton}
                       >
                         削除

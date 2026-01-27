@@ -1489,3 +1489,38 @@ $admin-link-underline: rgba(248, 250, 252, 0.6);
   height: 2rem;
   flex-shrink: 0;
 }
+
+/* ------- AliasSelector スタイル ------- */
+.aliasInputRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.aliasInputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+
+  @media (min-width: 640px) {
+    flex-direction: row;
+  }
+}
+
+.selectedAliases {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.selectedAliasItem {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+
+  @media (min-width: 640px) {
+    align-items: center;
+  }
+}

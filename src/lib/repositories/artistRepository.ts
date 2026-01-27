@@ -1,6 +1,6 @@
 import { eq, like, or, and, sql } from "drizzle-orm";
 import type { AppDatabase } from "@/app/api/[[...hono]]/context";
-import { artists, artistStyles, artistChannels, agencies } from "@/lib/schema";
+import { artists, artistStyles, artistChannels, artistAliases, agencies } from "@/lib/schema";
 import type { ArtistWithAgency } from "../../../data/artists/types";
 
 export class ArtistRepository {
@@ -286,6 +286,7 @@ export class ArtistRepository {
     agencyId: string;
     styles?: string[];
     channels?: Array<{ channelId: string; role: string; description?: string }>;
+    aliases?: Array<{ name: string; kana?: string }>;
     description?: string;
   }): Promise<{ id: number; slug: string }> {
     // D1 は明示的なトランザクションをサポートしないため、順次実行します。
@@ -326,6 +327,17 @@ export class ArtistRepository {
       );
     }
 
+    // 別名を挿入
+    if (data.aliases && data.aliases.length > 0) {
+      await this.db.insert(artistAliases).values(
+        data.aliases.map((alias) => ({
+          artistId: artist.id,
+          name: alias.name,
+          kana: alias.kana ?? null,
+        }))
+      );
+    }
+
     return artist;
   }
 
@@ -340,6 +352,7 @@ export class ArtistRepository {
     agencyId?: string;
     styles?: string[];
     channels?: Array<{ channelId: string; role: string; description?: string }>;
+    aliases?: Array<{ name: string; kana?: string }>;
     description?: string;
   }): Promise<{ id: number }> {
     // D1 互換のため、更新は順次実行します。
@@ -388,6 +401,20 @@ export class ArtistRepository {
       }
     }
 
+    // 別名を更新（全削除後に再挿入）
+    if (data.aliases !== undefined) {
+      await this.db.delete(artistAliases).where(eq(artistAliases.artistId, id));
+      if (data.aliases.length > 0) {
+        await this.db.insert(artistAliases).values(
+          data.aliases.map((alias) => ({
+            artistId: id,
+            name: alias.name,
+            kana: alias.kana ?? null,
+          }))
+        );
+      }
+    }
+
     return { id };
   }
 
@@ -407,6 +434,25 @@ export class ArtistRepository {
    */
   async isSlugUnique(slug: string, excludeId?: number): Promise<boolean> {
     const conditions = [eq(artists.slug, slug)];
+
+    if (excludeId !== undefined) {
+      conditions.push(sql`${artists.id} != ${excludeId}`);
+    }
+
+    const result = await this.db
+      .select({ id: artists.id })
+      .from(artists)
+      .where(and(...conditions))
+      .limit(1);
+
+    return result.length === 0;
+  }
+
+  /**
+   * 芸人名の一意性チェック
+   */
+  async isNameUnique(name: string, excludeId?: number): Promise<boolean> {
+    const conditions = [eq(artists.name, name)];
 
     if (excludeId !== undefined) {
       conditions.push(sql`${artists.id} != ${excludeId}`);

@@ -15,6 +15,7 @@ type ComedianIndexContentProps = {
   onBackToTop: () => void;
   initialStyleFilter?: string;
   initialAgencyFilter?: string;
+  initialCareerSort?: "long" | "short" | "name";
 };
 
 function calculateCareerYears(startedOn?: string): number | null {
@@ -28,9 +29,9 @@ function calculateCareerYears(startedOn?: string): number | null {
   return years > 0 ? years : null;
 }
 
-export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initialStyleFilter, initialAgencyFilter }: ComedianIndexContentProps) {
+export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initialStyleFilter, initialAgencyFilter, initialCareerSort }: ComedianIndexContentProps) {
   const router = useRouter();
-  const [careerSort, setCareerSort] = useState<"long" | "short" | "name">("long");
+  const [careerSort, setCareerSort] = useState<"long" | "short" | "name">(initialCareerSort || "long");
   const [styleFilter, setStyleFilter] = useState<string>(initialStyleFilter || "all");
   const [agencyFilter, setAgencyFilter] = useState<string>(initialAgencyFilter || "all");
 
@@ -46,6 +47,12 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
       setAgencyFilter(initialAgencyFilter);
     }
   }, [initialAgencyFilter]);
+
+  useEffect(() => {
+    if (initialCareerSort !== undefined) {
+      setCareerSort(initialCareerSort);
+    }
+  }, [initialCareerSort]);
 
   // タイトルを動的に更新
   useEffect(() => {
@@ -133,8 +140,8 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
     return sorted;
   }, [artists, careerSort, styleFilter, agencyFilter]);
 
-  // フィルタ変更時にURLを更新（パスベース）
-  const updateUrl = (newStyleFilter: string, newAgencyFilter: string) => {
+  // フィルタ変更時にURLを更新（パスベース + クエリパラメータ）
+  const updateUrl = (newStyleFilter: string, newAgencyFilter: string, newCareerSort: "long" | "short" | "name") => {
     let newUrl = "/comedian";
 
     // 芸風が選択されている場合
@@ -150,19 +157,30 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
       newUrl += `/filter/all/${newAgencyFilter}`;
     }
 
+    // ソート順をクエリパラメータとして追加（デフォルトの "long" 以外の場合のみ）
+    if (newCareerSort !== "long") {
+      newUrl += `?sort=${newCareerSort}`;
+    }
+
     router.push(newUrl);
   };
 
   // 芸風フィルタ変更ハンドラ
   const handleStyleFilterChange = (value: string) => {
     setStyleFilter(value);
-    updateUrl(value, agencyFilter);
+    updateUrl(value, agencyFilter, careerSort);
   };
 
   // 事務所フィルタ変更ハンドラ
   const handleAgencyFilterChange = (value: string) => {
     setAgencyFilter(value);
-    updateUrl(styleFilter, value);
+    updateUrl(styleFilter, value, careerSort);
+  };
+
+  // ソート変更ハンドラ
+  const handleCareerSortChange = (value: "long" | "short" | "name") => {
+    setCareerSort(value);
+    updateUrl(styleFilter, agencyFilter, value);
   };
 
   // ページタイトル用の文字列を生成
@@ -200,21 +218,21 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
             <button
               type="button"
               className={`${styles.periodTab} ${careerSort === "name" ? styles.periodTabActive : ""}`}
-              onClick={() => setCareerSort("name")}
+              onClick={() => handleCareerSortChange("name")}
             >
               名前順
             </button>
             <button
               type="button"
               className={`${styles.periodTab} ${careerSort === "long" ? styles.periodTabActive : ""}`}
-              onClick={() => setCareerSort("long")}
+              onClick={() => handleCareerSortChange("long")}
             >
               活動が長い
             </button>
             <button
               type="button"
               className={`${styles.periodTab} ${careerSort === "short" ? styles.periodTabActive : ""}`}
-              onClick={() => setCareerSort("short")}
+              onClick={() => handleCareerSortChange("short")}
             >
               活動が短い
             </button>

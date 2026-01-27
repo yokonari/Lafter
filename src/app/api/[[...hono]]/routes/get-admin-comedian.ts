@@ -2,7 +2,7 @@ import { type Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import { createDatabase } from "../context";
-import { artists, agencies, artistStyles, artistChannels } from "@/lib/schema";
+import { artists, agencies, artistStyles, artistChannels, artistAliases } from "@/lib/schema";
 
 export function registerGetAdminComedian<
   E extends import("hono").Env,
@@ -64,6 +64,15 @@ export function registerGetAdminComedian<
         .where(eq(artistChannels.artistId, id))
         .orderBy(artistChannels.displayOrder);
 
+      // 別名を取得
+      const aliasesResult = await db
+        .select({
+          name: artistAliases.name,
+          kana: artistAliases.kana,
+        })
+        .from(artistAliases)
+        .where(eq(artistAliases.artistId, id));
+
       return c.json({
         comedian: {
           ...comedianData,
@@ -72,6 +81,10 @@ export function registerGetAdminComedian<
             channelId: ch.channelId,
             role: ch.role,
             description: ch.description || undefined,
+          })),
+          aliases: aliasesResult.map((a) => ({
+            name: a.name,
+            kana: a.kana || undefined,
           })),
         },
       });
