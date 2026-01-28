@@ -37,6 +37,48 @@ type ViewCountVideoCache = {
 };
 
 /**
+ * URL から q パラメータを抽出する関数
+ * URLSearchParams では & がパラメータ区切りとして解釈されるため、
+ * 生のクエリ文字列から直接抽出します。
+ * 既知のパラメータ名より前の部分を q の値として扱います。
+ */
+function extractQueryParam(url: string, paramName: string): string {
+  try {
+    const urlObj = new URL(url);
+    const queryString = urlObj.search.slice(1); // "?" を除去
+    if (!queryString) return "";
+
+    // 既知のパラメータ名リスト（q 以外）
+    const knownParams = ["limit", "offset", "mode", "period", "sort", "channelId", "channelIds", "channelQuery", "channelIdsForQuery", "isHome"];
+
+    // q= の位置を探す
+    const paramPrefix = `${paramName}=`;
+    const startIndex = queryString.indexOf(paramPrefix);
+    if (startIndex === -1) return "";
+
+    // q= より後の部分を取得
+    const afterParam = queryString.slice(startIndex + paramPrefix.length);
+
+    // 既知のパラメータが現れる最初の位置を探す
+    let endIndex = afterParam.length;
+    for (const knownParam of knownParams) {
+      const idx = afterParam.indexOf(`&${knownParam}=`);
+      if (idx !== -1 && idx < endIndex) {
+        endIndex = idx;
+      }
+    }
+
+    // 抽出した値をデコード
+    const rawValue = afterParam.slice(0, endIndex);
+    // & で分割されたパラメータ名のような部分（=で終わる or =を含まない）も値として結合
+    const decoded = decodeURIComponent(rawValue.replace(/&([^=]*)=?/g, "&$1"));
+    return decoded;
+  } catch {
+    return "";
+  }
+}
+
+/**
  * 検索クエリを安全にサニタイズする関数
  * - 文字コードを UTF-8 NFC 形式に正規化
  * - 制御文字（改行、タブ等）を除去
@@ -100,10 +142,9 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       );
     }
 
-    // デバッグ: 生のURLと全パラメータをログ出力
-    console.log("[get-videos] 生のURL:", c.req.url);
-    console.log("[get-videos] 全クエリパラメータ:", Object.fromEntries(new URL(c.req.url).searchParams.entries()));
-    const qRaw = c.req.query("q") ?? "";
+    // 検索クエリの取得: URLSearchParams では & がパラメータ区切りとして解釈されるため、
+    // 生のクエリ文字列から q パラメータを直接抽出します。
+    const qRaw = extractQueryParam(c.req.url, "q");
     // デバッグ: 実際に受け取った検索クエリをログ出力
     console.log("[get-videos] 受け取った検索クエリ (raw):", qRaw);
     // サニタイズ処理: UTF-8正規化、制御文字除去、連続スペース除去、文字数制限
