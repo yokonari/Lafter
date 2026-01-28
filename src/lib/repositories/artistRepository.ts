@@ -454,6 +454,39 @@ export class ArtistRepository {
   }
 
   /**
+   * 名前で芸人を検索（公開API用）
+   * すべてのキーワードが名前に部分一致する芸人を返します。
+   */
+  async searchByName(query: string): Promise<{ slug: string; name: string }[]> {
+    const keywords = query
+      .split(/\s+/u)
+      .map((w) => w.trim())
+      .filter((w) => w.length >= 2);
+    if (keywords.length === 0) return [];
+
+    const conditions = keywords.flatMap((word) => {
+      const nfc = word.normalize("NFC");
+      const nfd = word.normalize("NFD");
+      const nfcPattern = `%${nfc}%`;
+      const nfdPattern = `%${nfd}%`;
+      if (nfc === nfd) {
+        return [like(artists.name, nfcPattern)];
+      }
+      return [or(like(artists.name, nfcPattern), like(artists.name, nfdPattern))!];
+    });
+
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+    const rows = await this.db
+      .select({ slug: artists.slug, name: artists.name })
+      .from(artists)
+      .where(whereClause)
+      .limit(10);
+
+    return rows;
+  }
+
+  /**
    * 芸人名の一意性チェック
    */
   async isNameUnique(name: string, excludeId?: number): Promise<boolean> {

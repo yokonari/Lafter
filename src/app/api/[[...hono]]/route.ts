@@ -28,6 +28,7 @@ import { registerGetAdminStyles } from "./routes/get-admin-styles";
 import { registerPostAdminStyle } from "./routes/post-admin-style";
 import { registerGetAdminMediaChannels } from "./routes/get-admin-media-channels";
 import { registerPatchAdminMediaChannels } from "./routes/patch-admin-media-channels";
+import { registerGetArtistsSearch } from "./routes/get-artists-search";
 import { authMiddleware } from "@/lib/middleware/auth";
 import { apiSecretMiddleware } from "@/lib/middleware/api-secret";
 import type { AdminEnv } from "./types";
@@ -73,6 +74,8 @@ registerPostAdminStyle(app);
 // メディアチャンネルの取得・更新APIを登録します。
 registerGetAdminMediaChannels(app);
 registerPatchAdminMediaChannels(app);
+// 芸人名検索APIを登録します。
+registerGetArtistsSearch(app);
 
 export const GET = handle(app);
 export const POST = handle(app);

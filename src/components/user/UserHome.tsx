@@ -17,10 +17,8 @@ import { ReportDialog } from "./ReportDialog";
 import { ScrollTopButton } from "./ScrollTopButton";
 import { ComedianIndexContent } from "./ComedianIndexContent";
 import styles from "./userTheme.module.scss";
-import artistsJson from "../../../data/artists/artists.json";
 import agencyJson from "../../../data/agencies/agency.json";
 import mediaJson from "../../../data/media/media.json";
-import { flattenArtistsByAgency, type ArtistsByAgency } from "../../../data/artists/types";
 import type { AgenciesById } from "../../../data/agencies/types";
 import type { MediaChannels } from "../../../data/media/types";
 
@@ -49,7 +47,6 @@ type UserHomeProps = {
     aliases?: Array<{ name: string; kana?: string }>; // 別名・旧名
   };
   // データベースから取得したデータ（オプション、未指定の場合はJSONフォールバック）
-  artists?: { slug: string; name: string; kana?: string; startedOn?: string; styles?: string[]; agencyId: string; channels: { channelId: string; role: string; }[] }[];
   agencyChannelIds?: string[];
   mediaChannelIds?: string[];
   agencyLabels?: Record<string, string>;
@@ -60,8 +57,6 @@ type UserHomeProps = {
 
 const agencyData = agencyJson as AgenciesById;
 const mediaData = mediaJson as MediaChannels;
-// 事務所別データを検索用の配列に展開します。
-const artists = flattenArtistsByAgency(artistsJson as ArtistsByAgency);
 
 export function UserHome({
   initialChannelId,
@@ -70,7 +65,6 @@ export function UserHome({
   initialYear,
   initialComedianList,
   initialComedian,
-  artists: artistsProp,
   agencyChannelIds: agencyChannelIdsProp,
   mediaChannelIds: mediaChannelIdsProp,
   agencyLabels: agencyLabelsProp,
@@ -78,8 +72,6 @@ export function UserHome({
   initialAgencyFilter,
   initialCareerSort,
 }: UserHomeProps = {}) {
-  // propsが渡された場合はそちらを使用、なければJSONフォールバック
-  const artists = artistsProp ?? flattenArtistsByAgency(artistsJson as ArtistsByAgency);
   const agencyLabels = agencyLabelsProp ?? {};
   const router = useRouter();
   const pathname = usePathname();
@@ -130,23 +122,40 @@ export function UserHome({
   const [history, setHistory] = useState<string[]>([]);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const HISTORY_KEY = "userSearchHistory";
-  const matchedArtists = useMemo(() => {
-    // 2文字以上のキーワードのみで芸人名の一致判定を行います。
-    const keywords = activeQuery
-      .split(/\s+/u)
-      .map((word) => word.trim())
-      .filter((word) => word.length >= 2);
-    if (!activeQuery || keywords.length === 0) {
-      return [];
+  const [matchedArtists, setMatchedArtists] = useState<{ slug: string; name: string }[]>([]);
+
+  useEffect(() => {
+    if (!activeQuery || activeQuery.trim().length < 2) {
+      setMatchedArtists([]);
+      return;
     }
-    const normalizedKeywords = keywords.map((word) => word.normalize("NFC").toLowerCase());
-    return artists
-      .filter((artist) => {
-        const nameNfc = artist.name.normalize("NFC").toLowerCase();
-        const nameNfd = artist.name.normalize("NFD").toLowerCase();
-        return normalizedKeywords.every((word) => nameNfc.includes(word) || nameNfd.includes(word));
-      })
-      .map((artist) => ({ slug: artist.slug, name: artist.name }));
+
+    let canceled = false;
+    const controller = new AbortController();
+
+    (async () => {
+      try {
+        const params = new URLSearchParams({ q: activeQuery });
+        const res = await fetch(`/api/artists/search?${params.toString()}`, { signal: controller.signal });
+        if (canceled) return;
+        if (!res.ok) {
+          setMatchedArtists([]);
+          return;
+        }
+        const data: { artists?: { slug: string; name: string }[] } = await res.json();
+        if (canceled) return;
+        setMatchedArtists(data.artists ?? []);
+      } catch {
+        if (!canceled) {
+          setMatchedArtists([]);
+        }
+      }
+    })();
+
+    return () => {
+      canceled = true;
+      controller.abort();
+    };
   }, [activeQuery]);
 
   // URL パラメーターを置換し、検索条件を共有するためのヘルパーです。
