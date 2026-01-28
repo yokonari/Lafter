@@ -110,10 +110,13 @@ export function UserHome({
     initialComedian?.channels.filter((channel) => channel.role === "official")
       .map((channel) => channel.channelId) ?? [];
   const agencyChannelIds = useMemo(() => {
-    // 所属事務所のチャンネルIDを取得します。
+    // DBから取得したagencyChannelIdsを優先し、なければJSONにフォールバック
+    if (agencyChannelIdsProp && agencyChannelIdsProp.length > 0) {
+      return agencyChannelIdsProp;
+    }
     if (!initialComedian?.agencyId) return [];
     return agencyData.agency[initialComedian.agencyId]?.channels.map((ch) => ch.channelId) ?? [];
-  }, [initialComedian?.agencyId]);
+  }, [agencyChannelIdsProp, initialComedian?.agencyId]);
   const keywordChannelIds = [
     // DBから取得したmediaChannelIdsを優先し、なければJSONにフォールバック
     ...(mediaChannelIdsProp ?? (mediaData.media ?? []).map((channel) => channel.channelId)),

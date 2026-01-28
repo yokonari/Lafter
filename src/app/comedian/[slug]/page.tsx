@@ -61,18 +61,24 @@ export default async function ComedianPage({ params }: { params: Promise<{ slug:
     notFound();
   }
 
-  // 事務所ラベルとメディアチャンネルIDを取得
+  // 事務所ラベル、事務所チャンネルID、メディアチャンネルIDを取得
   const db = getDB();
   const agencyRepo = new AgencyRepository(db);
   const mediaRepo = new MediaRepository(db);
-  const [agencyLabels, mediaChannelIds] = await Promise.all([
+  const [agencyLabels, agencyChannelIds, mediaChannelIds] = await Promise.all([
     agencyRepo.getLabels(),
+    artist.agencyId ? agencyRepo.getChannelIds(artist.agencyId) : Promise.resolve([]),
     mediaRepo.getAllChannelIds(),
   ]);
 
   return (
     <Suspense fallback={null}>
-      <UserHome initialComedian={artist} agencyLabels={agencyLabels} mediaChannelIds={mediaChannelIds} />
+      <UserHome
+        initialComedian={artist}
+        agencyLabels={agencyLabels}
+        agencyChannelIds={agencyChannelIds}
+        mediaChannelIds={mediaChannelIds}
+      />
     </Suspense>
   );
 }
