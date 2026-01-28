@@ -28,7 +28,7 @@ function calculateCareerYears(startedOn?: string): number | null {
   const currentYear = new Date().getFullYear();
   // 未来の年の場合は解散扱い（-1）
   if (startYear > currentYear) return -1;
-  const years = currentYear - startYear + 1;
+  const years = currentYear - startYear;
   return years > 0 ? years : null;
 }
 

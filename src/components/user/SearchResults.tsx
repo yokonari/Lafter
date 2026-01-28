@@ -19,7 +19,7 @@ function calculateCareerYears(startedOn?: string): number | null {
   const startYear = Number(yearPart);
   if (!Number.isFinite(startYear) || startYear <= 0) return null;
   const currentYear = new Date().getFullYear();
-  const years = currentYear - startYear + 1;
+  const years = currentYear - startYear;
   return years > 0 ? years : null;
 }
 

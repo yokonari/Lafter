@@ -145,11 +145,8 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     // 検索クエリの取得: URLSearchParams では & がパラメータ区切りとして解釈されるため、
     // 生のクエリ文字列から q パラメータを直接抽出します。
     const qRaw = extractQueryParam(c.req.url, "q");
-    // デバッグ: 実際に受け取った検索クエリをログ出力
-    console.log("[get-videos] 受け取った検索クエリ (raw):", qRaw);
     // サニタイズ処理: UTF-8正規化、制御文字除去、連続スペース除去、文字数制限
     const q = sanitizeSearchQuery(qRaw);
-    console.log("[get-videos] サニタイズ後の検索クエリ:", q);
     // 複数キーワードは半角・全角スペースで区切り、すべてを AND で満たすように扱います。
     // 「ダ/ダ」などの正規化差異も吸収するため、NFC/NFD 両方のパターンを用意します。
     const keywords = q ? q.split(/\s+/u).filter(Boolean) : [];
