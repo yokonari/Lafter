@@ -18,6 +18,7 @@ type ComedianIndexContentProps = {
   initialCareerSort?: "long" | "short" | "name";
 };
 
+// 活動年数を計算します。未来の年の場合は解散扱いとして -1 を返します。
 function calculateCareerYears(startedOn?: string): number | null {
   if (!startedOn) return null;
   // "YYYY" または "YYYY-MM" を想定して年を取り出します。
@@ -25,6 +26,8 @@ function calculateCareerYears(startedOn?: string): number | null {
   const startYear = Number(yearPart);
   if (!Number.isFinite(startYear) || startYear <= 0) return null;
   const currentYear = new Date().getFullYear();
+  // 未来の年の場合は解散扱い（-1）
+  if (startYear > currentYear) return -1;
   const years = currentYear - startYear + 1;
   return years > 0 ? years : null;
 }
@@ -133,6 +136,12 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
         const bKey = b.kana ?? b.name;
         return aKey.localeCompare(bKey, "ja");
       }
+      // 解散（-1）は活動年数ソート時に末尾に配置
+      const aIsDisbanded = a.careerYears === -1;
+      const bIsDisbanded = b.careerYears === -1;
+      if (aIsDisbanded && !bIsDisbanded) return 1;
+      if (!aIsDisbanded && bIsDisbanded) return -1;
+      if (aIsDisbanded && bIsDisbanded) return 0;
       return careerSort === "long"
         ? b.careerYears - a.careerYears
         : a.careerYears - b.careerYears;
@@ -294,7 +303,15 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
                 <span className={styles.comedianIndexMetaRow}>
                   {(() => {
                     const careerYears = calculateCareerYears(artist.startedOn);
-                    if (!careerYears) return null;
+                    if (careerYears === null || careerYears === 0) return null;
+                    // 解散（-1）の場合は「解散」と表示
+                    if (careerYears === -1) {
+                      return (
+                        <span className={styles.comedianCareerTag}>
+                          解散
+                        </span>
+                      );
+                    }
                     return (
                       <span className={styles.comedianCareerTag}>
                         <Activity size={14} />

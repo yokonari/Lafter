@@ -87,6 +87,7 @@ export async function fetchVideoItems(
   const params = new URLSearchParams();
   if (options?.query) {
     params.set("q", options.query);
+    console.log("[videoService] 検索クエリをパラメータにセット:", options.query);
   }
   if (options?.channelId) {
     params.set("channelId", options.channelId);

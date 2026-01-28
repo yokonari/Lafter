@@ -100,6 +100,9 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       );
     }
 
+    // デバッグ: 生のURLと全パラメータをログ出力
+    console.log("[get-videos] 生のURL:", c.req.url);
+    console.log("[get-videos] 全クエリパラメータ:", Object.fromEntries(new URL(c.req.url).searchParams.entries()));
     const qRaw = c.req.query("q") ?? "";
     // デバッグ: 実際に受け取った検索クエリをログ出力
     console.log("[get-videos] 受け取った検索クエリ (raw):", qRaw);

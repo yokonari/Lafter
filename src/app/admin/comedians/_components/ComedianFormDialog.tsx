@@ -488,6 +488,7 @@ export function ComedianFormDialog({
                 className={styles.input}
               >
                 <option value="">選択してください</option>
+                <option value="9999">解散</option>
                 {(() => {
                   // 1980年から今年までの年を表示します。
                   const currentYear = new Date().getFullYear();
