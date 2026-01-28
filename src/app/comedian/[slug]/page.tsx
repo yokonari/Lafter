@@ -5,6 +5,7 @@ import { UserHome } from "@/components/user/UserHome";
 import { getDB } from "@/lib/db";
 import { ArtistRepository } from "@/lib/repositories/artistRepository";
 import { AgencyRepository } from "@/lib/repositories/agencyRepository";
+import { MediaRepository } from "@/lib/repositories/mediaRepository";
 import type { ArtistWithAgency } from "../../../../data/artists/types";
 
 export const dynamic = 'force-dynamic';
@@ -60,14 +61,18 @@ export default async function ComedianPage({ params }: { params: Promise<{ slug:
     notFound();
   }
 
-  // 事務所ラベルを取得
+  // 事務所ラベルとメディアチャンネルIDを取得
   const db = getDB();
   const agencyRepo = new AgencyRepository(db);
-  const agencyLabels = await agencyRepo.getLabels();
+  const mediaRepo = new MediaRepository(db);
+  const [agencyLabels, mediaChannelIds] = await Promise.all([
+    agencyRepo.getLabels(),
+    mediaRepo.getAllChannelIds(),
+  ]);
 
   return (
     <Suspense fallback={null}>
-      <UserHome initialComedian={artist} agencyLabels={agencyLabels} />
+      <UserHome initialComedian={artist} agencyLabels={agencyLabels} mediaChannelIds={mediaChannelIds} />
     </Suspense>
   );
 }

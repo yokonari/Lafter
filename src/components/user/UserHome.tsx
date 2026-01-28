@@ -115,7 +115,8 @@ export function UserHome({
     return agencyData.agency[initialComedian.agencyId]?.channels.map((ch) => ch.channelId) ?? [];
   }, [initialComedian?.agencyId]);
   const keywordChannelIds = [
-    ...(mediaData.media ?? []).map((channel) => channel.channelId),
+    // DBから取得したmediaChannelIdsを優先し、なければJSONにフォールバック
+    ...(mediaChannelIdsProp ?? (mediaData.media ?? []).map((channel) => channel.channelId)),
     ...agencyChannelIds,
     ...(initialComedian?.channels.filter((channel) => channel.role !== "official")
       .map((channel) => channel.channelId) ?? []),
