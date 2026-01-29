@@ -222,6 +222,7 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
         <div className={styles.sectionHeadingWrap}>
           <h1 className={styles.searchTitle}>{pageTitle}</h1>
         </div>
+        <p className={styles.pageNote}>※このページの情報は 2026年時点のものです。最新の活動状況とは異なる場合があります。</p>
         <div className={styles.comedianHeaderRow}>
           <div className={`${styles.periodTabs} ${styles.comedianSortGroup} ${styles.comedianTabsRow}`}>
             <button

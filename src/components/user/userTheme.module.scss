@@ -713,6 +713,12 @@ $title-font-weight: 400;
   gap: 1rem;
 }
 
+.pageNote {
+  font-size: 0.8rem;
+  color: var(--user-text-secondary);
+  margin: 0 0 0.6rem;
+}
+
 .sectionMoreButton {
   display: inline-flex;
   align-items: center;
