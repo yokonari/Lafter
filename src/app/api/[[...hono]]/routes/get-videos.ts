@@ -11,7 +11,6 @@ import type { AdminEnv } from "../types";
 const MAX_LIMIT = 20;
 const HOME_CACHE_LIMIT = 10; // ユーザートップ画面用のキャッシュ再抽選時は常に10件だけ返却します。
 const MAX_QUERY_LENGTH = 256; // 検索クエリの最大文字数制限
-const ARTIST_CACHE_LIMIT = 500; // 芸人個別ページのキャッシュ上限
 
 type CachedVideoItem = {
   channel_id?: string;
@@ -815,7 +814,7 @@ async function cacheAllArtistVideos(
 
     const videoWhere = videoConditions.length === 1 ? videoConditions[0] : and(...videoConditions);
 
-    // 全件取得（上限500件）、公開日順でソート
+    // 全件取得、公開日順でソート
     const allVideoRows = await db
       .select({
         id: videos.id,
@@ -829,8 +828,7 @@ async function cacheAllArtistVideos(
       .from(videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(videoWhere)
-      .orderBy(desc(videos.publishedAt))
-      .limit(ARTIST_CACHE_LIMIT);
+      .orderBy(desc(videos.publishedAt));
 
     if (allVideoRows.length === 0) {
       return;
