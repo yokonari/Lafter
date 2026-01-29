@@ -11,6 +11,7 @@ import type { AdminEnv } from "../types";
 const MAX_LIMIT = 20;
 const HOME_CACHE_LIMIT = 10; // ユーザートップ画面用のキャッシュ再抽選時は常に10件だけ返却します。
 const MAX_QUERY_LENGTH = 256; // 検索クエリの最大文字数制限
+const ARTIST_CACHE_LIMIT = 500; // 芸人個別ページのキャッシュ上限
 
 type CachedVideoItem = {
   channel_id?: string;
@@ -19,6 +20,7 @@ type CachedVideoItem = {
   video_title?: string;
   view_count?: number | null; // 再生数を追加
   like_count?: number | null; // 高評価数を追加
+  published_at?: string | null; // 芸人別キャッシュのソート用
 };
 
 type LatestVideoCache = {
@@ -49,7 +51,7 @@ function extractQueryParam(url: string, paramName: string): string {
     if (!queryString) return "";
 
     // 既知のパラメータ名リスト（q 以外）
-    const knownParams = ["limit", "offset", "mode", "period", "sort", "channelId", "channelIds", "channelQuery", "channelIdsForQuery", "isHome"];
+    const knownParams = ["limit", "offset", "mode", "period", "sort", "channelId", "channelIds", "channelQuery", "channelIdsForQuery", "isHome", "artistSlug"];
 
     // q= の位置を探す
     const paramPrefix = `${paramName}=`;
@@ -113,7 +115,7 @@ function sanitizeSearchQuery(rawQuery: string): string {
 
 export function registerGetVideos(app: Hono<AdminEnv>) {
   app.get("/videos", async (c) => {
-    const { env } = getCloudflareContext();
+    const { env, ctx } = getCloudflareContext();
     // 型定義済みの env から安全に DB インスタンスを取得いたします。
     const db = createDatabase(env);
     const kv = env.LAFTER ?? null;
@@ -291,6 +293,25 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       }
     }
 
+    // 芸人個別ページの KV キャッシュチェック: artistSlug が指定されている場合は KV から返却します。
+    const artistSlug = c.req.query("artistSlug");
+    if (kv && artistSlug) {
+      const artistCacheKey = `artist_videos_${artistSlug}`;
+      const artistCache = await loadCachedVideos(kv, artistCacheKey);
+      if (artistCache) {
+        return respondWithArtistCache(
+          c,
+          artistCache,
+          safeOffset,
+          safeLimit,
+          sort,
+        );
+      }
+      console.warn(
+        `[get-videos] 芸人キャッシュ ${artistCacheKey} が利用できなかったため DB で処理を継続します。`,
+      );
+    }
+
     const videoConditions = [inArray(videos.status, [1, 3]), eq(channels.status, 1)];
     if (channelIdFilter) {
       // チャンネル指定がある場合は最優先でそのチャンネルに絞ります。
@@ -445,6 +466,14 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     }
 
 
+
+    // artistSlug 指定時かつ DB から取得した場合、全件を非同期でキャッシュに保存します
+    // ユーザーへのレスポンスはブロックせず、バックグラウンドで全件取得を行います
+    if (kv && artistSlug && videoRows.length > 0 && ctx) {
+      ctx.waitUntil(
+        cacheAllArtistVideos(db, kv, artistSlug, channelIdsFilter, channelIdsForQuery, channelQueryPatternsPerPhrase)
+      );
+    }
 
     return c.json(
       {
@@ -693,4 +722,138 @@ function resolveLikesCacheKey(period: string): string {
     return "likes_active_videos_year";
   }
   return "likes_active_videos_month";
+}
+
+function respondWithArtistCache(
+  c: Context<AdminEnv>,
+  cache: LatestVideoCache,
+  offset: number,
+  limit: number,
+  sort: string,
+): Response {
+  const items = [...(cache.items ?? [])];
+
+  // sort に応じてキャッシュデータをインメモリソートします。
+  // デフォルト (published) はキャッシュ生成時に published_at DESC で格納済みなのでそのまま返します。
+  if (sort === "views") {
+    items.sort((a, b) => {
+      const viewDiff = (b.view_count ?? 0) - (a.view_count ?? 0);
+      if (viewDiff !== 0) return viewDiff;
+      return (b.published_at ?? "").localeCompare(a.published_at ?? "");
+    });
+  } else if (sort === "likes") {
+    items.sort((a, b) => {
+      const likeDiff = (b.like_count ?? 0) - (a.like_count ?? 0);
+      if (likeDiff !== 0) return likeDiff;
+      return (b.published_at ?? "").localeCompare(a.published_at ?? "");
+    });
+  }
+
+  const startIndex = offset;
+  const endIndex = offset + limit;
+  const sliced = items.slice(startIndex, endIndex);
+  const hasNext = endIndex < items.length;
+
+  const videosPayload = sliced
+    .filter((item) => typeof item?.video_id === "string" && item.video_id)
+    .map((item) => ({
+      id: item.video_id as string,
+      title: decodeHtmlEntities(item?.video_title ?? ""),
+      channel_id: item?.channel_id ?? "",
+      channel_name: item?.channel_name ?? "",
+      view_count: item?.view_count ?? undefined,
+      like_count: item?.like_count ?? undefined,
+    }));
+
+  return c.json(
+    {
+      videos: videosPayload,
+      page: Math.floor(offset / limit) + 1,
+      limit,
+      hasNext,
+    },
+    200,
+  );
+}
+
+/**
+ * 芸人の全動画を非同期で取得し、KVにキャッシュする関数
+ * レスポンスをブロックせず、バックグラウンドで実行されます
+ */
+async function cacheAllArtistVideos(
+  db: AppDatabase,
+  kv: KVNamespace,
+  artistSlug: string,
+  channelIdsFilter: string[],
+  channelIdsForQuery: string[],
+  channelQueryPatternsPerPhrase: string[][][],
+): Promise<void> {
+  try {
+    // 芸人ページ用の条件を構築
+    const videoConditions = [inArray(videos.status, [1, 3]), eq(channels.status, 1)];
+
+    let channelScopeCondition: SQL<boolean> | null = null;
+    if (channelIdsFilter.length > 0 && channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
+      const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase);
+      channelScopeCondition = or(
+        inArray(videos.channelId, channelIdsFilter) as SQL<boolean>,
+        and(inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>, keywordCondition) as SQL<boolean>,
+      ) as SQL<boolean>;
+    } else if (channelIdsFilter.length > 0) {
+      channelScopeCondition = inArray(videos.channelId, channelIdsFilter) as SQL<boolean>;
+    } else if (channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
+      const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase);
+      channelScopeCondition = and(
+        inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>,
+        keywordCondition,
+      ) as SQL<boolean>;
+    }
+
+    if (channelScopeCondition) {
+      videoConditions.push(channelScopeCondition);
+    }
+
+    const videoWhere = videoConditions.length === 1 ? videoConditions[0] : and(...videoConditions);
+
+    // 全件取得（上限500件）、公開日順でソート
+    const allVideoRows = await db
+      .select({
+        id: videos.id,
+        title: videos.title,
+        publishedAt: videos.publishedAt,
+        channelId: videos.channelId,
+        channelName: channels.name,
+        viewCount: videos.viewCount,
+        likeCount: videos.likeCount,
+      })
+      .from(videos)
+      .innerJoin(channels, eq(videos.channelId, channels.id))
+      .where(videoWhere)
+      .orderBy(desc(videos.publishedAt))
+      .limit(ARTIST_CACHE_LIMIT);
+
+    if (allVideoRows.length === 0) {
+      return;
+    }
+
+    const cachePayload = {
+      updated_at: new Date().toISOString(),
+      items: allVideoRows.map((row) => ({
+        channel_id: row.channelId,
+        channel_name: row.channelName ?? "",
+        video_id: row.id,
+        video_title: row.title,
+        view_count: row.viewCount ?? null,
+        like_count: row.likeCount ?? null,
+        published_at: row.publishedAt ?? "",
+      })),
+    };
+
+    // 24時間 TTL で KV に保存
+    await kv.put(`artist_videos_${artistSlug}`, JSON.stringify(cachePayload), {
+      expirationTtl: 86400,
+    });
+  } catch (error) {
+    console.error(`[get-videos] 芸人キャッシュの保存に失敗しました: ${artistSlug}`, error);
+  }
 }

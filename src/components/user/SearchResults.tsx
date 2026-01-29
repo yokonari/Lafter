@@ -30,6 +30,7 @@ type SearchResultsProps = {
   channelQuery?: string; // 特定チャンネルのキーワード検索を指定します。
   channelIdsForQuery?: string[]; // キーワード検索対象チャンネルを指定します。
   comedianMeta?: { startedOn?: string; styles?: string[]; agencyId?: string }; // 芸人個別ページのタグ表示用です。
+  artistSlug?: string; // 芸人個別ページの slug（KV キャッシュ参照用）
   artistMatches?: { slug: string; name: string }[]; // 芸人名に一致した候補を表示します。
   showComedianListLink?: boolean; // 芸人個別ページのみ芸人一覧への導線を表示します。
   mode?: "new" | "random" | "popular" | "award-race"; // "popular" と "award-race" を追加
@@ -55,6 +56,7 @@ export function SearchResults({
   channelQuery,
   channelIdsForQuery,
   comedianMeta,
+  artistSlug,
   artistMatches,
   showComedianListLink,
   mode,
@@ -219,7 +221,7 @@ export function SearchResults({
           mode,
           period: mode === "popular" ? selectedPeriod : undefined, // 人気モード時のみperiodを渡します
           sort: mode === "popular" ? selectedSort : (mode ? undefined : selectedSort), // 人気モード時はsortを渡します
-
+          artistSlug,
           signal: controller.signal,
           limit: PAGE_SIZE,
           offset: 0,
@@ -256,7 +258,7 @@ export function SearchResults({
       canceled = true;
       controller.abort();
     };
-  }, [query, channelId, channelIdsKey, channelQuery, channelIdsForQueryKey, mode, selectedPeriod, selectedSort]); // selectedSortを依存配列に追加
+  }, [query, channelId, channelIdsKey, channelQuery, channelIdsForQueryKey, mode, selectedPeriod, selectedSort, artistSlug]); // artistSlugを依存配列に追加
 
   const handleLoadMore = useCallback(async () => {
     if (loadingMore) return;
@@ -274,7 +276,7 @@ export function SearchResults({
         mode,
         period: mode === "popular" ? selectedPeriod : undefined, // 人気モード時のみperiodを渡します
         sort: mode === "popular" ? selectedSort : (mode ? undefined : selectedSort), // 人気モード時はsortを渡します
-
+        artistSlug,
         limit: PAGE_SIZE,
         offset: nextOffset,
       });
@@ -286,7 +288,7 @@ export function SearchResults({
     } finally {
       setLoadingMore(false);
     }
-  }, [loadingMore, query, channelId, channelIdsKey, channelQuery, channelIdsForQueryKey, mode, selectedPeriod, selectedSort, nextOffset]); // selectedSortを依存配列に追加
+  }, [loadingMore, query, channelId, channelIdsKey, channelQuery, channelIdsForQueryKey, mode, selectedPeriod, selectedSort, artistSlug, nextOffset]); // artistSlugを依存配列に追加
 
   const observerTarget = useRef<HTMLDivElement>(null);
 

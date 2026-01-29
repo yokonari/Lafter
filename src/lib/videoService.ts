@@ -62,6 +62,10 @@ export type FetchVideoOptions = {
    * userHome からのアクセス時のみ true を渡し、API 側でキャッシュの再抽選を行います。
    */
   isHome?: boolean;
+  /**
+   * 芸人個別ページの slug を渡し、API 側で KV キャッシュからの返却を可能にします。
+   */
+  artistSlug?: string;
 };
 
 export type FetchVideosResponse = {
@@ -124,6 +128,9 @@ export async function fetchVideoItems(
   if (options?.isHome) {
     // トップ画面専用の最適化フラグです。false 相当時はクエリを付けず既存挙動を保ちます。
     params.set("isHome", "true");
+  }
+  if (options?.artistSlug) {
+    params.set("artistSlug", options.artistSlug);
   }
 
   const url = `/api/videos${params.toString() ? `?${params}` : ""}`;

@@ -383,6 +383,7 @@ export function UserHome({
         styles: initialComedian?.styles,
         agencyId: initialComedian?.agencyId,
       }}
+      artistSlug={initialComedian?.slug}
       titleOverride={`${comedianName}の公式ネタ動画`}
       showComedianListLink
       agencyLabels={agencyLabels}
