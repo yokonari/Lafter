@@ -32,6 +32,31 @@ function calculateCareerYears(startedOn?: string): number | null {
   return years > 0 ? years : null;
 }
 
+// ひらがな・カタカナの先頭文字から五十音の行を判定します。
+function getGyou(text: string): string {
+  const c = text.charAt(0);
+  if (/[あいうえおアイウエオ]/.test(c)) return "あ行";
+  if (/[かきくけこがぎぐげごカキクケコガギグゲゴ]/.test(c)) return "か行";
+  if (/[さしすせそざじずぜぞサシスセソザジズゼゾ]/.test(c)) return "さ行";
+  if (/[たちつてとだぢづでどタチツテトダヂヅデド]/.test(c)) return "た行";
+  if (/[なにぬねのナニヌネノ]/.test(c)) return "な行";
+  if (/[はひふへほばびぶべぼぱぴぷぺぽハヒフヘホバビブベボパピプペポ]/.test(c)) return "は行";
+  if (/[まみむめもマミムメモ]/.test(c)) return "ま行";
+  if (/[やゆよヤユヨ]/.test(c)) return "や行";
+  if (/[らりるれろラリルレロ]/.test(c)) return "ら行";
+  if (/[わをんワヲン]/.test(c)) return "わ行";
+  return "その他";
+}
+
+// 芸歴年数から5年ごとのグループラベルを生成します。
+function getCareerGroup(careerYears: number): string {
+  if (careerYears === -1) return "解散";
+  if (careerYears <= 0) return "不明";
+  const start = Math.floor((careerYears - 1) / 5) * 5 + 1;
+  const end = start + 4;
+  return `${start}〜${end}年`;
+}
+
 export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initialStyleFilter, initialAgencyFilter, initialCareerSort }: ComedianIndexContentProps) {
   const router = useRouter();
   const [careerSort, setCareerSort] = useState<"long" | "short" | "name">(initialCareerSort || "long");
@@ -149,6 +174,29 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
     return sorted;
   }, [artists, careerSort, styleFilter, agencyFilter]);
 
+  // ソート種別に応じてグループ化します（名前順: 五十音、芸歴順: 5年ごと）。
+  const groupedArtists = useMemo(() => {
+    const groups: { label: string; artists: typeof sortedArtists }[] = [];
+    let currentLabel: string | null = null;
+
+    for (const artist of sortedArtists) {
+      let label: string;
+      if (careerSort === "name") {
+        label = getGyou(artist.kana ?? artist.name);
+      } else {
+        label = getCareerGroup(artist.careerYears);
+      }
+
+      if (label !== currentLabel) {
+        groups.push({ label, artists: [] });
+        currentLabel = label;
+      }
+      groups[groups.length - 1].artists.push(artist);
+    }
+
+    return groups;
+  }, [sortedArtists, careerSort]);
+
   // フィルタ変更時にURLを更新（パスベース + クエリパラメータ）
   const updateUrl = (newStyleFilter: string, newAgencyFilter: string, newCareerSort: "long" | "short" | "name") => {
     let newUrl = "/comedian";
@@ -222,7 +270,7 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
         <div className={styles.sectionHeadingWrap}>
           <h1 className={styles.searchTitle}>{pageTitle}</h1>
         </div>
-        <p className={styles.pageNote}>※このページの情報は 2026年時点のものです。最新の活動状況とは異なる場合があります。</p>
+        <p className={styles.pageNote}>2026年1月更新。最新の活動状況とは異なる場合があります。</p>
         <div className={styles.comedianHeaderRow}>
           <div className={`${styles.periodTabs} ${styles.comedianSortGroup} ${styles.comedianTabsRow}`}>
             <button
@@ -237,14 +285,14 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
               className={`${styles.periodTab} ${careerSort === "long" ? styles.periodTabActive : ""}`}
               onClick={() => handleCareerSortChange("long")}
             >
-              活動が長い
+              芸歴が長い
             </button>
             <button
               type="button"
               className={`${styles.periodTab} ${careerSort === "short" ? styles.periodTabActive : ""}`}
               onClick={() => handleCareerSortChange("short")}
             >
-              活動が短い
+              芸歴が短い
             </button>
           </div>
           {availableStyles.length > 0 && (
@@ -290,59 +338,66 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
       {sortedArtists.length === 0 ? (
         <p className={styles.statusText}>該当する芸人が見つかりませんでした。</p>
       ) : (
-        <div className={styles.comedianGrid}>
-          {/* 芸人一覧はslugごとのリンクとして表示します。 */}
-          {sortedArtists.map((artist) => (
-            <Link
-              key={artist.slug}
-              href={`/comedian/${artist.slug}`}
-              className={styles.comedianIndexCard}
-            >
-              {/* 背景色の上に薄い黒レイヤーを重ねるため、内容をラップします。 */}
-              <span className={styles.comedianIndexCardContent}>
-                <span className={styles.comedianIndexName}>{artist.name}</span>
-                <span className={styles.comedianIndexMetaRow}>
-                  {(() => {
-                    const careerYears = calculateCareerYears(artist.startedOn);
-                    if (careerYears === null || careerYears === 0) return null;
-                    // 解散（-1）の場合は「解散」と表示
-                    if (careerYears === -1) {
-                      return (
-                        <span className={styles.comedianCareerTag}>
-                          解散
-                        </span>
-                      );
-                    }
-                    return (
-                      <span className={styles.comedianCareerTag}>
-                        <Activity size={14} />
-                        {careerYears}年
+        <div className={styles.comedianGroupedList}>
+          {groupedArtists.map((group) => (
+            <div key={group.label} className={styles.comedianGyouSection}>
+              <div className={styles.comedianGyouHeader}>
+                <span className={styles.sectionHeadingBar} aria-hidden="true" />
+                <h2 className={styles.comedianGyouTitle}>{group.label}</h2>
+              </div>
+              <div className={styles.comedianGrid}>
+                {group.artists.map((artist) => (
+                  <Link
+                    key={artist.slug}
+                    href={`/comedian/${artist.slug}`}
+                    className={styles.comedianIndexCard}
+                  >
+                    <span className={styles.comedianIndexCardContent}>
+                      <span className={styles.comedianIndexName}>{artist.name}</span>
+                      <span className={styles.comedianIndexMetaRow}>
+                        {(() => {
+                          const careerYears = calculateCareerYears(artist.startedOn);
+                          if (careerYears === null || careerYears === 0) return null;
+                          if (careerYears === -1) {
+                            return (
+                              <span className={styles.comedianCareerTag}>
+                                解散
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className={styles.comedianCareerTag}>
+                              <Activity size={14} />
+                              {careerYears}年
+                            </span>
+                          );
+                        })()}
+                        {Array.isArray(artist.styles) && artist.styles.length > 0 && (
+                          <span className={styles.comedianIndexStyleTags}>
+                            {artist.styles.map((style) => (
+                              <span
+                                key={style}
+                                className={`${styles.comedianStyleTag} ${styles[`styleTag_${style}`] ?? ""}`}
+                              >
+                                {STYLE_LABELS[style] ?? style}
+                              </span>
+                            ))}
+                          </span>
+                        )}
                       </span>
-                    );
-                  })()}
-                  {Array.isArray(artist.styles) && artist.styles.length > 0 && (
-                    <span className={styles.comedianIndexStyleTags}>
-                      {artist.styles.map((style) => (
-                        <span
-                          key={style}
-                          className={`${styles.comedianStyleTag} ${styles[`styleTag_${style}`] ?? ""}`}
-                        >
-                          {STYLE_LABELS[style] ?? style}
+                      {artist.agencyId && artist.agencyId !== "other" && (
+                        <span className={styles.comedianAgencyTag}>
+                          <LinkIcon size={12} />
+                          <span className={styles.comedianAgencyTagText}>
+                            {agencyLabels[artist.agencyId] ?? artist.agencyId}
+                          </span>
                         </span>
-                      ))}
+                      )}
                     </span>
-                  )}
-                </span>
-                {artist.agencyId && artist.agencyId !== "other" && (
-                  <span className={styles.comedianAgencyTag}>
-                    <LinkIcon size={12} />
-                    <span className={styles.comedianAgencyTagText}>
-                      {agencyLabels[artist.agencyId] ?? artist.agencyId}
-                    </span>
-                  </span>
-                )}
-              </span>
-            </Link>
+                  </Link>
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}

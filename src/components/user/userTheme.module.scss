@@ -2465,6 +2465,32 @@ $title-font-weight: 400;
   }
 }
 
+// 名前順の五十音セクション区切り
+.comedianGroupedList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.comedianGyouSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.comedianGyouHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.comedianGyouTitle {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--user-text);
+  margin: 0;
+}
+
 // 芸人カード（準決勝・準々決勝）- 中央寄せ（賞レースページ用）
 .comedianCard {
   display: flex;
