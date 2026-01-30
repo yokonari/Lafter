@@ -104,14 +104,16 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
   }, [styleFilter, agencyFilter, agencyLabels]);
 
   const availableStyles = useMemo(() => {
-    // 一覧に含まれる芸風タグを抽出してフィルタ候補に使います。
-    const unique = new Set<string>();
+    // 一覧に含まれる芸風タグを抽出し、芸人数が多い順にソートします。
+    const styleCounts = new Map<string, number>();
     for (const artist of artists) {
       for (const style of artist.styles ?? []) {
-        unique.add(style);
+        styleCounts.set(style, (styleCounts.get(style) ?? 0) + 1);
       }
     }
-    return Array.from(unique);
+    return Array.from(styleCounts.keys()).sort((a, b) => {
+      return (styleCounts.get(b) ?? 0) - (styleCounts.get(a) ?? 0);
+    });
   }, [artists]);
 
   const availableAgencies = useMemo(() => {
