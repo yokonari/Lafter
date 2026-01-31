@@ -31,7 +31,7 @@ type SearchResultsProps = {
   channelIdsForQuery?: string[]; // キーワード検索対象チャンネルを指定します。
   comedianMeta?: { startedOn?: string; styles?: string[]; agencyId?: string }; // 芸人個別ページのタグ表示用です。
   artistSlug?: string; // 芸人個別ページの slug（KV キャッシュ参照用）
-  artistMatches?: { slug: string; name: string }[]; // 芸人名に一致した候補を表示します。
+  artistMatches?: { slug: string; name: string; matchedAlias?: string }[]; // 芸人名に一致した候補を表示します。
   showComedianListLink?: boolean; // 芸人個別ページのみ芸人一覧への導線を表示します。
   mode?: "new" | "random" | "popular" | "award-race"; // "popular" と "award-race" を追加
   titleOverride?: string; // タイトルを固定したい場合に指定します。
@@ -481,7 +481,11 @@ export function SearchResults({
                     className={`${styles.comedianCard} ${styles.artistMatchButton}`}
                   >
                     <span className={styles.comedianCardContent}>
-                      <span>{artist.name}</span>
+                      <span>
+                        {artist.matchedAlias
+                          ? `${artist.name}（旧：${artist.matchedAlias}）`
+                          : artist.name}
+                      </span>
                     </span>
                   </Link>
                 ))}

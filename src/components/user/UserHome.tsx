@@ -122,7 +122,7 @@ export function UserHome({
   const [history, setHistory] = useState<string[]>([]);
   const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
   const HISTORY_KEY = "userSearchHistory";
-  const [matchedArtists, setMatchedArtists] = useState<{ slug: string; name: string }[]>([]);
+  const [matchedArtists, setMatchedArtists] = useState<{ slug: string; name: string; matchedAlias?: string }[]>([]);
 
   useEffect(() => {
     if (!activeQuery || activeQuery.trim().length < 2) {
@@ -142,7 +142,7 @@ export function UserHome({
           setMatchedArtists([]);
           return;
         }
-        const data: { artists?: { slug: string; name: string }[] } = await res.json();
+        const data: { artists?: { slug: string; name: string; matchedAlias?: string }[] } = await res.json();
         if (canceled) return;
         setMatchedArtists(data.artists ?? []);
       } catch {

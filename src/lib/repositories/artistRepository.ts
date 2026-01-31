@@ -455,16 +455,18 @@ export class ArtistRepository {
 
   /**
    * 名前で芸人を検索（公開API用）
-   * すべてのキーワードが名前に部分一致する芸人を返します。
+   * すべてのキーワードが名前または別名に部分一致する芸人を返します。
+   * 別名でヒットした場合は matchedAlias にその別名を含めます。
    */
-  async searchByName(query: string): Promise<{ slug: string; name: string }[]> {
+  async searchByName(query: string): Promise<{ slug: string; name: string; matchedAlias?: string }[]> {
     const keywords = query
       .split(/\s+/u)
       .map((w) => w.trim())
       .filter((w) => w.length >= 2);
     if (keywords.length === 0) return [];
 
-    const conditions = keywords.flatMap((word) => {
+    // 芸人名検索用の条件
+    const nameConditions = keywords.flatMap((word) => {
       const nfc = word.normalize("NFC");
       const nfd = word.normalize("NFD");
       const nfcPattern = `%${nfc}%`;
@@ -475,15 +477,60 @@ export class ArtistRepository {
       return [or(like(artists.name, nfcPattern), like(artists.name, nfdPattern))!];
     });
 
-    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+    const nameWhereClause = nameConditions.length === 1 ? nameConditions[0] : and(...nameConditions);
 
-    const rows = await this.db
+    // 芸人名で検索
+    const nameRows = await this.db
       .select({ slug: artists.slug, name: artists.name })
       .from(artists)
-      .where(whereClause)
+      .where(nameWhereClause)
       .limit(10);
 
-    return rows;
+    // 別名検索用の条件
+    const aliasConditions = keywords.flatMap((word) => {
+      const nfc = word.normalize("NFC");
+      const nfd = word.normalize("NFD");
+      const nfcPattern = `%${nfc}%`;
+      const nfdPattern = `%${nfd}%`;
+      if (nfc === nfd) {
+        return [like(artistAliases.name, nfcPattern)];
+      }
+      return [or(like(artistAliases.name, nfcPattern), like(artistAliases.name, nfdPattern))!];
+    });
+
+    const aliasWhereClause = aliasConditions.length === 1 ? aliasConditions[0] : and(...aliasConditions);
+
+    // 別名で検索（芸人テーブルとJOINして芸人情報と別名を取得）
+    const aliasRows = await this.db
+      .select({
+        slug: artists.slug,
+        name: artists.name,
+        aliasName: artistAliases.name,
+      })
+      .from(artists)
+      .innerJoin(artistAliases, eq(artists.id, artistAliases.artistId))
+      .where(aliasWhereClause)
+      .limit(20); // 重複排除後に10件残るよう多めに取得
+
+    // 名前検索の結果を優先し、別名検索で見つかった芸人を重複排除しながらマージ
+    const slugSet = new Set(nameRows.map((row) => row.slug));
+    const mergedResults: { slug: string; name: string; matchedAlias?: string }[] = nameRows.map((row) => ({
+      slug: row.slug,
+      name: row.name,
+    }));
+
+    for (const row of aliasRows) {
+      if (!slugSet.has(row.slug)) {
+        slugSet.add(row.slug);
+        mergedResults.push({
+          slug: row.slug,
+          name: row.name,
+          matchedAlias: row.aliasName,
+        });
+      }
+    }
+
+    return mergedResults.slice(0, 10);
   }
 
   /**
