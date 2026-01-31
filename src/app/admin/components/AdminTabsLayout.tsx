@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { createAuthClient } from "better-auth/react";
 import type { ClientOptions } from "better-auth/types";
 import { Bounce, ToastContainer } from "react-toastify";
-import { Video, User, Users, LogOut } from "lucide-react";
+import { Video, Component, UserRound, LogOut } from "lucide-react";
 import "react-toastify/dist/ReactToastify.css";
 import styles from "../adminTheme.module.scss";
 
@@ -16,8 +16,8 @@ type AdminTabsLayoutProps = {
 
 const TAB_ITEMS = [
   { key: "videos", icon: Video, label: "動画", href: "/admin/videos" },
-  { key: "channels", icon: User, label: "チャンネル", href: "/admin/channels" },
-  { key: "comedians", icon: Users, label: "芸人", href: "/admin/comedians" },
+  { key: "channels", icon: Component, label: "チャンネル", href: "/admin/channels" },
+  { key: "comedians", icon: UserRound, label: "芸人", href: "/admin/comedians" },
 ] as const;
 
 export function AdminTabsLayout({ activeTab, children }: AdminTabsLayoutProps) {

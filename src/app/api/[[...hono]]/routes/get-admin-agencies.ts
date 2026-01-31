@@ -1,7 +1,8 @@
 import { type Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { sql, desc } from "drizzle-orm";
 import { createDatabase } from "../context";
-import { agencies } from "@/lib/schema";
+import { agencies, artists } from "@/lib/schema";
 
 export function registerGetAdminAgencies<
   E extends import("hono").Env,
@@ -13,14 +14,18 @@ export function registerGetAdminAgencies<
     const db = createDatabase(env);
 
     try {
+      // 芸人数が多い順にソートします。
       const results = await db
         .select({
           id: agencies.id,
           name: agencies.name,
           displayOrder: agencies.displayOrder,
+          comedianCount: sql<number>`count(${artists.id})`.as("comedian_count"),
         })
         .from(agencies)
-        .orderBy(agencies.displayOrder);
+        .leftJoin(artists, sql`${agencies.id} = ${artists.agencyId}`)
+        .groupBy(agencies.id)
+        .orderBy(desc(sql`comedian_count`));
 
       return c.json({
         agencies: results,

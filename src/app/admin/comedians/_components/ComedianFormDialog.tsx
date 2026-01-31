@@ -482,9 +482,14 @@ export function ComedianFormDialog({
               <select
                 id="startedOn"
                 value={formData.startedOn}
-                onChange={(e) =>
-                  setFormData({ ...formData, startedOn: e.target.value })
-                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "9999") {
+                    setFormData({ ...formData, startedOn: value, agencyId: "other" });
+                  } else {
+                    setFormData({ ...formData, startedOn: value });
+                  }
+                }}
                 className={styles.input}
               >
                 <option value="">選択してください</option>
