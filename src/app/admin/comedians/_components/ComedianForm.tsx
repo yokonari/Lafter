@@ -1,17 +1,26 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "react-toastify";
-import { X } from "lucide-react";
-import type { ComedianRow } from "../ComedianAdminSection";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 import { ChannelSelector, type SelectedChannel } from "./ChannelSelector";
 import { AliasSelector, type ArtistAlias } from "./AliasSelector";
 import styles from "../../adminTheme.module.scss";
 
-type ComedianFormDialogProps = {
-  comedian: ComedianRow | null;
-  onSuccess: () => void;
-  onClose: () => void;
+export type ComedianFormData = {
+  id?: number;
+  name: string;
+  slug: string;
+  kana: string | null;
+  startedOn: string | null;
+  agencyId: string;
+  styles: string[];
+};
+
+type ComedianFormProps = {
+  comedian: ComedianFormData | null;
 };
 
 type FormData = {
@@ -36,11 +45,8 @@ type StyleOption = {
   name: string;
 };
 
-export function ComedianFormDialog({
-  comedian,
-  onSuccess,
-  onClose,
-}: ComedianFormDialogProps) {
+export function ComedianForm({ comedian }: ComedianFormProps) {
+  const router = useRouter();
   const isEdit = Boolean(comedian);
   const [formData, setFormData] = useState<FormData>({
     name: comedian?.name || "",
@@ -109,7 +115,7 @@ export function ComedianFormDialog({
 
   // 編集時にチャンネル情報を取得
   useEffect(() => {
-    if (comedian) {
+    if (comedian?.id) {
       const comedianId = comedian.id;
       async function fetchComedianDetails() {
         try {
@@ -180,7 +186,7 @@ export function ComedianFormDialog({
 
       fetchComedianDetails();
     }
-  }, [comedian]);
+  }, [comedian?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,7 +207,7 @@ export function ComedianFormDialog({
       return;
     }
 
-    if (isEdit && !comedian) {
+    if (isEdit && !comedian?.id) {
       toast.error("芸人情報が見つかりません。");
       return;
     }
@@ -261,7 +267,8 @@ export function ComedianFormDialog({
       }
 
       toast.success(isEdit ? "芸人を更新しました。" : "芸人を作成しました。");
-      onSuccess();
+      router.push("/admin/comedians");
+      router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "エラーが発生しました。");
       setIsSubmitting(false);
@@ -401,239 +408,232 @@ export function ComedianFormDialog({
   };
 
   return (
-    <div className={styles.dialogOverlay} onClick={onClose}>
-      <div
-        className={`${styles.dialog} ${styles.dialogLarge}`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={styles.dialogHeader}>
-          <h2 className={styles.dialogTitle}>
-            {isEdit ? "芸人を編集" : "芸人を追加"}
-          </h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className={styles.dialogCloseButton}
-            aria-label="閉じる"
+    <div className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+          <Link
+            href="/admin/comedians"
+            className={styles.secondaryButton}
+            style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}
           >
-            <X size={24} />
-          </button>
+            <ArrowLeft size={18} />
+            戻る
+          </Link>
+          <h1 className={styles.sectionTitle}>
+            {isEdit ? "芸人を編集" : "芸人を追加"}
+          </h1>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className={styles.dialogBody}>
-            <div className={styles.formGroup}>
-              <label htmlFor="name" className={styles.label}>
-                芸人名<span className={styles.required}>*</span>
-              </label>
-              <input
-                id="name"
-                type="text"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
+      <form onSubmit={handleSubmit}>
+        <div className={styles.tableContainer} style={{ padding: "1.5rem" }}>
+          <div className={styles.formGroup}>
+            <label htmlFor="name" className={styles.label}>
+              芸人名<span className={styles.required}>*</span>
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              className={styles.input}
+              required
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="slug" className={styles.label}>
+              スラッグ<span className={styles.required}>*</span>
+            </label>
+            <input
+              id="slug"
+              type="text"
+              value={formData.slug}
+              onChange={(e) =>
+                setFormData({ ...formData, slug: e.target.value.toLowerCase() })
+              }
+              onBlur={handleSlugBlur}
+              className={styles.input}
+              placeholder="例: jarujaru"
+              required
+            />
+            {slugError && (
+              <p className={styles.errorText}>{slugError}</p>
+            )}
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="kana" className={styles.label}>
+              読み仮名
+            </label>
+            <input
+              id="kana"
+              type="text"
+              value={formData.kana}
+              onChange={(e) =>
+                setFormData({ ...formData, kana: e.target.value })
+              }
+              className={styles.input}
+              placeholder="例: じゃるじゃる"
+            />
+          </div>
+
+          <div className={styles.formGroup}>
+            <label htmlFor="startedOn" className={styles.label}>
+              活動開始年
+            </label>
+            <select
+              id="startedOn"
+              value={formData.startedOn}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === "9999") {
+                  setFormData({ ...formData, startedOn: value, agencyId: "other" });
+                } else {
+                  setFormData({ ...formData, startedOn: value });
                 }
-                className={styles.input}
-                required
-              />
+              }}
+              className={styles.input}
+            >
+              <option value="">選択してください</option>
+              <option value="9999">解散</option>
+              {(() => {
+                // 1980年から今年までの年を表示します。
+                const currentYear = new Date().getFullYear();
+                const years: number[] = [];
+                for (let year = currentYear; year >= 1980; year -= 1) {
+                  years.push(year);
+                }
+                return years.map((year) => (
+                  <option key={year} value={String(year)}>
+                    {year}
+                  </option>
+                ));
+              })()}
+            </select>
+          </div>
+
+          <div className={styles.formGroup}>
+            <div className={styles.labelRow}>
+              <label htmlFor="agencyId" className={styles.label}>
+                事務所<span className={styles.required}>*</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleOpenAgencyDialog}
+                className={styles.secondaryButton}
+              >
+                追加
+              </button>
             </div>
+            <select
+              id="agencyId"
+              value={formData.agencyId}
+              onChange={(e) =>
+                setFormData({ ...formData, agencyId: e.target.value })
+              }
+              className={styles.input}
+              required
+            >
+              <option value="">選択してください</option>
+              {agencies.map((agency) => (
+                <option key={agency.id} value={agency.id}>
+                  {agency.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="slug" className={styles.label}>
-                スラッグ<span className={styles.required}>*</span>
-              </label>
-              <input
-                id="slug"
-                type="text"
-                value={formData.slug}
-                onChange={(e) =>
-                  setFormData({ ...formData, slug: e.target.value.toLowerCase() })
-                }
-                onBlur={handleSlugBlur}
-                className={styles.input}
-                placeholder="例: jarujaru"
-                required
-              />
-              {slugError && (
-                <p className={styles.errorText}>{slugError}</p>
+          <div className={styles.formGroup}>
+            <div className={styles.labelRow}>
+              <label className={styles.label}>芸風（最大5つ）</label>
+              <button
+                type="button"
+                onClick={handleOpenStyleDialog}
+                className={styles.secondaryButton}
+              >
+                追加
+              </button>
+            </div>
+            <div className={styles.checkboxGroup}>
+              {styleOptions.length === 0 ? (
+                <p className={styles.statusText}>芸風が登録されていません。</p>
+              ) : (
+                styleOptions.map((style) => (
+                  <label key={style.id} className={styles.checkboxLabel}>
+                    <input
+                      type="checkbox"
+                      checked={formData.styles.includes(style.id)}
+                      onChange={() => handleStyleToggle(style.id)}
+                    />
+                    <span>{style.name}</span>
+                  </label>
+                ))
               )}
             </div>
-
-            <div className={styles.formGroup}>
-              <label htmlFor="kana" className={styles.label}>
-                読み仮名
-              </label>
-              <input
-                id="kana"
-                type="text"
-                value={formData.kana}
-                onChange={(e) =>
-                  setFormData({ ...formData, kana: e.target.value })
-                }
-                className={styles.input}
-                placeholder="例: じゃるじゃる"
-              />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label htmlFor="startedOn" className={styles.label}>
-                活動開始年
-              </label>
-              <select
-                id="startedOn"
-                value={formData.startedOn}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (value === "9999") {
-                    setFormData({ ...formData, startedOn: value, agencyId: "other" });
-                  } else {
-                    setFormData({ ...formData, startedOn: value });
-                  }
-                }}
-                className={styles.input}
-              >
-                <option value="">選択してください</option>
-                <option value="9999">解散</option>
-                {(() => {
-                  // 1980年から今年までの年を表示します。
-                  const currentYear = new Date().getFullYear();
-                  const years: number[] = [];
-                  for (let year = currentYear; year >= 1980; year -= 1) {
-                    years.push(year);
-                  }
-                  return years.map((year) => (
-                    <option key={year} value={String(year)}>
-                      {year}
-                    </option>
-                  ));
-                })()}
-              </select>
-            </div>
-
-            <div className={styles.formGroup}>
-              <div className={styles.labelRow}>
-                <label htmlFor="agencyId" className={styles.label}>
-                  事務所<span className={styles.required}>*</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={handleOpenAgencyDialog}
-                  className={styles.secondaryButton}
-                >
-                  追加
-                </button>
-              </div>
-              <select
-                id="agencyId"
-                value={formData.agencyId}
-                onChange={(e) =>
-                  setFormData({ ...formData, agencyId: e.target.value })
-                }
-                className={styles.input}
-                required
-              >
-                <option value="">選択してください</option>
-                {agencies.map((agency) => (
-                  <option key={agency.id} value={agency.id}>
-                    {agency.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className={styles.formGroup}>
-              <div className={styles.labelRow}>
-                <label className={styles.label}>芸風（最大5つ）</label>
-                <button
-                  type="button"
-                  onClick={handleOpenStyleDialog}
-                  className={styles.secondaryButton}
-                >
-                  追加
-                </button>
-              </div>
-              <div className={styles.checkboxGroup}>
-                {styleOptions.length === 0 ? (
-                  <p className={styles.statusText}>芸風が登録されていません。</p>
-                ) : (
-                  styleOptions.map((style) => (
-                    <label key={style.id} className={styles.checkboxLabel}>
-                      <input
-                        type="checkbox"
-                        checked={formData.styles.includes(style.id)}
-                        onChange={() => handleStyleToggle(style.id)}
-                      />
-                      <span>{style.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-            </div>
-
-            <ChannelSelector
-              selectedChannels={formData.channels}
-              onChange={(channels) =>
-                setFormData({ ...formData, channels })
-              }
-            />
-
-            <AliasSelector
-              selectedAliases={formData.aliases}
-              onChange={(aliases) =>
-                setFormData({ ...formData, aliases })
-              }
-            />
-
-            <div className={styles.formGroup}>
-              <label htmlFor="description" className={styles.label}>
-                説明
-              </label>
-              <textarea
-                id="description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                className={styles.textarea}
-                rows={3}
-                maxLength={500}
-              />
-            </div>
           </div>
 
-          <div className={styles.dialogFooter}>
-            <button
-              type="button"
-              onClick={onClose}
-              className={styles.secondaryButton}
-              disabled={isSubmitting}
-            >
-              キャンセル
-            </button>
-            <button
-              type="submit"
-              className={styles.primaryButton}
-              disabled={isSubmitting}
-            >
-              {isSubmitting
-                ? isEdit
-                  ? "更新中..."
-                  : "作成中..."
-                : isEdit
-                ? "更新"
-                : "作成"}
-            </button>
+          <ChannelSelector
+            selectedChannels={formData.channels}
+            onChange={(channels) =>
+              setFormData({ ...formData, channels })
+            }
+          />
+
+          <AliasSelector
+            selectedAliases={formData.aliases}
+            onChange={(aliases) =>
+              setFormData({ ...formData, aliases })
+            }
+          />
+
+          <div className={styles.formGroup}>
+            <label htmlFor="description" className={styles.label}>
+              説明
+            </label>
+            <textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
+              className={styles.textarea}
+              rows={3}
+              maxLength={500}
+            />
           </div>
-        </form>
-      </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
+          <Link
+            href="/admin/comedians"
+            className={styles.secondaryButton}
+            style={{ textDecoration: "none" }}
+          >
+            キャンセル
+          </Link>
+          <button
+            type="submit"
+            className={styles.primaryButton}
+            disabled={isSubmitting}
+          >
+            {isSubmitting
+              ? isEdit
+                ? "更新中..."
+                : "作成中..."
+              : isEdit
+              ? "更新"
+              : "作成"}
+          </button>
+        </div>
+      </form>
+
       {isAgencyDialogOpen && (
         <div
           className={styles.dialogOverlay}
-          onClick={(e) => {
-            // 背景クリック時は親ダイアログを閉じずに事務所追加だけ閉じます。
-            e.stopPropagation();
-            setIsAgencyDialogOpen(false);
-          }}
+          onClick={() => setIsAgencyDialogOpen(false)}
         >
           <div
             className={styles.dialog}
@@ -647,7 +647,7 @@ export function ComedianFormDialog({
                 className={styles.dialogCloseButton}
                 aria-label="閉じる"
               >
-                <X size={24} />
+                ×
               </button>
             </div>
             <div className={styles.dialogBody}>
@@ -699,14 +699,11 @@ export function ComedianFormDialog({
           </div>
         </div>
       )}
+
       {isStyleDialogOpen && (
         <div
           className={styles.dialogOverlay}
-          onClick={(e) => {
-            // 背景クリック時は親ダイアログを閉じずに芸風追加だけ閉じます。
-            e.stopPropagation();
-            setIsStyleDialogOpen(false);
-          }}
+          onClick={() => setIsStyleDialogOpen(false)}
         >
           <div
             className={styles.dialog}
@@ -720,7 +717,7 @@ export function ComedianFormDialog({
                 className={styles.dialogCloseButton}
                 aria-label="閉じる"
               >
-                <X size={24} />
+                ×
               </button>
             </div>
             <div className={styles.dialogBody}>

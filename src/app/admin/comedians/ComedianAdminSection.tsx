@@ -2,9 +2,8 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "react-toastify";
+import Link from "next/link";
 import { ComedianList } from "./_components/ComedianList";
-import { ComedianFormDialog } from "./_components/ComedianFormDialog";
 import { ComedianDeleteDialog } from "./_components/ComedianDeleteDialog";
 import { AgencyChannelDialog } from "./_components/AgencyChannelDialog";
 import { MediaChannelDialog } from "./_components/MediaChannelDialog";
@@ -64,9 +63,7 @@ export function ComedianAdminSection({
   });
   const [searchMode, setSearchMode] = useState(false);
   const [currentTotalCount, setCurrentTotalCount] = useState(totalCount);
-  const [isFormDialogOpen, setIsFormDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [editingComedian, setEditingComedian] = useState<ComedianRow | null>(null);
   const [deletingComedian, setDeletingComedian] = useState<ComedianRow | null>(null);
   // 事務所チャンネル管理ダイアログの表示状態を保持します。
   const [isAgencyChannelDialogOpen, setIsAgencyChannelDialogOpen] = useState(false);
@@ -89,25 +86,9 @@ export function ComedianAdminSection({
     setCurrentTotalCount(totalCount);
   }, [initialComedians, currentPage, hasPrev, hasNext, prevHref, nextHref, totalCount]);
 
-  const handleAddClick = () => {
-    setEditingComedian(null);
-    setIsFormDialogOpen(true);
-  };
-
-  const handleEditClick = (comedian: ComedianRow) => {
-    setEditingComedian(comedian);
-    setIsFormDialogOpen(true);
-  };
-
   const handleDeleteClick = (comedian: ComedianRow) => {
     setDeletingComedian(comedian);
     setIsDeleteDialogOpen(true);
-  };
-
-  const handleFormSuccess = () => {
-    setIsFormDialogOpen(false);
-    setEditingComedian(null);
-    router.refresh();
   };
 
   const handleDeleteSuccess = () => {
@@ -199,13 +180,13 @@ export function ComedianAdminSection({
         <h1 className={styles.sectionTitle}>芸人管理</h1>
         <div className={styles.sectionHeaderActions}>
           {/* 操作ボタンを右側でまとめて表示します。 */}
-          <button
-            type="button"
-            onClick={handleAddClick}
+          <Link
+            href="/admin/comedians/new"
             className={styles.primaryButton}
+            style={{ textDecoration: "none" }}
           >
             芸人追加
-          </button>
+          </Link>
           <button
             type="button"
             onClick={() => setIsAgencyChannelDialogOpen(true)}
@@ -227,7 +208,7 @@ export function ComedianAdminSection({
 
       <ComedianList
         comedians={comedians}
-        onEdit={handleEditClick}
+        onEdit={(comedian) => router.push(`/admin/comedians/${comedian.id}/edit`)}
         onDelete={handleDeleteClick}
         currentPage={pagination.currentPage}
         hasPrev={!searchMode && pagination.hasPrev}
@@ -235,17 +216,6 @@ export function ComedianAdminSection({
         prevHref={pagination.prevHref}
         nextHref={pagination.nextHref}
       />
-
-      {isFormDialogOpen && (
-        <ComedianFormDialog
-          comedian={editingComedian}
-          onSuccess={handleFormSuccess}
-          onClose={() => {
-            setIsFormDialogOpen(false);
-            setEditingComedian(null);
-          }}
-        />
-      )}
 
       {isDeleteDialogOpen && deletingComedian && (
         <ComedianDeleteDialog
