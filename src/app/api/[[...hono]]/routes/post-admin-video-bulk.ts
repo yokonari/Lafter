@@ -9,6 +9,7 @@ import type { AdminEnv } from "../types";
 type BulkItem = {
   id?: unknown;
   video_status?: unknown;
+  report_status?: unknown;
 };
 
 type BulkRequestBody = {
@@ -73,6 +74,15 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
         return fail(`${path}.video_status には 0〜4 の整数を指定してください。`);
       }
       videoUpdates.status = videoStatus;
+
+      // 報告ステータスの更新処理。指定があれば 0〜3 の範囲でバリデーションし、更新対象に含めます。
+      const reportStatus = normalizeInt(item.report_status);
+      if (reportStatus !== undefined) {
+        if (![0, 1, 2, 3].includes(reportStatus)) {
+          return fail(`${path}.report_status には 0〜3 の整数を指定してください。`);
+        }
+        videoUpdates.reportStatus = reportStatus;
+      }
 
       // ステータスを 1 または 2 に変更する場合、few-shot 更新対象としてチャンネルを記録します。
       if ((videoStatus === 1 || videoStatus === 2) && videoRow.channelId) {

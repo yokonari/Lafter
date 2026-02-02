@@ -47,17 +47,27 @@ type AdminVideosResponse = {
 
 type SelectionDefaults = {
     videoStatus: string;
+    reportStatus?: string;
     selected?: boolean;
 };
 
 type VideoSelection = {
     selected: boolean;
     videoStatus: string;
+    reportStatus: string;
 };
 
 const VIDEO_STATUS_OPTIONS = [
     { value: "1", label: "OK" as const },
     { value: "2", label: "NG" as const },
+];
+
+// 報告ステータス変更用の選択肢。0 = 報告なし（削除）として丁寧に提供します。
+const REPORT_STATUS_OPTIONS = [
+    { value: "0", label: "報告なし" },
+    { value: "1", label: "ネタ動画ではない" },
+    { value: "2", label: "公式動画ではない" },
+    { value: "3", label: "再生できない" },
 ];
 
 const REPORT_STATUS_LABELS = REPORT_REASONS.reduce<Record<number, string>>((acc, reason) => {
@@ -178,9 +188,12 @@ export default function AdminVideosPageContent() {
             const selectedDefault = defaults?.selected ?? true;
             const next: Record<string, VideoSelection> = {};
             for (const row of rows) {
+                // 報告ステータスは動画ごとの現在値を初期値として設定し、変更を検知できるようにします。
+                const reportStatusDefault = defaults?.reportStatus ?? String(row.report_status ?? 0);
                 next[row.id] = {
                     selected: selectedDefault,
                     videoStatus: statusDefault,
+                    reportStatus: reportStatusDefault,
                 };
             }
             return next;
@@ -545,6 +558,7 @@ export default function AdminVideosPageContent() {
                         {
                             selected: true,
                             videoStatus: resolveStatusValue(videoStatusFilter),
+                            reportStatus: String(video.report_status ?? 0),
                         };
                     next[video.id] = {
                         ...fallback,
@@ -565,6 +579,7 @@ export default function AdminVideosPageContent() {
                     {
                         selected: true,
                         videoStatus: resolveStatusValue(videoStatusFilter),
+                        reportStatus: String(video.report_status ?? 0),
                     };
                 return entry.selected;
             });
@@ -580,6 +595,7 @@ export default function AdminVideosPageContent() {
                         {
                             selected: true,
                             videoStatus: resolveStatusValue(videoStatusFilter),
+                            reportStatus: String(video.report_status ?? 0),
                         };
                     next[video.id] = fallback.selected
                         ? { ...fallback, videoStatus: statusValue }
@@ -590,6 +606,40 @@ export default function AdminVideosPageContent() {
         },
         [filteredVideos, selections, videoStatusFilter],
     );
+
+    // 選択済み動画の報告ステータスを一括で「報告なし」に変更するハンドラーです。
+    const handleBulkReportStatusClear = useCallback(() => {
+        const hasSelectedEntries = filteredVideos.some((video) => {
+            const entry =
+                selections[video.id] ??
+                {
+                    selected: true,
+                    videoStatus: resolveStatusValue(videoStatusFilter),
+                    reportStatus: String(video.report_status ?? 0),
+                };
+            return entry.selected;
+        });
+        if (!hasSelectedEntries) {
+            toast.info("一括変更する動画を選択してください。");
+            return;
+        }
+        setSelections((prev) => {
+            const next: Record<string, VideoSelection> = { ...prev };
+            for (const video of filteredVideos) {
+                const fallback =
+                    next[video.id] ??
+                    {
+                        selected: true,
+                        videoStatus: resolveStatusValue(videoStatusFilter),
+                        reportStatus: String(video.report_status ?? 0),
+                    };
+                next[video.id] = fallback.selected
+                    ? { ...fallback, reportStatus: "0" }
+                    : fallback;
+            }
+            return next;
+        });
+    }, [filteredVideos, selections, videoStatusFilter]);
 
     const handleShortcutSearch = useCallback(
         async (shortcut: ShortcutKey) => {
@@ -975,15 +1025,29 @@ export default function AdminVideosPageContent() {
         const items = selectedEntries
             .map(([id, entry]) => {
                 const currentStatus = Number(entry.videoStatus);
-                // 現在のリストは videoStatusFilter で絞り込まれているため、
-                // これを元のステータスとみなして差分判定を行います。
-                if (currentStatus === videoStatusFilter) {
+                const currentReportStatus = Number(entry.reportStatus);
+                // 現在の動画データから元の report_status を取得します。
+                const originalVideo = videos.find((v) => v.id === id);
+                const originalReportStatus = originalVideo?.report_status ?? 0;
+
+                // video_status と report_status の変更を判定します。
+                const videoStatusChanged = currentStatus !== videoStatusFilter;
+                const reportStatusChanged = currentReportStatus !== originalReportStatus;
+
+                // いずれかの変更がある場合のみ送信対象にします。
+                if (!videoStatusChanged && !reportStatusChanged) {
                     return null;
                 }
-                return {
+
+                const item: { id: string; video_status: number; report_status?: number } = {
                     id,
                     video_status: currentStatus,
                 };
+                // 報告ステータスに変更がある場合のみ送信データに含めます。
+                if (reportStatusChanged) {
+                    item.report_status = currentReportStatus;
+                }
+                return item;
             })
             .filter((item) => item !== null);
 
@@ -1026,6 +1090,7 @@ export default function AdminVideosPageContent() {
                     next[video.id] = {
                         ...(prev[video.id] ?? {
                             videoStatus: resolveStatusValue(videoStatusFilter),
+                            reportStatus: String(video.report_status ?? 0),
                         }),
                         selected: true,
                     };
@@ -1269,15 +1334,9 @@ export default function AdminVideosPageContent() {
                                     const entry = selections[video.id] ?? {
                                         selected: true,
                                         videoStatus: resolveStatusValue(videoStatusFilter),
+                                        reportStatus: String(video.report_status ?? 0),
                                     };
                                     const isChannelFilterActive = activeChannelFilter?.id === video.channel_id;
-                                    const reportStatusValue =
-                                        typeof video.report_status === "number" ? video.report_status : 0;
-                                    const reportStatusText = getReportStatusText(reportStatusValue);
-                                    const hasReport = reportStatusValue > 0;
-                                    const reportStatusClass = hasReport
-                                        ? "border-amber-400 text-amber-200"
-                                        : "border-slate-700 text-slate-400";
                                     return (
                                         <article key={video.id} className={styles.videoCard}>
                                             {/* サムネイルを先頭に配置し、視覚情報を最初に確認できるようにします。 */}
@@ -1335,14 +1394,34 @@ export default function AdminVideosPageContent() {
                                                 </div>
                                                 {/* タイトル直下にフォームを置き、視線移動をスムーズにします。 */}
                                                 {showStatusBadges && (
-                                                    // 報告ありフィルター時のみ報告バッジを表示し、対応動画に集中できるようにします。
-                                                    <div className="flex flex-wrap gap-2 text-xs">
-                                                        <span
-                                                            className={`${styles.cardMeta} inline-flex items-center gap-1 rounded-full border px-2 py-1 ${reportStatusClass}`}
+                                                    // 報告ありフィルター時のみ報告ステータスの変更UIを表示し、対応作業に集中できるようにします。
+                                                    <div className="flex flex-wrap items-center gap-2 text-xs">
+                                                        <label
+                                                            htmlFor={`report-status-${video.id}`}
+                                                            className="font-semibold text-slate-300"
                                                         >
-                                                            <span className="font-semibold">報告</span>
-                                                            {reportStatusText}
-                                                        </span>
+                                                            報告:
+                                                        </label>
+                                                        <select
+                                                            id={`report-status-${video.id}`}
+                                                            value={entry.reportStatus}
+                                                            onChange={(event) =>
+                                                                setSelections((prev) => ({
+                                                                    ...prev,
+                                                                    [video.id]: {
+                                                                        ...entry,
+                                                                        reportStatus: event.target.value,
+                                                                    },
+                                                                }))
+                                                            }
+                                                            className={`${styles.selectControl} min-w-[140px] text-xs`}
+                                                        >
+                                                            {REPORT_STATUS_OPTIONS.map((option) => (
+                                                                <option key={option.value} value={option.value}>
+                                                                    {option.label}
+                                                                </option>
+                                                            ))}
+                                                        </select>
                                                     </div>
                                                 )}
                                                 <div className="space-y-2">
@@ -1432,6 +1511,17 @@ export default function AdminVideosPageContent() {
                                             >
                                                 選択をNGにする
                                             </button>
+                                            {/* 報告ありフィルター時のみ、報告をクリアする一括操作ボタンを表示します。 */}
+                                            {showStatusBadges && (
+                                                <button
+                                                    type="button"
+                                                    onClick={handleBulkReportStatusClear}
+                                                    disabled={bulkStatusDisabled}
+                                                    className="rounded-full border border-amber-400/70 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    選択を報告なしにする
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 )}

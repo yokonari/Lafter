@@ -111,9 +111,9 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
         styleCounts.set(style, (styleCounts.get(style) ?? 0) + 1);
       }
     }
-    return Array.from(styleCounts.keys()).sort((a, b) => {
-      return (styleCounts.get(b) ?? 0) - (styleCounts.get(a) ?? 0);
-    });
+    return Array.from(styleCounts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([style, count]) => ({ style, count }));
   }, [artists]);
 
   const availableAgencies = useMemo(() => {
@@ -125,13 +125,15 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
       }
     }
     // 所属芸人数が多い順にソートし、「その他」は常に最後に配置します。
-    return Array.from(agencyCounts.keys()).sort((a, b) => {
-      // 「その他」を常に最後に配置
-      if (a === "other") return 1;
-      if (b === "other") return -1;
-      // それ以外は所属芸人数でソート
-      return (agencyCounts.get(b) ?? 0) - (agencyCounts.get(a) ?? 0);
-    });
+    return Array.from(agencyCounts.entries())
+      .sort((a, b) => {
+        // 「その他」を常に最後に配置
+        if (a[0] === "other") return 1;
+        if (b[0] === "other") return -1;
+        // それ以外は所属芸人数でソート
+        return b[1] - a[1];
+      })
+      .map(([agencyId, count]) => ({ agencyId, count }));
   }, [artists]);
 
   const sortedArtists = useMemo(() => {
@@ -306,9 +308,9 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
                 aria-label="芸風で絞り込み"
               >
                 <option value="all">すべての芸風</option>
-                {availableStyles.map((style) => (
+                {availableStyles.map(({ style, count }) => (
                   <option key={style} value={style}>
-                    {STYLE_LABELS[style] ?? style}
+                    {STYLE_LABELS[style] ?? style}({count})
                   </option>
                 ))}
               </select>
@@ -323,9 +325,9 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
                 aria-label="事務所で絞り込み"
               >
                 <option value="all">すべての事務所</option>
-                {availableAgencies.map((agencyId) => (
+                {availableAgencies.map(({ agencyId, count }) => (
                   <option key={agencyId} value={agencyId}>
-                    {agencyId === "other" ? "その他" : (agencyLabels[agencyId] ?? agencyId)}
+                    {agencyId === "other" ? "その他" : (agencyLabels[agencyId] ?? agencyId)}({count})
                   </option>
                 ))}
               </select>
