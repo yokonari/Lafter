@@ -5,7 +5,7 @@ import { UserHome } from "@/components/user/UserHome";
 import { getDB } from "@/lib/db";
 import { ArtistRepository } from "@/lib/repositories/artistRepository";
 import { AgencyRepository } from "@/lib/repositories/agencyRepository";
-import { STYLE_LABELS } from "@/lib/styleLabels";
+import { StyleRepository } from "@/lib/repositories/styleRepository";
 
 export const dynamic = 'force-dynamic';
 
@@ -18,16 +18,15 @@ type ArtistListItem = {
   agencyId: string;
 };
 
-// 有効な芸風IDのリスト
-const VALID_STYLES = Object.keys(STYLE_LABELS);
-
 export async function generateMetadata(
   { params }: { params: Promise<{ style: string; agency: string }> },
 ): Promise<Metadata> {
   const resolvedParams = await params;
   const db = getDB();
   const agencyRepo = new AgencyRepository(db);
+  const styleRepo = new StyleRepository(db);
   const agencyLabels = await agencyRepo.getLabels();
+  const styleLabels = await styleRepo.getLabels();
 
   // 芸風が「all」の場合は事務所名のみ、それ以外は「芸風 × 事務所名」の形式
   const agencyLabel = agencyLabels[resolvedParams.agency] ?? resolvedParams.agency;
@@ -41,7 +40,7 @@ export async function generateMetadata(
     ogHeading = `${agencyLabel}の芸人一覧`;
   } else {
     // 芸風が指定されている場合は「芸風 × 事務所名」
-    const styleLabel = STYLE_LABELS[resolvedParams.style] ?? resolvedParams.style;
+    const styleLabel = styleLabels[resolvedParams.style] ?? resolvedParams.style;
     pageTitle = `${styleLabel} × ${agencyLabel}の芸人一覧`;
     ogHeading = `${styleLabel} × ${agencyLabel}の芸人一覧`;
   }
@@ -52,7 +51,7 @@ export async function generateMetadata(
   // descriptionも芸風に応じて変更
   const description = resolvedParams.style === "all"
     ? `${agencyLabel}所属の芸人一覧ページです。`
-    : `${STYLE_LABELS[resolvedParams.style] ?? resolvedParams.style}を得意とする${agencyLabel}所属の芸人一覧ページです。`;
+    : `${styleLabels[resolvedParams.style] ?? resolvedParams.style}を得意とする${agencyLabel}所属の芸人一覧ページです。`;
 
   return {
     title,
@@ -82,22 +81,25 @@ type PageProps = {
 export default async function ComedianStyleAgencyFilterPage({ params, searchParams }: PageProps) {
   const resolvedParams = await params;
 
-  // 有効な芸風IDかチェック（"all"も許可）
-  if (resolvedParams.style !== "all" && !VALID_STYLES.includes(resolvedParams.style)) {
-    notFound();
-  }
-
   const db = getDB();
   const artistRepo = new ArtistRepository(db);
   const agencyRepo = new AgencyRepository(db);
+  const styleRepo = new StyleRepository(db);
 
-  const artists = await artistRepo.getAllWithAgency();
+  const styleLabels = await styleRepo.getLabels();
   const agencyLabels = await agencyRepo.getLabels();
+
+  // 有効な芸風IDかチェック（"all"も許可）
+  if (resolvedParams.style !== "all" && !Object.keys(styleLabels).includes(resolvedParams.style)) {
+    notFound();
+  }
 
   // 事務所IDが有効かチェック
   if (!Object.keys(agencyLabels).includes(resolvedParams.agency)) {
     notFound();
   }
+
+  const artists = await artistRepo.getAllWithAgency();
 
   const items: ArtistListItem[] = artists.map((artist) => ({
     slug: artist.slug,
@@ -118,6 +120,7 @@ export default async function ComedianStyleAgencyFilterPage({ params, searchPara
       <UserHome
         initialComedianList={items}
         agencyLabels={agencyLabels}
+        styleLabels={styleLabels}
         initialStyleFilter={resolvedParams.style === "all" ? undefined : resolvedParams.style}
         initialAgencyFilter={resolvedParams.agency}
         initialCareerSort={initialCareerSort}

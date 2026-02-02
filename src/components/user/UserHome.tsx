@@ -50,6 +50,7 @@ type UserHomeProps = {
   agencyChannelIds?: string[];
   mediaChannelIds?: string[];
   agencyLabels?: Record<string, string>;
+  styleLabels?: Record<string, string>;
   initialStyleFilter?: string;
   initialAgencyFilter?: string;
   initialCareerSort?: "long" | "short" | "name";
@@ -68,11 +69,13 @@ export function UserHome({
   agencyChannelIds: agencyChannelIdsProp,
   mediaChannelIds: mediaChannelIdsProp,
   agencyLabels: agencyLabelsProp,
+  styleLabels: styleLabelsProp,
   initialStyleFilter,
   initialAgencyFilter,
   initialCareerSort,
 }: UserHomeProps = {}) {
   const agencyLabels = agencyLabelsProp ?? {};
+  const styleLabels = styleLabelsProp ?? {};
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -366,6 +369,7 @@ export function UserHome({
     <ComedianIndexContent
       artists={initialComedianList ?? []}
       agencyLabels={agencyLabels}
+      styleLabels={styleLabels}
       onBackToTop={handleReset}
       initialStyleFilter={initialStyleFilter}
       initialAgencyFilter={initialAgencyFilter}

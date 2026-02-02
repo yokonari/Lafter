@@ -4,6 +4,7 @@ import { UserHome } from "@/components/user/UserHome";
 import { getDB } from "@/lib/db";
 import { ArtistRepository } from "@/lib/repositories/artistRepository";
 import { AgencyRepository } from "@/lib/repositories/agencyRepository";
+import { StyleRepository } from "@/lib/repositories/styleRepository";
 
 export const dynamic = 'force-dynamic';
 
@@ -44,13 +45,15 @@ type PageProps = {
 };
 
 export default async function ComedianIndexPage({ searchParams }: PageProps) {
-  // データベースから全芸人と事務所ラベルを取得します。
+  // データベースから全芸人と事務所・芸風ラベルを取得します。
   const db = getDB();
   const artistRepo = new ArtistRepository(db);
   const agencyRepo = new AgencyRepository(db);
+  const styleRepo = new StyleRepository(db);
 
   const artists = await artistRepo.getAllWithAgency();
   const agencyLabels = await agencyRepo.getLabels();
+  const styleLabels = await styleRepo.getLabels();
 
   // slug と表示名、読み仮名、事務所IDを抽出して一覧に渡します。
   const items: ArtistListItem[] = artists.map((artist) => ({
@@ -72,6 +75,7 @@ export default async function ComedianIndexPage({ searchParams }: PageProps) {
       <UserHome
         initialComedianList={items}
         agencyLabels={agencyLabels}
+        styleLabels={styleLabels}
         initialCareerSort={initialCareerSort}
       />
     </Suspense>

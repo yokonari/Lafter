@@ -6,12 +6,12 @@ import { useRouter } from "next/navigation";
 import { Activity, Link as LinkIcon } from "lucide-react";
 import { BackToTopLink } from "./BackToTopLink";
 import { XShareButton } from "./XShareButton";
-import { STYLE_LABELS } from "@/lib/styleLabels";
 import styles from "./userTheme.module.scss";
 
 type ComedianIndexContentProps = {
   artists: { slug: string; name: string; kana?: string; startedOn?: string; styles?: string[]; agencyId: string }[];
   agencyLabels: Record<string, string>;
+  styleLabels: Record<string, string>;
   onBackToTop: () => void;
   initialStyleFilter?: string;
   initialAgencyFilter?: string;
@@ -57,7 +57,7 @@ function getCareerGroup(careerYears: number): string {
   return `${start}〜${end}年`;
 }
 
-export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initialStyleFilter, initialAgencyFilter, initialCareerSort }: ComedianIndexContentProps) {
+export function ComedianIndexContent({ artists, agencyLabels, styleLabels, onBackToTop, initialStyleFilter, initialAgencyFilter, initialCareerSort }: ComedianIndexContentProps) {
   const router = useRouter();
   const [careerSort, setCareerSort] = useState<"long" | "short" | "name">(initialCareerSort || "long");
   const [styleFilter, setStyleFilter] = useState<string>(initialStyleFilter || "all");
@@ -90,7 +90,7 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
     const parts: string[] = [];
 
     if (styleFilter !== "all") {
-      parts.push(STYLE_LABELS[styleFilter] ?? styleFilter);
+      parts.push(styleLabels[styleFilter] ?? styleFilter);
     }
     if (agencyFilter !== "all") {
       parts.push(agencyFilter === "other" ? "その他" : (agencyLabels[agencyFilter] ?? agencyFilter));
@@ -249,7 +249,7 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
     const parts: string[] = [];
     // 芸風が「all」でない場合のみ追加
     if (styleFilter !== "all") {
-      parts.push(STYLE_LABELS[styleFilter] ?? styleFilter);
+      parts.push(styleLabels[styleFilter] ?? styleFilter);
     }
     // 事務所が「all」でない場合のみ追加
     if (agencyFilter !== "all") {
@@ -310,7 +310,7 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
                 <option value="all">すべての芸風</option>
                 {availableStyles.map(({ style, count }) => (
                   <option key={style} value={style}>
-                    {STYLE_LABELS[style] ?? style}({count})
+                    {styleLabels[style] ?? style}({count})
                   </option>
                 ))}
               </select>
@@ -383,7 +383,7 @@ export function ComedianIndexContent({ artists, agencyLabels, onBackToTop, initi
                                 key={style}
                                 className={`${styles.comedianStyleTag} ${styles[`styleTag_${style}`] ?? ""}`}
                               >
-                                {STYLE_LABELS[style] ?? style}
+                                {styleLabels[style] ?? style}
                               </span>
                             ))}
                           </span>
