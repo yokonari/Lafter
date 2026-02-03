@@ -51,6 +51,7 @@ type UserHomeProps = {
   mediaChannelIds?: string[];
   agencyLabels?: Record<string, string>;
   styleLabels?: Record<string, string>;
+  styleColors?: Record<string, string | null>;
   initialStyleFilter?: string;
   initialAgencyFilter?: string;
   initialCareerSort?: "long" | "short" | "name";
@@ -70,12 +71,14 @@ export function UserHome({
   mediaChannelIds: mediaChannelIdsProp,
   agencyLabels: agencyLabelsProp,
   styleLabels: styleLabelsProp,
+  styleColors: styleColorsProp,
   initialStyleFilter,
   initialAgencyFilter,
   initialCareerSort,
 }: UserHomeProps = {}) {
   const agencyLabels = agencyLabelsProp ?? {};
   const styleLabels = styleLabelsProp ?? {};
+  const styleColors = styleColorsProp ?? {};
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -370,6 +373,7 @@ export function UserHome({
       artists={initialComedianList ?? []}
       agencyLabels={agencyLabels}
       styleLabels={styleLabels}
+      styleColors={styleColors}
       onBackToTop={handleReset}
       initialStyleFilter={initialStyleFilter}
       initialAgencyFilter={initialAgencyFilter}

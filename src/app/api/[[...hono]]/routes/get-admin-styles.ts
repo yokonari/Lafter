@@ -17,6 +17,7 @@ export function registerGetAdminStyles<
         .select({
           id: styles.id,
           name: styles.name,
+          color: styles.color,
           displayOrder: styles.displayOrder,
         })
         .from(styles)

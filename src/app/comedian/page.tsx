@@ -54,6 +54,7 @@ export default async function ComedianIndexPage({ searchParams }: PageProps) {
   const artists = await artistRepo.getAllWithAgency();
   const agencyLabels = await agencyRepo.getLabels();
   const styleLabels = await styleRepo.getLabels();
+  const styleColors = await styleRepo.getColors();
 
   // slug と表示名、読み仮名、事務所IDを抽出して一覧に渡します。
   const items: ArtistListItem[] = artists.map((artist) => ({
@@ -76,6 +77,7 @@ export default async function ComedianIndexPage({ searchParams }: PageProps) {
         initialComedianList={items}
         agencyLabels={agencyLabels}
         styleLabels={styleLabels}
+        styleColors={styleColors}
         initialCareerSort={initialCareerSort}
       />
     </Suspense>

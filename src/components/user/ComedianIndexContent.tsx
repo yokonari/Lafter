@@ -12,6 +12,7 @@ type ComedianIndexContentProps = {
   artists: { slug: string; name: string; kana?: string; startedOn?: string; styles?: string[]; agencyId: string }[];
   agencyLabels: Record<string, string>;
   styleLabels: Record<string, string>;
+  styleColors: Record<string, string | null>;
   onBackToTop: () => void;
   initialStyleFilter?: string;
   initialAgencyFilter?: string;
@@ -57,7 +58,7 @@ function getCareerGroup(careerYears: number): string {
   return `${start}〜${end}年`;
 }
 
-export function ComedianIndexContent({ artists, agencyLabels, styleLabels, onBackToTop, initialStyleFilter, initialAgencyFilter, initialCareerSort }: ComedianIndexContentProps) {
+export function ComedianIndexContent({ artists, agencyLabels, styleLabels, styleColors, onBackToTop, initialStyleFilter, initialAgencyFilter, initialCareerSort }: ComedianIndexContentProps) {
   const router = useRouter();
   const [careerSort, setCareerSort] = useState<"long" | "short" | "name">(initialCareerSort || "long");
   const [styleFilter, setStyleFilter] = useState<string>(initialStyleFilter || "all");
@@ -381,7 +382,8 @@ export function ComedianIndexContent({ artists, agencyLabels, styleLabels, onBac
                             {artist.styles.map((style) => (
                               <span
                                 key={style}
-                                className={`${styles.comedianStyleTag} ${styles[`styleTag_${style}`] ?? ""}`}
+                                className={styles.comedianStyleTag}
+                                style={styleColors[style] ? { color: styleColors[style] } : undefined}
                               >
                                 {styleLabels[style] ?? style}
                               </span>

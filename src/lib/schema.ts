@@ -306,6 +306,8 @@ export const styles = sqliteTable(
     id: text("id").primaryKey(),
     // 芸風の表示名（例：漫才、コント、モノマネ）
     name: text("name").notNull(),
+    // タグの背景色（HEX形式、例：#3b82f6）
+    color: text("color"),
     // 表示順序（フィルタUIでの並び順）
     displayOrder: integer("display_order").notNull().default(999),
 

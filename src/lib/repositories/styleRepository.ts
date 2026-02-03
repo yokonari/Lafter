@@ -27,4 +27,18 @@ export class StyleRepository {
 
     return labels;
   }
+
+  /**
+   * 芸風ID→色のマッピングを取得
+   */
+  async getColors(): Promise<Record<string, string | null>> {
+    const allStyles = await this.getAll();
+    const colors: Record<string, string | null> = {};
+
+    for (const style of allStyles) {
+      colors[style.id] = style.color;
+    }
+
+    return colors;
+  }
 }

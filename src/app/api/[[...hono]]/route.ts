@@ -26,6 +26,8 @@ import { registerGetAdminAgencyChannels } from "./routes/get-admin-agency-channe
 import { registerPatchAdminAgencyChannels } from "./routes/patch-admin-agency-channels";
 import { registerGetAdminStyles } from "./routes/get-admin-styles";
 import { registerPostAdminStyle } from "./routes/post-admin-style";
+import { registerPatchAdminStyle } from "./routes/patch-admin-style";
+import { registerDeleteAdminStyle } from "./routes/delete-admin-style";
 import { registerGetAdminMediaChannels } from "./routes/get-admin-media-channels";
 import { registerPatchAdminMediaChannels } from "./routes/patch-admin-media-channels";
 import { registerGetArtistsSearch } from "./routes/get-artists-search";
@@ -68,9 +70,11 @@ registerPostAdminAgency(app);
 // 事務所チャンネルの取得・更新APIを登録します。
 registerGetAdminAgencyChannels(app);
 registerPatchAdminAgencyChannels(app);
-// 芸風の取得・追加APIを登録します。
+// 芸風の取得・追加・更新・削除APIを登録します。
 registerGetAdminStyles(app);
 registerPostAdminStyle(app);
+registerPatchAdminStyle(app);
+registerDeleteAdminStyle(app);
 // メディアチャンネルの取得・更新APIを登録します。
 registerGetAdminMediaChannels(app);
 registerPatchAdminMediaChannels(app);

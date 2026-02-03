@@ -7,6 +7,7 @@ import { ComedianList } from "./_components/ComedianList";
 import { ComedianDeleteDialog } from "./_components/ComedianDeleteDialog";
 import { AgencyChannelDialog } from "./_components/AgencyChannelDialog";
 import { MediaChannelDialog } from "./_components/MediaChannelDialog";
+import { StyleDialog } from "./_components/StyleDialog";
 import { SearchForm } from "../components/SearchForm";
 import styles from "../adminTheme.module.scss";
 import { useAdminToast } from "../hooks/useAdminToast";
@@ -69,6 +70,8 @@ export function ComedianAdminSection({
   const [isAgencyChannelDialogOpen, setIsAgencyChannelDialogOpen] = useState(false);
   // メディアチャンネル管理ダイアログの表示状態を保持します。
   const [isMediaChannelDialogOpen, setIsMediaChannelDialogOpen] = useState(false);
+  // 芸風管理ダイアログの表示状態を保持します。
+  const [isStyleDialogOpen, setIsStyleDialogOpen] = useState(false);
 
   useAdminToast();
 
@@ -201,6 +204,13 @@ export function ComedianAdminSection({
           >
             メディアチャンネル追加
           </button>
+          <button
+            type="button"
+            onClick={() => setIsStyleDialogOpen(true)}
+            className={styles.secondaryButton}
+          >
+            芸風管理
+          </button>
         </div>
       </div>
 
@@ -237,6 +247,12 @@ export function ComedianAdminSection({
         // メディアチャンネルの確認・編集ダイアログを表示します。
         <MediaChannelDialog
           onClose={() => setIsMediaChannelDialogOpen(false)}
+        />
+      )}
+      {isStyleDialogOpen && (
+        // 芸風の確認・編集ダイアログを表示します。
+        <StyleDialog
+          onClose={() => setIsStyleDialogOpen(false)}
         />
       )}
     </div>

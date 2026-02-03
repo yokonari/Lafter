@@ -63,6 +63,7 @@ export default async function ComedianStyleFilterPage({ params, searchParams }: 
   const styleRepo = new StyleRepository(db);
 
   const styleLabels = await styleRepo.getLabels();
+  const styleColors = await styleRepo.getColors();
 
   // 有効な芸風IDかチェック（"all"は全件表示用に許可）
   if (resolvedParams.style !== "all" && !Object.keys(styleLabels).includes(resolvedParams.style)) {
@@ -92,6 +93,7 @@ export default async function ComedianStyleFilterPage({ params, searchParams }: 
         initialComedianList={items}
         agencyLabels={agencyLabels}
         styleLabels={styleLabels}
+        styleColors={styleColors}
         initialStyleFilter={resolvedParams.style}
         initialCareerSort={initialCareerSort}
       />

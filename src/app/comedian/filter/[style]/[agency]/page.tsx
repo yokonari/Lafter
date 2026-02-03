@@ -87,6 +87,7 @@ export default async function ComedianStyleAgencyFilterPage({ params, searchPara
   const styleRepo = new StyleRepository(db);
 
   const styleLabels = await styleRepo.getLabels();
+  const styleColors = await styleRepo.getColors();
   const agencyLabels = await agencyRepo.getLabels();
 
   // 有効な芸風IDかチェック（"all"も許可）
@@ -121,6 +122,7 @@ export default async function ComedianStyleAgencyFilterPage({ params, searchPara
         initialComedianList={items}
         agencyLabels={agencyLabels}
         styleLabels={styleLabels}
+        styleColors={styleColors}
         initialStyleFilter={resolvedParams.style === "all" ? undefined : resolvedParams.style}
         initialAgencyFilter={resolvedParams.agency}
         initialCareerSort={initialCareerSort}
