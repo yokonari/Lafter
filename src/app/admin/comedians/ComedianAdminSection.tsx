@@ -218,7 +218,7 @@ export function ComedianAdminSection({
 
       <ComedianList
         comedians={comedians}
-        onEdit={(comedian) => router.push(`/admin/comedians/${comedian.id}/edit`)}
+        onEdit={(comedian) => router.push(`/admin/comedians/${comedian.id}/edit?page=${pagination.currentPage}`)}
         onDelete={handleDeleteClick}
         currentPage={pagination.currentPage}
         hasPrev={!searchMode && pagination.hasPrev}

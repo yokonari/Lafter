@@ -5,6 +5,7 @@ import { ComedianForm, type ComedianFormData } from "../../_components/ComedianF
 
 type Props = {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ page?: string }>;
 };
 
 // 管理画面セッションの有効性を確認します。
@@ -115,7 +116,7 @@ async function fetchComedian(id: string): Promise<ComedianFormData | null> {
   };
 }
 
-export default async function EditComedianPage({ params }: Props) {
+export default async function EditComedianPage({ params, searchParams }: Props) {
   // 認証チェック
   const authenticated = await hasValidAdminSession();
   if (!authenticated) {
@@ -123,15 +124,18 @@ export default async function EditComedianPage({ params }: Props) {
   }
 
   const { id } = await params;
+  const { page } = await searchParams;
   const comedian = await fetchComedian(id);
 
   if (!comedian) {
     notFound();
   }
 
+  const returnPage = page ? parseInt(page, 10) : 1;
+
   return (
     <AdminTabsLayout activeTab="comedians">
-      <ComedianForm comedian={comedian} />
+      <ComedianForm comedian={comedian} returnPage={returnPage} />
     </AdminTabsLayout>
   );
 }

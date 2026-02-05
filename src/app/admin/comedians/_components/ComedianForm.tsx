@@ -21,6 +21,7 @@ export type ComedianFormData = {
 
 type ComedianFormProps = {
   comedian: ComedianFormData | null;
+  returnPage?: number;
 };
 
 type FormData = {
@@ -45,7 +46,7 @@ type StyleOption = {
   name: string;
 };
 
-export function ComedianForm({ comedian }: ComedianFormProps) {
+export function ComedianForm({ comedian, returnPage = 1 }: ComedianFormProps) {
   const router = useRouter();
   const isEdit = Boolean(comedian);
   const [formData, setFormData] = useState<FormData>({
@@ -267,7 +268,10 @@ export function ComedianForm({ comedian }: ComedianFormProps) {
       }
 
       toast.success(isEdit ? "芸人を更新しました。" : "芸人を作成しました。");
-      router.push("/admin/comedians");
+      const redirectUrl = isEdit && returnPage > 1
+        ? `/admin/comedians?page=${returnPage}`
+        : "/admin/comedians";
+      router.push(redirectUrl);
       router.refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "エラーが発生しました。");
@@ -412,7 +416,7 @@ export function ComedianForm({ comedian }: ComedianFormProps) {
       <div className={styles.sectionHeader}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
           <Link
-            href="/admin/comedians"
+            href={returnPage > 1 ? `/admin/comedians?page=${returnPage}` : "/admin/comedians"}
             className={styles.secondaryButton}
             style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", textDecoration: "none" }}
           >
@@ -608,7 +612,7 @@ export function ComedianForm({ comedian }: ComedianFormProps) {
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
           <Link
-            href="/admin/comedians"
+            href={returnPage > 1 ? `/admin/comedians?page=${returnPage}` : "/admin/comedians"}
             className={styles.secondaryButton}
             style={{ textDecoration: "none" }}
           >
