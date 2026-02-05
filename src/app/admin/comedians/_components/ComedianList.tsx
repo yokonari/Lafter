@@ -50,7 +50,7 @@ export function ComedianList({
           <thead>
             <tr>
               <th>芸人名</th>
-              <th>読み仮名</th>
+              <th>スラッグ</th>
               <th>事務所</th>
               <th>芸風</th>
               <th>芸歴</th>
@@ -68,7 +68,7 @@ export function ComedianList({
                   style={{ cursor: 'pointer' }}
                 >
                   <td>{comedian.name}</td>
-                  <td className={styles.secondaryText}>{comedian.kana ?? "-"}</td>
+                  <td className={styles.secondaryText}>{comedian.slug}</td>
                   <td className={styles.secondaryText}>{comedian.agencyName}</td>
                   <td>
                     {comedian.styles.length > 0 ? (
