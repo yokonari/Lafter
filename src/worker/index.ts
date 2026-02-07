@@ -10,12 +10,16 @@ import cronLlmClassify from "./cron-llm-classify";
 import cronVideoCheck from "./cron-video-check";
 import cronVideoCheckQueue from "./cron-video-check-queue";
 import cronVideoRss from "./cron-video-rss";
+import cronChannelCheck from "./cron-channel-check";
+import cronChannelCheckQueue from "./cron-channel-check-queue";
 
 
 type ScheduledEventParam = Parameters<ExportedHandlerScheduledHandler>[0];
 const MINUTES_PER_DAY = 24 * 60;
 const VIDEO_CHECK_RUNS_PER_DAY = 500;
 const VIDEO_CHECK_QUEUE_REBUILD_MINUTE = 4 * 60;
+const CHANNEL_CHECK_QUEUE_REBUILD_MINUTE = 4 * 60 + 5;  // UTC 04:05
+const CHANNEL_CHECK_RUN_MINUTE = 4 * 60 + 10;  // UTC 04:10
 const VIEW_COUNT_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 20;
 const LIKES_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 30;
 
@@ -47,6 +51,8 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
     const runRandomCache = shouldRunRandomVideosCacheJob(event);
     const runViewCountCache = shouldRunViewCountVideosCacheJob(event);
     const runLikesCache = shouldRunLikesVideosCacheJob(event);
+    const runChannelCheckQueue = shouldRunChannelCheckQueueRebuildJob(event);
+    const runChannelCheck = shouldRunChannelCheckJob(event);
 
     // 毎分トリガーのうち、エポック分が 31 の倍数の場合のみ LLM 判定を丁寧に実行します。
     if (runLlm) {
@@ -111,6 +117,22 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
       }
     } else {
       console.log("[worker] 高評価動画キャッシュ更新は日次 04:30 周期外のためスキップしました。");
+    }
+    // チャンネルチェックキューの再構築は日次 04:05 UTC で実行します。
+    if (runChannelCheckQueue) {
+      if (typeof cronChannelCheckQueue.scheduled === "function") {
+        await cronChannelCheckQueue.scheduled(event, env, ctx);
+      }
+    } else {
+      console.log("[worker] チャンネルチェックキュー再構築は日次 04:05 周期外のためスキップしました。");
+    }
+    // チャンネル存在チェックは日次 04:10 UTC で実行し、チャンネルの存在確認と名前同期を行います。
+    if (runChannelCheck) {
+      if (typeof cronChannelCheck.scheduled === "function") {
+        await cronChannelCheck.scheduled(event, env, ctx);
+      }
+    } else {
+      console.log("[worker] チャンネル存在チェックは日次 04:10 周期外のためスキップしました。");
     }
 
   } else {
@@ -183,6 +205,20 @@ function shouldRunLikesVideosCacheJob(event: ScheduledEventParam): boolean {
   const epochMinutes = Math.floor(event.scheduledTime / 60_000);
   const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   return minuteOfDay === LIKES_VIDEOS_CACHE_RUN_MINUTE;
+}
+
+function shouldRunChannelCheckQueueRebuildJob(event: ScheduledEventParam): boolean {
+  // チャンネルチェックキューは UTC 04:05 に日次で再構築します。
+  const epochMinutes = Math.floor(event.scheduledTime / 60_000);
+  const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return minuteOfDay === CHANNEL_CHECK_QUEUE_REBUILD_MINUTE;
+}
+
+function shouldRunChannelCheckJob(event: ScheduledEventParam): boolean {
+  // チャンネル存在チェックは UTC 04:10 に日次で実行し、チャンネルの存在確認と名前同期を行います。
+  const epochMinutes = Math.floor(event.scheduledTime / 60_000);
+  const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return minuteOfDay === CHANNEL_CHECK_RUN_MINUTE;
 }
 
 
