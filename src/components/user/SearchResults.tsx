@@ -9,7 +9,6 @@ import { containsNgWord } from "@/lib/ng-words";
 import { AwardRacePage } from "./AwardRacePage";
 import { buildPopularSeoMetadata } from "@/lib/popularMetadata";
 import { NEW_PAGE_SEO_TITLE } from "@/lib/newMetadata";
-import { STYLE_LABELS } from "@/lib/styleLabels";
 import styles from "./userTheme.module.scss";
 
 function calculateCareerYears(startedOn?: string): number | null {
@@ -41,6 +40,8 @@ type SearchResultsProps = {
   showBackLink?: boolean; // 先頭の戻るリンク表示を制御します。
   showShareButton?: boolean; // シェアボタン表示を制御します。
   agencyLabels?: Record<string, string>; // 事務所ID→名前のマッピング
+  styleLabels?: Record<string, string>; // 芸風ID→名前のマッピング
+  styleColors?: Record<string, string | null>; // 芸風ID→色のマッピング
   onVideoSelect: (video: VideoItem) => void;
 
   onChannelSelect: (channelId: string) => void;
@@ -67,6 +68,8 @@ export function SearchResults({
   showBackLink = true,
   showShareButton = true,
   agencyLabels = {},
+  styleLabels = {},
+  styleColors = {},
   onVideoSelect,
 
   onChannelSelect,
@@ -450,9 +453,10 @@ export function SearchResults({
                 {comedianStyles.map((style) => (
                   <span
                     key={style}
-                    className={`${styles.comedianStyleTag} ${styles[`styleTag_${style}`] ?? ""}`}
+                    className={styles.comedianStyleTag}
+                    style={styleColors[style] ? { color: styleColors[style] as string } : undefined}
                   >
-                    {STYLE_LABELS[style] ?? style}
+                    {styleLabels[style] ?? style}
                   </span>
                 ))}
               </span>

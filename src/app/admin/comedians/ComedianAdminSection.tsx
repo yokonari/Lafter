@@ -34,6 +34,7 @@ type ComedianAdminSectionProps = {
   prevHref: string;
   nextHref: string;
   totalCount: number;
+  styleLabels: Record<string, string>;
 };
 
 type PaginationState = {
@@ -52,6 +53,7 @@ export function ComedianAdminSection({
   prevHref,
   nextHref,
   totalCount,
+  styleLabels,
 }: ComedianAdminSectionProps) {
   const router = useRouter();
   const [comedians, setComedians] = useState<ComedianRow[]>(initialComedians);
@@ -225,6 +227,7 @@ export function ComedianAdminSection({
         hasNext={!searchMode && pagination.hasNext}
         prevHref={pagination.prevHref}
         nextHref={pagination.nextHref}
+        styleLabels={styleLabels}
       />
 
       {isDeleteDialogOpen && deletingComedian && (

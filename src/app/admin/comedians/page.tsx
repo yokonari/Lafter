@@ -4,6 +4,8 @@ import { AdminTabsLayout } from "../components/AdminTabsLayout";
 import { ComedianAdminSection } from "./ComedianAdminSection";
 import styles from "../adminTheme.module.scss";
 import { redirect } from "next/navigation";
+import { getDB } from "@/lib/db";
+import { StyleRepository } from "@/lib/repositories/styleRepository";
 
 export const metadata: Metadata = {
   title: "Lafter 芸人管理",
@@ -164,6 +166,11 @@ export default async function AdminComediansPage({ searchParams }: PageProps) {
   let data: AdminComediansResponse | null = null;
   let errorMessage: string | null = null;
 
+  // 芸風ラベルを取得
+  const db = getDB();
+  const styleRepo = new StyleRepository(db);
+  const styleLabels = await styleRepo.getLabels();
+
   try {
     data = await fetchAdminComedians(page);
   } catch (error) {
@@ -205,6 +212,7 @@ export default async function AdminComediansPage({ searchParams }: PageProps) {
           prevHref={prevHref}
           nextHref={nextHref}
           totalCount={data?.totalCount ?? 0}
+          styleLabels={styleLabels}
         />
       )}
     </AdminTabsLayout>

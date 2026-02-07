@@ -6,6 +6,7 @@ import { getDB } from "@/lib/db";
 import { ArtistRepository } from "@/lib/repositories/artistRepository";
 import { AgencyRepository } from "@/lib/repositories/agencyRepository";
 import { MediaRepository } from "@/lib/repositories/mediaRepository";
+import { StyleRepository } from "@/lib/repositories/styleRepository";
 import type { ArtistWithAgency } from "../../../../data/artists/types";
 
 export const dynamic = 'force-dynamic';
@@ -61,12 +62,15 @@ export default async function ComedianPage({ params }: { params: Promise<{ slug:
     notFound();
   }
 
-  // 事務所ラベル、事務所チャンネルID、メディアチャンネルIDを取得
+  // 事務所ラベル、芸風ラベル・色、事務所チャンネルID、メディアチャンネルIDを取得
   const db = getDB();
   const agencyRepo = new AgencyRepository(db);
   const mediaRepo = new MediaRepository(db);
-  const [agencyLabels, agencyChannelIds, mediaChannelIds] = await Promise.all([
+  const styleRepo = new StyleRepository(db);
+  const [agencyLabels, styleLabels, styleColors, agencyChannelIds, mediaChannelIds] = await Promise.all([
     agencyRepo.getLabels(),
+    styleRepo.getLabels(),
+    styleRepo.getColors(),
     artist.agencyId ? agencyRepo.getChannelIds(artist.agencyId) : Promise.resolve([]),
     mediaRepo.getAllChannelIds(),
   ]);
@@ -76,6 +80,8 @@ export default async function ComedianPage({ params }: { params: Promise<{ slug:
       <UserHome
         initialComedian={artist}
         agencyLabels={agencyLabels}
+        styleLabels={styleLabels}
+        styleColors={styleColors}
         agencyChannelIds={agencyChannelIds}
         mediaChannelIds={mediaChannelIds}
       />

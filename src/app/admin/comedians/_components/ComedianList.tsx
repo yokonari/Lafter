@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import type { ComedianRow } from "../ComedianAdminSection";
-import { STYLE_LABELS } from "@/lib/styleLabels";
 import styles from "../../adminTheme.module.scss";
 
 type ComedianListProps = {
@@ -15,6 +14,7 @@ type ComedianListProps = {
   hasNext: boolean;
   prevHref: string;
   nextHref: string;
+  styleLabels: Record<string, string>;
 };
 
 function calculateCareerYears(startedOn?: string | null): number | null {
@@ -36,6 +36,7 @@ export function ComedianList({
   hasNext,
   prevHref,
   nextHref,
+  styleLabels,
 }: ComedianListProps) {
   if (comedians.length === 0) {
     return (
@@ -75,7 +76,7 @@ export function ComedianList({
                       <div className={styles.tagList}>
                         {comedian.styles.map((styleId) => (
                           <span key={styleId} className={styles.tag}>
-                            {STYLE_LABELS[styleId] ?? styleId}
+                            {styleLabels[styleId] ?? styleId}
                           </span>
                         ))}
                       </div>

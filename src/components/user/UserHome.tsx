@@ -395,6 +395,8 @@ export function UserHome({
       titleOverride={`${comedianName}の公式ネタ動画`}
       showComedianListLink
       agencyLabels={agencyLabels}
+      styleLabels={styleLabels}
+      styleColors={styleColors}
       onVideoSelect={handleVideoSelect}
       onChannelSelect={handleChannelSelect}
       onBackToTop={handleReset}
