@@ -16,7 +16,8 @@ import cronChannelCheckQueue from "./cron-channel-check-queue";
 
 type ScheduledEventParam = Parameters<ExportedHandlerScheduledHandler>[0];
 const MINUTES_PER_DAY = 24 * 60;
-const VIDEO_CHECK_RUNS_PER_DAY = 500;
+// 動画存在チェックは 5 分おき相当で実行し、D1 の書き込み量を抑えつつ巡回を継続します。
+const VIDEO_CHECK_RUNS_PER_DAY = 288;
 const VIDEO_CHECK_QUEUE_REBUILD_MINUTE = 4 * 60;
 const CHANNEL_CHECK_QUEUE_REBUILD_MINUTE = 4 * 60 + 5;  // UTC 04:05
 const CHANNEL_CHECK_RUN_MINUTE = 4 * 60 + 10;  // UTC 04:10
@@ -70,13 +71,13 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
     } else {
       console.log("[worker] 動画チェックキュー再構築は日次 04:00 周期外のためスキップしました。");
     }
-    // 動画存在チェックは 1 日 400 回 (約3〜4分間隔) で実行し、API クォータと更新頻度のバランスを丁寧に保ちます。
+    // 動画存在チェックは 1 日 288 回 (5 分間隔相当) で実行し、API クォータと更新頻度のバランスを丁寧に保ちます。
     if (runVideoCheck) {
       if (typeof cronVideoCheck.scheduled === "function") {
         await cronVideoCheck.scheduled(event, env, ctx);
       }
     } else {
-      console.log("[worker] 動画存在チェックは 1 日 400 回ペースの周期外のためスキップしました。");
+      console.log("[worker] 動画存在チェックは 1 日 288 回ペースの周期外のためスキップしました。");
     }
     // RSS 同期は毎時 10 分周期で動かし、24 時間以内に各チャンネルを丁寧に巡回します。
     if (runVideoRss) {
@@ -157,7 +158,7 @@ function shouldRunLlmJob(event: ScheduledEventParam): boolean {
 }
 
 function shouldRunVideoCheckJob(event: ScheduledEventParam): boolean {
-  // エポック分から 1 日あたりのチェック回数を均等に割り当て、約 3〜4 分間隔で実行します。
+  // エポック分から 1 日あたりのチェック回数を均等に割り当て、5 分間隔相当で実行します。
   const epochMinutes = Math.floor(event.scheduledTime / 60_000);
   const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   const previousMinuteOfDay = minuteOfDay === 0 ? MINUTES_PER_DAY - 1 : minuteOfDay - 1;
@@ -220,6 +221,5 @@ function shouldRunChannelCheckJob(event: ScheduledEventParam): boolean {
   const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   return minuteOfDay === CHANNEL_CHECK_RUN_MINUTE;
 }
-
 
 
