@@ -3,6 +3,7 @@ import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { and, asc, eq, sql } from "drizzle-orm";
 import { channels, videos } from "@/lib/schema";
+import { ADMIN_SECRET_HEADER } from "@/lib/api-secret";
 import { NEGATIVE_KEYWORDS, POSITIVE_KEYWORDS } from "@/lib/video-keywords";
 import { createDatabase, type AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -32,6 +33,8 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
 
     const fail = (message: string, status: ContentfulStatusCode = 400) =>
       c.json({ message }, status);
+
+    const adminSecret = c.req.header(ADMIN_SECRET_HEADER);
 
     const channelIdParam = (c.req.query("channelId") ?? "").trim();
     let limit = normalizeLimit(c.req.query("limit"));
@@ -70,6 +73,10 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
       itemsSkipped: 0,
       errors: [] as string[],
       channelsWithMaxInserts: [] as string[],
+      rss404Channels: [] as string[],
+      searchFallbackTriggered: 0,
+      searchFallbackSucceeded: 0,
+      searchFallbackFailed: 0,
     };
 
     for (const channel of targetChannels) {
@@ -114,6 +121,42 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
       } catch (error) {
         console.error("[videos/rss-sync] RSS 取得に失敗しました", channel.id, error);
         summary.errors.push(`${channel.id}: ${(error as Error)?.message ?? "RSS 取得に失敗しました。"}`);
+
+        // RSSが404のチャンネルは、RSSの代替として即時にSearch APIで補完取得を試行します。
+        if (isRssFetchError(error) && error.status === 404) {
+          summary.rss404Channels.push(channel.id);
+          summary.searchFallbackTriggered += 1;
+          console.error(
+            "[videos/rss-sync] RSS 404 詳細",
+            `channel=${channel.id}`,
+            `feedUrl=${error.feedUrl}`,
+            `responseUrl=${error.responseUrl ?? "-"}`,
+            `contentType=${error.responseContentType ?? "-"}`,
+            `body=${error.responseBodySnippet ?? "-"}`,
+          );
+
+          if (!adminSecret) {
+            summary.searchFallbackFailed += 1;
+            console.error(`[videos/rss-sync] Search API フォールバックをスキップしました channel=${channel.id} reason=missing_admin_secret`);
+          } else {
+            const fallbackResult = await runChannelSearchFallback({
+              requestUrl: c.req.url,
+              adminSecret,
+              channelId: channel.id,
+            });
+
+            if (fallbackResult.ok) {
+              summary.searchFallbackSucceeded += 1;
+              console.log(`[videos/rss-sync] Search API フォールバック成功 channel=${channel.id} inserted=${fallbackResult.videosInserted ?? "?"}`);
+            } else {
+              summary.searchFallbackFailed += 1;
+              summary.errors.push(`${channel.id}: Search API フォールバック失敗(HTTP ${fallbackResult.status})`);
+              console.error(
+                `[videos/rss-sync] Search API フォールバック失敗 channel=${channel.id} status=${fallbackResult.status} body=${fallbackResult.bodySnippet}`,
+              );
+            }
+          }
+        }
       } finally {
         // 巡回完了後は必ず lastCheckedAt を更新し、次回巡回対象の決定に反映させます。
         const channelUpdate: Partial<typeof channels.$inferInsert> = {
@@ -225,7 +268,18 @@ async function fetchChannelFeed(channelId: string): Promise<string> {
   }
 
   if (!response.ok) {
-    throw new Error(`RSS 取得に失敗しました。(HTTP ${response.status})`);
+    const bodyText = await safeReadText(response);
+    const bodySnippet = bodyText.slice(0, 240).replace(/\s+/g, " ").trim();
+    const responseContentType = response.headers.get("content-type") ?? undefined;
+    // 404原因を追跡できるよう、レスポンス情報を含む専用エラーで投げます。
+    throw new RssFetchError({
+      message: `RSS 取得に失敗しました。(HTTP ${response.status})`,
+      status: response.status,
+      feedUrl: url,
+      responseUrl: response.url || undefined,
+      responseContentType,
+      responseBodySnippet: bodySnippet || undefined,
+    });
   }
 
   try {
@@ -233,6 +287,84 @@ async function fetchChannelFeed(channelId: string): Promise<string> {
   } catch (error) {
     throw new Error(`RSS 応答の読み込みに失敗しました: ${(error as Error).message}`);
   }
+}
+
+async function safeReadText(response: Response): Promise<string> {
+  try {
+    return await response.text();
+  } catch {
+    return "";
+  }
+}
+
+type SearchFallbackResult =
+  | { ok: true; videosInserted?: number }
+  | { ok: false; status: number; bodySnippet: string };
+
+async function runChannelSearchFallback(params: {
+  requestUrl: string;
+  adminSecret: string;
+  channelId: string;
+}): Promise<SearchFallbackResult> {
+  const searchUrl = new URL("/api/channels/search", params.requestUrl);
+  searchUrl.searchParams.set("channelId", params.channelId);
+  searchUrl.searchParams.set("isFullSearch", "false");
+  const fourteenDaysAgo = new Date();
+  // RSS 404 のフォールバックでは、取りこぼしを減らすため公開日を14日前まで広げます。
+  fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+  searchUrl.searchParams.set("publishedAfter", fourteenDaysAgo.toISOString());
+
+  const response = await fetch(searchUrl.toString(), {
+    method: "POST",
+    headers: {
+      [ADMIN_SECRET_HEADER]: params.adminSecret,
+    },
+  });
+
+  if (!response.ok) {
+    const bodyText = await safeReadText(response);
+    return {
+      ok: false,
+      status: response.status,
+      bodySnippet: bodyText.slice(0, 240).replace(/\s+/g, " ").trim(),
+    };
+  }
+
+  try {
+    const body = await response.json() as { videosInserted?: number };
+    return { ok: true, videosInserted: body.videosInserted };
+  } catch {
+    return { ok: true };
+  }
+}
+
+class RssFetchError extends Error {
+  readonly status: number;
+  readonly feedUrl: string;
+  readonly responseUrl?: string;
+  readonly responseContentType?: string;
+  readonly responseBodySnippet?: string;
+
+  constructor(params: {
+    message: string;
+    status: number;
+    feedUrl: string;
+    responseUrl?: string;
+    responseContentType?: string;
+    responseBodySnippet?: string;
+  }) {
+    super(params.message);
+    this.name = "RssFetchError";
+    this.status = params.status;
+    this.feedUrl = params.feedUrl;
+    this.responseUrl = params.responseUrl;
+    this.responseContentType = params.responseContentType;
+    this.responseBodySnippet = params.responseBodySnippet;
+  }
+}
+
+function isRssFetchError(error: unknown): error is RssFetchError {
+  return error instanceof RssFetchError;
 }
 
 function parseChannelFeed(xml: string): { channelTitle?: string; entries: FeedEntry[] } {

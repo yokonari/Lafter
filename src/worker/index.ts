@@ -60,80 +60,60 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
       if (typeof cronLlmClassify.scheduled === "function") {
         await cronLlmClassify.scheduled(event, env, ctx);
       }
-    } else {
-      console.log("[worker] LLM 判定は 31 分周期外のためスキップしました。");
     }
     // 動画チェックキューの再構築は 1 日 1 回だけ 04:00 UTC で動かし、重い SELECT の頻度を丁寧に抑えます。
     if (runVideoCheckQueue) {
       if (typeof cronVideoCheckQueue.scheduled === "function") {
         await cronVideoCheckQueue.scheduled(event, env, ctx);
       }
-    } else {
-      console.log("[worker] 動画チェックキュー再構築は日次 04:00 周期外のためスキップしました。");
     }
     // 動画存在チェックは 1 日 288 回 (5 分間隔相当) で実行し、API クォータと更新頻度のバランスを丁寧に保ちます。
     if (runVideoCheck) {
       if (typeof cronVideoCheck.scheduled === "function") {
         await cronVideoCheck.scheduled(event, env, ctx);
       }
-    } else {
-      console.log("[worker] 動画存在チェックは 1 日 288 回ペースの周期外のためスキップしました。");
     }
     // RSS 同期は毎時 10 分周期で動かし、24 時間以内に各チャンネルを丁寧に巡回します。
     if (runVideoRss) {
       if (typeof cronVideoRss.scheduled === "function") {
         await cronVideoRss.scheduled(event, env, ctx);
       }
-    } else {
-      console.log("[worker] RSS 同期は 60 分周期外のためスキップしました。");
     }
     // 最新動画キャッシュ更新は 6 時間ごとの 40 分に実行し、他処理との衝突を避けつつ KV を確実に更新します。
     if (runLatestCache) {
       if (typeof cronLatestVideosCache.scheduled === "function") {
         await cronLatestVideosCache.scheduled(event, env, ctx);
       }
-    } else {
-      console.log("[worker] 最新動画キャッシュ更新は 6 時間周期外のためスキップしました。");
     }
     // ランダム動画キャッシュ更新は 6 時間ごとの 50 分に実施し、最新キャッシュとの被りを防ぎます。
     if (runRandomCache) {
       if (typeof cronRandomVideosCache.scheduled === "function") {
         await cronRandomVideosCache.scheduled(event, env, ctx);
       }
-    } else {
-      console.log("[worker] ランダム動画キャッシュ更新は 6 時間周期外のためスキップしました。");
     }
     // 再生数上位動画キャッシュ更新は日次 04:20 UTC で 1 回だけ実行し、再生数上位の KV を丁寧に更新します。
     if (runViewCountCache) {
       if (typeof cronPopularVideosCache.scheduled === "function") {
         await cronPopularVideosCache.scheduled(event, env, ctx);
       }
-    } else {
-      console.log("[worker] 再生数上位動画キャッシュ更新は日次 04:20 周期外のためスキップしました。");
     }
     // 高評価動画キャッシュ更新は日次 04:30 UTC で 1 回だけ実行し、高評価数上位の KV を丁寧に更新します。
     if (runLikesCache) {
       if (typeof cronLikesVideosCache.scheduled === "function") {
         await cronLikesVideosCache.scheduled(event, env, ctx);
       }
-    } else {
-      console.log("[worker] 高評価動画キャッシュ更新は日次 04:30 周期外のためスキップしました。");
     }
     // チャンネルチェックキューの再構築は日次 04:05 UTC で実行します。
     if (runChannelCheckQueue) {
       if (typeof cronChannelCheckQueue.scheduled === "function") {
         await cronChannelCheckQueue.scheduled(event, env, ctx);
       }
-    } else {
-      console.log("[worker] チャンネルチェックキュー再構築は日次 04:05 周期外のためスキップしました。");
     }
     // チャンネル存在チェックは日次 04:10 UTC で実行し、チャンネルの存在確認と名前同期を行います。
     if (runChannelCheck) {
       if (typeof cronChannelCheck.scheduled === "function") {
         await cronChannelCheck.scheduled(event, env, ctx);
       }
-    } else {
-      console.log("[worker] チャンネル存在チェックは日次 04:10 周期外のためスキップしました。");
     }
 
   } else {
@@ -221,5 +201,4 @@ function shouldRunChannelCheckJob(event: ScheduledEventParam): boolean {
   const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   return minuteOfDay === CHANNEL_CHECK_RUN_MINUTE;
 }
-
 
