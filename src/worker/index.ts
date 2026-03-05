@@ -32,7 +32,7 @@ const fetchHandler: ExportedHandlerFetchHandler = (request, env, ctx) =>
 // Next.js 側の fetch を尊重しつつ、Cron Trigger を確実に処理する scheduled を丁寧に生やします。
 const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
   const cron = event.cron;
-  console.log(`[worker] scheduled event triggered: ${cron}`);
+  // console.log(`[worker] scheduled event triggered: ${cron}`);
 
   // チャンネル検索: 毎時 0分 -> 0 * * * *
   // LLM 判定: 31分間隔 (Cron 自体は毎分起動し、エポック分単位で 31 の倍数だけ実行)
