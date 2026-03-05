@@ -1044,6 +1044,13 @@ $title-font-weight: 400;
   white-space: normal; // 折り返しを許容し、はみ出しを防ぎます。
 }
 
+.footerCredit {
+  margin: 1rem 0 0;
+  font-size: clamp(0.68rem, 0.68rem + 0.2vw, 0.76rem);
+  color: var(--user-text-muted);
+  text-align: center;
+}
+
 .footerLink {
   @include subtle-user-link();
   display: inline-flex;

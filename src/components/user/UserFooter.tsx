@@ -29,6 +29,17 @@ export function UserFooter() {
           </Link>
           <XShareButton className={styles.footerInlineShareButton} useStaticTopShare={true} />
         </div>
+        <p className={styles.footerCredit}>
+          {/* OGP背景素材の提供元を明記し、ライセンス表記の意図を明確にします。 */}
+          <a
+            href="https://www.svgbackgrounds.com/set/free-svg-backgrounds-and-patterns/"
+            target="_blank"
+            rel="noreferrer"
+            className={styles.footerLink}
+          >
+            OGP背景画像素材：SVGBackgrounds.com
+          </a>
+        </p>
 
         <div className={styles.footerBadge}>
           <a href="https://youtube.com/" target="_blank" rel="noreferrer" aria-label="YouTube">
@@ -45,4 +56,3 @@ export function UserFooter() {
     </footer>
   );
 }
-

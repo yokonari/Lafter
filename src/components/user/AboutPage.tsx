@@ -102,7 +102,7 @@ export function AboutPage({ onClose }: { onClose?: () => void }) {
                 icon: <Info size={24} className={styles.usageIcon} aria-hidden="true" />,
                 title: "検索対象について",
                 paragraphs: [
-                    "約570チャンネル・約2.5万本をAI判定＋人力チェックで掲載しています（一部のネタ漏れや誤判定があります）。",
+                    "約580チャンネル・約2.8万本の動画タイトルをAI判定＋人力チェックで掲載しています（一部のネタ漏れや誤判定があります）。",
                 ],
             },
             {
