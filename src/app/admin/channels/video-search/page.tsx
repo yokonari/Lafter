@@ -24,6 +24,7 @@ export default function VideoSearchPage() {
     const [selectedChannelId, setSelectedChannelId] = useState<string | null>(null);
     const [maxPages, setMaxPages] = useState(2);
     const [periodOption, setPeriodOption] = useState<"1y" | "none">("1y");
+    const [orderOption, setOrderOption] = useState<"default" | "date">("default");
     const [useKeyword, setUseKeyword] = useState(true);
     const [searchKeyword, setSearchKeyword] = useState("ネタ");
     const [executing, setExecuting] = useState(false);
@@ -89,6 +90,8 @@ export default function VideoSearchPage() {
                     channelId: selectedChannelId,
                     publishedAfter,
                     maxPages,
+                    // default は未指定として扱い、既存のAPIデフォルト挙動を維持します。
+                    order: orderOption === "date" ? "date" : undefined,
                     useKeyword,
                     searchKeyword: useKeyword ? searchKeyword.trim() : undefined,
                 }),
@@ -209,82 +212,101 @@ export default function VideoSearchPage() {
                                         )}
                                     </div>
 
-                                    <div className={styles.buttonRow}>
-                                        <button
-                                            type="button"
-                                            onClick={() => router.back()}
-                                            className={styles.loginSecondaryButton}
-                                            disabled={executing}
-                                        >
-                                            戻る
-                                        </button>
-                                        <div className="flex items-center gap-2 mr-2 ml-2">
-                                            <label htmlFor="maxPages" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                取得ページ数:
-                                            </label>
-                                            <select
-                                                id="maxPages"
-                                                value={maxPages}
-                                                onChange={(e) => setMaxPages(parseInt(e.target.value, 10))}
-                                                className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                            >
-                                                {Array.from({ length: 6 }, (_, i) => i + 1).map((page) => (
-                                                    <option key={page} value={page}>{page}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div className="flex items-center gap-2 mr-2 ml-2">
-                                            <label htmlFor="periodOption" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                期間:
-                                            </label>
-                                            <select
-                                                id="periodOption"
-                                                value={periodOption}
-                                                onChange={(e) => setPeriodOption(e.target.value as "1y" | "none")}
-                                                className="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                            >
-                                                <option value="1y">1年以内</option>
-                                                <option value="none">指定なし</option>
-                                            </select>
-                                        </div>
-                                        <div className="flex items-center gap-2 mr-2 ml-2">
-                                            <label htmlFor="useKeyword" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                ワード:
-                                            </label>
-                                            <select
-                                                id="useKeyword"
-                                                value={useKeyword ? "on" : "off"}
-                                                onChange={(e) => setUseKeyword(e.target.value === "on")}
-                                                className="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                            >
-                                                <option value="on">使用する</option>
-                                                <option value="off">使用しない</option>
-                                            </select>
-                                        </div>
-                                        {useKeyword && (
-                                            <div className="flex items-center gap-2 mr-2 ml-2">
-                                                <label htmlFor="searchKeyword" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                                    検索ワード:
+                                    {/* 条件入力と実行操作を2段に分け、横詰まりを避けます。 */}
+                                    <div className="mt-6 flex flex-col items-end gap-3">
+                                        <div className="flex flex-wrap items-center justify-end gap-3">
+                                            <div className="flex items-center gap-2">
+                                                <label htmlFor="maxPages" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    取得ページ数:
                                                 </label>
-                                                <input
-                                                    id="searchKeyword"
-                                                    type="text"
-                                                    value={searchKeyword}
-                                                    onChange={(e) => setSearchKeyword(e.target.value)}
-                                                    placeholder="例: ネタ"
-                                                    className="w-32 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                                />
+                                                <select
+                                                    id="maxPages"
+                                                    value={maxPages}
+                                                    onChange={(e) => setMaxPages(parseInt(e.target.value, 10))}
+                                                    className="w-20 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                >
+                                                    {Array.from({ length: 6 }, (_, i) => i + 1).map((page) => (
+                                                        <option key={page} value={page}>{page}</option>
+                                                    ))}
+                                                </select>
                                             </div>
-                                        )}
-                                        <button
-                                            type="button"
-                                            onClick={handleExecute}
-                                            disabled={!selectedChannelId || executing}
-                                            className={styles.primaryButton}
-                                        >
-                                            {executing && <Loader2 className="animate-spin mr-2" size={16} />}
-                                            {executing ? "検索中..." : "動画検索を実行"}
-                                        </button>
+                                            <div className="flex items-center gap-2">
+                                                <label htmlFor="periodOption" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    期間:
+                                                </label>
+                                                <select
+                                                    id="periodOption"
+                                                    value={periodOption}
+                                                    onChange={(e) => setPeriodOption(e.target.value as "1y" | "none")}
+                                                    className="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                >
+                                                    <option value="1y">1年以内</option>
+                                                    <option value="none">指定なし</option>
+                                                </select>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <label htmlFor="orderOption" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    並び順:
+                                                </label>
+                                                <select
+                                                    id="orderOption"
+                                                    value={orderOption}
+                                                    onChange={(e) => setOrderOption(e.target.value as "default" | "date")}
+                                                    className="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                >
+                                                    <option value="default">デフォルト</option>
+                                                    <option value="date">公開日順</option>
+                                                </select>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <label htmlFor="useKeyword" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    ワード:
+                                                </label>
+                                                <select
+                                                    id="useKeyword"
+                                                    value={useKeyword ? "on" : "off"}
+                                                    onChange={(e) => setUseKeyword(e.target.value === "on")}
+                                                    className="w-28 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                >
+                                                    <option value="on">使用する</option>
+                                                    <option value="off">使用しない</option>
+                                                </select>
+                                            </div>
+                                            {useKeyword && (
+                                                <div className="flex items-center gap-2">
+                                                    <label htmlFor="searchKeyword" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                        検索ワード:
+                                                    </label>
+                                                    <input
+                                                        id="searchKeyword"
+                                                        type="text"
+                                                        value={searchKeyword}
+                                                        onChange={(e) => setSearchKeyword(e.target.value)}
+                                                        placeholder="例: ネタ"
+                                                        className="w-32 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex items-center justify-end gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => router.back()}
+                                                className={styles.loginSecondaryButton}
+                                                disabled={executing}
+                                            >
+                                                戻る
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={handleExecute}
+                                                disabled={!selectedChannelId || executing}
+                                                className={styles.primaryButton}
+                                            >
+                                                {executing && <Loader2 className="animate-spin mr-2" size={16} />}
+                                                {executing ? "検索中..." : "動画検索を実行"}
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

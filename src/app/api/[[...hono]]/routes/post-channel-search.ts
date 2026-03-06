@@ -30,6 +30,7 @@ type SearchAPIResponse = {
   nextPageToken?: string;
 };
 type SearchApiError = Error & { status?: number };
+type SearchOrder = "date";
 
 type SearchItem = {
   idKind: string;
@@ -74,6 +75,7 @@ export function registerPostChannelSearch<
     // デフォルトは6ページとします
     let maxPages = parseInt(c.req.query("maxPages") || "6", 10);
     let publishedAfter = (c.req.query("publishedAfter") ?? "").trim();
+    let order = parseSearchOrder(c.req.query("order"));
     const useKeywordQuery = parseOptionalBoolean(c.req.query("useKeyword"));
     let useKeyword = useKeywordQuery ?? true;
     let searchKeyword = (c.req.query("searchKeyword") ?? "").trim();
@@ -92,6 +94,7 @@ export function registerPostChannelSearch<
         channelId?: unknown;
         maxPages?: unknown;
         publishedAfter?: unknown;
+        order?: unknown;
         useKeyword?: unknown;
         searchKeyword?: unknown;
       };
@@ -106,6 +109,10 @@ export function registerPostChannelSearch<
       }
       if (!publishedAfter && typeof body.publishedAfter === "string") {
         publishedAfter = body.publishedAfter.trim();
+      }
+      // 並び順は許可値のみを受け入れ、未知の値は安全に無視します。
+      if (!order) {
+        order = parseSearchOrder(body.order);
       }
       if (body.useKeyword !== undefined) {
         const parsed = parseOptionalBoolean(body.useKeyword);
@@ -128,7 +135,7 @@ export function registerPostChannelSearch<
 
     // チャンネル検索の開始を丁寧にログへ残し、実行条件を把握しやすくします。
     console.log(
-      `[channel-search] チャンネル ${channelId} の検索を開始します (maxPages=${maxPages}, publishedAfter=${publishedAfter || "なし"}, useKeyword=${useKeyword ? "on" : "off"}, searchKeyword=${searchKeyword || "なし"})`,
+      `[channel-search] チャンネル ${channelId} の検索を開始します (maxPages=${maxPages}, publishedAfter=${publishedAfter || "なし"}, order=${order || "default"}, useKeyword=${useKeyword ? "on" : "off"}, searchKeyword=${searchKeyword || "なし"})`,
     );
 
     try {
@@ -136,6 +143,7 @@ export function registerPostChannelSearch<
       const searchItems = await searchChannelItems(channelId, apiKey, {
         maxPages: maxPages,
         publishedAfter: publishedAfter || undefined,
+        order,
         useKeyword,
         searchKeyword: searchKeyword || undefined,
       });
@@ -151,6 +159,7 @@ export function registerPostChannelSearch<
       const summary = {
         channelId,
         maxPages,
+        order: order || "default",
         fetched: searchItems.length,
         videosInserted: 0,
 
@@ -258,7 +267,7 @@ export function registerPostChannelSearch<
 async function searchChannelItems(
   channelId: string,
   apiKey: string,
-  options: { maxPages: number; publishedAfter?: string; useKeyword?: boolean; searchKeyword?: string },
+  options: { maxPages: number; publishedAfter?: string; order?: SearchOrder; useKeyword?: boolean; searchKeyword?: string },
 ): Promise<SearchItem[]> {
   const items: SearchItem[] = [];
   let pageToken: string | undefined;
@@ -283,6 +292,9 @@ async function searchChannelItems(
     url.searchParams.set("key", apiKey);
     if (options.publishedAfter) {
       url.searchParams.set("publishedAfter", options.publishedAfter);
+    }
+    if (options.order) {
+      url.searchParams.set("order", options.order);
     }
     if (pageToken) {
       url.searchParams.set("pageToken", pageToken);
@@ -343,6 +355,17 @@ function parseOptionalBoolean(value: unknown): boolean | undefined {
   const normalized = value.trim().toLowerCase();
   if (["true", "1", "yes", "on"].includes(normalized)) return true;
   if (["false", "0", "no", "off"].includes(normalized)) return false;
+  return undefined;
+}
+
+function parseSearchOrder(value: unknown): SearchOrder | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "date") {
+    return "date";
+  }
   return undefined;
 }
 
