@@ -309,6 +309,8 @@ async function runChannelSearchFallback(params: {
   const searchUrl = new URL("/api/channels/search", params.requestUrl);
   searchUrl.searchParams.set("channelId", params.channelId);
   searchUrl.searchParams.set("isFullSearch", "false");
+  // RSS 404 フォールバック時は公開日順で取得し、直近動画の補完漏れを減らします。
+  searchUrl.searchParams.set("order", "date");
   const fourteenDaysAgo = new Date();
   // RSS 404 のフォールバックでは、取りこぼしを減らすため公開日を14日前まで広げます。
   fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
