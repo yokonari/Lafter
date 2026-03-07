@@ -168,9 +168,9 @@ export function registerPostChannelSearch<
         errors: [] as string[],
       };
 
-      // チャンネル名の候補は最初に得られた要素から丁寧に抽出します。
+      // チャンネル名の候補は最初に得られた要素から抽出し、IDの代入は行いません。
       const channelTitleFallback =
-        limitedVideoItems[0]?.channelTitle || channelId;
+        limitedVideoItems[0]?.channelTitle || "";
 
       // 検索APIを呼んだ時点でチャンネルの最終確認時刻を必ず更新し、存在しない場合は作成します。
       try {
@@ -415,9 +415,8 @@ async function ensureChannel(
     }
   } else {
     // 名前が変わっていなくても、最終確認時刻は必ず更新します
-    await updateChannel(db, channelId, {
-      name: (channelTitle && existing.name !== channelTitle) ? channelTitle : existing.name
-    });
+    // 名前更新は channels/check に限定し、ここでは最終確認時刻のみ更新します。
+    await updateChannelLastCheckedAt(db, channelId);
   }
   ensured.add(channelId);
 }
@@ -431,11 +430,10 @@ async function getChannel(db: DatabaseClient, channelId: string) {
   return rows[0];
 }
 
-async function updateChannel(db: DatabaseClient, id: string, input: { name: string }) {
+async function updateChannelLastCheckedAt(db: DatabaseClient, id: string) {
   await db
     .update(channels)
     .set({
-      name: input.name,
       lastCheckedAt: new Date().toISOString(),
     })
     .where(eq(channels.id, id));

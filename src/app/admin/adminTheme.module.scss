@@ -480,6 +480,118 @@ $title-font-weight: 400;
   gap: 0.75rem;
 }
 
+/* チャンネル存在チェック用の検索・選択パネル */
+.channelCheckPanel {
+  border-radius: 0.75rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.channelCheckTitle {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--admin-text-light);
+}
+
+.channelCheckDescription {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+}
+
+.channelCheckSelectionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.channelCheckCount {
+  font-size: 0.8rem;
+  color: var(--admin-text-secondary);
+}
+
+.channelCheckResults {
+  border-radius: 0.5rem;
+  border: 1px solid var(--admin-border);
+  background: var(--admin-surface-alt);
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.channelCheckResultItem {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  border-bottom: 1px solid var(--admin-border);
+  padding: 0.7rem 0.9rem;
+  cursor: pointer;
+  color: var(--admin-text);
+
+  input[type="checkbox"] {
+    @include checkbox-base;
+  }
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:hover {
+    background: var(--admin-surface-hover);
+  }
+}
+
+.channelCheckResultName {
+  font-size: 0.875rem;
+  color: var(--admin-text-light);
+}
+
+.channelCheckResultId {
+  grid-column: 2;
+  font-size: 0.75rem;
+  color: var(--admin-text-muted);
+  word-break: break-all;
+}
+
+.channelCheckHint {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--admin-text-muted);
+}
+
+.channelCheckActionRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.channelCheckSummary {
+  border-radius: 0.5rem;
+  border: 1px solid rgba(96, 165, 250, 0.35);
+  background: rgba(96, 165, 250, 0.08);
+  padding: 0.6rem 0.8rem;
+}
+
+.channelCheckSummaryTitle {
+  margin: 0 0 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--admin-info);
+}
+
+.channelCheckSummaryText {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--admin-text-secondary);
+  word-break: break-word;
+}
+
 .channelFilterTitle {
   font-size: 0.95rem;
   font-weight: 600;

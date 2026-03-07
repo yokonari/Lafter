@@ -1,4 +1,4 @@
-import type { Hono } from "hono";
+import type { Hono, Context } from "hono";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { asc, eq, inArray } from "drizzle-orm";
@@ -44,8 +44,8 @@ export function registerPostChannelsCheck(app: Hono<AdminEnv>) {
     });
   });
 
-  // チャンネル存在確認エンドポイント: Cron ワーカーから呼び出します。
-  app.post("/channels/check", async (c) => {
+  // チャンネル存在確認エンドポイント: Cron ワーカーと管理画面から呼び出します。
+  const checkHandler = async (c: Context<AdminEnv>) => {
     const { env } = getCloudflareContext();
     const db = createDatabase(env);
     const kv = env.LAFTER;
@@ -61,23 +61,34 @@ export function registerPostChannelsCheck(app: Hono<AdminEnv>) {
       return fail("YOUTUBE_API_KEY が設定されていません。", 500);
     }
 
-    if (!kv) {
-      return fail("Workers KV LAFTER バインディングが設定されていません。", 500);
-    }
-
     const limit = MAX_BATCH_SIZE;
+    // 管理画面から ID 指定がある場合は、そのチャンネル群のみを優先してチェックします。
+    const requestedIds = await parseRequestedChannelIds(c);
+    let ids: string[] = [];
+    let nextCursor = 0;
+    let useQueue = false;
 
-    // KV に保存済みのキューから対象 ID を取り出します。
-    let queue = await loadQueueFromKv(kv);
-    if (!queue || queue.length === 0) {
-      console.warn(
-        "[channels/check] チャンネルチェックキューが見つからなかったため再構築を試みます。",
-      );
-      queue = await rebuildChannelCheckQueue(db, kv);
+    if (requestedIds.length > 0) {
+      ids = requestedIds.slice(0, limit);
+    } else {
+      if (!kv) {
+        return fail("Workers KV LAFTER バインディングが設定されていません。", 500);
+      }
+      // KV に保存済みのキューから対象 ID を取り出します。
+      let queue = await loadQueueFromKv(kv);
+      if (!queue || queue.length === 0) {
+        console.warn(
+          "[channels/check] チャンネルチェックキューが見つからなかったため再構築を試みます。",
+        );
+        queue = await rebuildChannelCheckQueue(db, kv);
+      }
+
+      const cursor = await loadCursorFromKv(kv, queue?.length ?? 0);
+      const batch = takeQueueBatch(queue ?? [], cursor, limit);
+      ids = batch.ids;
+      nextCursor = batch.nextCursor;
+      useQueue = true;
     }
-
-    const cursor = await loadCursorFromKv(kv, queue?.length ?? 0);
-    const { ids, nextCursor } = takeQueueBatch(queue ?? [], cursor, limit);
 
     if (ids.length === 0) {
       return c.json({
@@ -204,7 +215,9 @@ export function registerPostChannelsCheck(app: Hono<AdminEnv>) {
       deletedCount = missingIds.length;
     }
 
-    await saveCursorToKv(kv, nextCursor);
+    if (useQueue && kv) {
+      await saveCursorToKv(kv, nextCursor);
+    }
 
     return c.json(
       {
@@ -215,12 +228,17 @@ export function registerPostChannelsCheck(app: Hono<AdminEnv>) {
         missing: missingIds.length,
         deleted: deletedCount,
         limit,
+        mode: useQueue ? "queue" : "manual",
         checkedIds: ids,
         missingIds,
       },
       200,
     );
-  });
+  };
+
+  app.post("/channels/check", checkHandler);
+  // 管理画面用に同じ処理を /admin 配下にも公開し、セッション認証で実行できるようにします。
+  app.post("/admin/channels/check", checkHandler);
 }
 
 async function loadQueueFromKv(kv: KVNamespace): Promise<string[] | null> {
@@ -299,6 +317,36 @@ function normalizeCursor(cursor: number, queueLength: number): number {
     return 0;
   }
   return cursor < queueLength ? cursor : 0;
+}
+
+async function parseRequestedChannelIds(
+  c: Context<AdminEnv>,
+): Promise<string[]> {
+  const contentType = c.req.header("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
+    return [];
+  }
+
+  try {
+    const body = await c.req.json() as { channelIds?: unknown };
+    if (!Array.isArray(body.channelIds)) {
+      return [];
+    }
+    // 入力配列を正規化し、空文字・重複・上限超過を丁寧に抑えます。
+    const uniqueIds = new Set<string>();
+    for (const value of body.channelIds) {
+      if (typeof value !== "string") continue;
+      const trimmed = value.trim();
+      if (!trimmed) continue;
+      uniqueIds.add(trimmed);
+      if (uniqueIds.size >= MAX_BATCH_SIZE) {
+        break;
+      }
+    }
+    return Array.from(uniqueIds);
+  } catch {
+    return [];
+  }
 }
 
 async function rebuildChannelCheckQueue(db: AppDatabase, kv: KVNamespace): Promise<string[]> {

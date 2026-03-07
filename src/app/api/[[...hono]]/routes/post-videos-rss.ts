@@ -81,11 +81,9 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
 
     for (const channel of targetChannels) {
       const now = new Date().toISOString();
-      let parsedChannelTitle: string | undefined;
       try {
         const feed = await fetchChannelFeed(channel.id);
         const parsed = parseChannelFeed(feed);
-        parsedChannelTitle = parsed.channelTitle;
         const entries = parsed.entries.slice(0, MAX_ITEMS_PER_CHANNEL);
         summary.itemsFetched += entries.length;
 
@@ -159,15 +157,10 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
         }
       } finally {
         // 巡回完了後は必ず lastCheckedAt を更新し、次回巡回対象の決定に反映させます。
-        const channelUpdate: Partial<typeof channels.$inferInsert> = {
-          lastCheckedAt: now,
-        };
-        if (parsedChannelTitle && parsedChannelTitle !== channel.name) {
-          channelUpdate.name = parsedChannelTitle;
-        }
         await db
           .update(channels)
-          .set(channelUpdate)
+          // チャンネル名の更新は channels/check に限定し、ここでは確認時刻のみ更新します。
+          .set({ lastCheckedAt: now })
           .where(eq(channels.id, channel.id));
       }
       // YouTube API のレート制限を考慮しつつ、CPU時間制限を回避するため sleep を最小限に抑えます。

@@ -244,6 +244,13 @@ export function ChannelAdminSection({
           >
             チャンネル追加
           </button>
+          <button
+            type="button"
+            onClick={() => router.push("/admin/channels/check")}
+            className={styles.primaryButton}
+          >
+            存在チェック
+          </button>
         </div>
 
         {/* <div className={styles.actionButtons}>
@@ -265,8 +272,6 @@ export function ChannelAdminSection({
         </div> */}
       </div>
 
-
-
       <ChannelBulkManager
         channels={channels}
         currentPage={pagination.currentPage}
@@ -279,4 +284,3 @@ export function ChannelAdminSection({
     </div>
   );
 }
-
