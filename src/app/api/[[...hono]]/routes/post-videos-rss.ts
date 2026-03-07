@@ -309,6 +309,8 @@ async function runChannelSearchFallback(params: {
   const searchUrl = new URL("/api/channels/search", params.requestUrl);
   searchUrl.searchParams.set("channelId", params.channelId);
   searchUrl.searchParams.set("isFullSearch", "false");
+  // RSS 404 フォールバック時は固定キーワード検索（デフォルトの「ネタ」）を無効化します。
+  searchUrl.searchParams.set("useKeyword", "false");
   // RSS 404 フォールバック時は公開日順で取得し、直近動画の補完漏れを減らします。
   searchUrl.searchParams.set("order", "date");
   const fourteenDaysAgo = new Date();
