@@ -157,9 +157,21 @@ function shouldRunVideoCheckQueueRebuildJob(event: ScheduledEventParam): boolean
 }
 
 function shouldRunVideoRssJob(event: ScheduledEventParam): boolean {
-  // RSS 取得は毎時 10 分のタイミング (=60分毎) で動かし、1 日 540 チャンネルを確実に巡回します。
+  // RSS 取得は毎時 10 分のタイミング (=60分毎) で動かし、安定運用のため一部時間帯を除いて巡回します。
   const epochMinutes = Math.floor(event.scheduledTime / 60_000);
-  return epochMinutes % 60 === 10;
+  if (epochMinutes % 60 !== 10) {
+    return false;
+  }
+
+  // JST 15時台/16時台は恒常的に失敗するため、該当時間の実行を明示的にスキップします。
+  const minuteOfDayUtc = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  const hourUtc = Math.floor(minuteOfDayUtc / 60);
+  const hourJst = (hourUtc + 9) % 24;
+  if (hourJst === 15 || hourJst === 16) {
+    return false;
+  }
+
+  return true;
 }
 
 function shouldRunLatestVideosCacheJob(event: ScheduledEventParam): boolean {
@@ -201,4 +213,3 @@ function shouldRunChannelCheckJob(event: ScheduledEventParam): boolean {
   const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
   return minuteOfDay === CHANNEL_CHECK_RUN_MINUTE;
 }
-
