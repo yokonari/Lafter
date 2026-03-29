@@ -204,15 +204,17 @@ async function loadTargetChannels(db: AppDatabase, options: {
   channelId?: string;
   limit: number;
 }): Promise<ChannelRow[]> {
-  const oneYearAgoIso = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
-  // 各チャンネルで「公開日が直近1年以内の status=1 動画」を持っているか丁寧に確認する EXISTS 句です。
+  // 各チャンネルで「公開日が直近2年以内の status=1 動画」を持っているか丁寧に確認する EXISTS 句です。
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - 2);
+  const twoYearsAgoIso = d.toISOString();
   const hasRecentActiveVideos = sql`
     EXISTS (
       SELECT 1 FROM ${videos}
       WHERE ${videos.channelId} = ${channels.id}
         AND ${videos.status} = 1
         AND ${videos.publishedAt} IS NOT NULL
-        AND ${videos.publishedAt} >= ${oneYearAgoIso}
+        AND ${videos.publishedAt} >= ${twoYearsAgoIso}
     )
   `;
 
