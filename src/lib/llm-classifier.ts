@@ -110,7 +110,7 @@ export async function classifyTitleWithLLM(
   const fewShots = resolveFewShots(options);
   const fewShotText = formatFewShotText(fewShots);
   const completion = await client.responses.create({
-    model: "gpt-5-nano",
+    model: "gpt-5.4-nano",
     input: [
       {
         role: "system",
