@@ -121,7 +121,6 @@ export async function classifyTitleWithLLM(
         content: `タイトル: ${title}`,
       },
     ],
-    top_p: 1,
     text: { verbosity: "low" },
     reasoning: { effort: "medium" },
   });
