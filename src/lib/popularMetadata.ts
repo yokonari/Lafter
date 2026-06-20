@@ -1,5 +1,3 @@
-import type { Metadata } from "next";
-
 export type PopularPeriod = "month" | "year" | "all";
 export type PopularSort = "views" | "likes";
 
@@ -11,7 +9,7 @@ export const POPULAR_PERIOD_LABELS: Record<PopularPeriod, string> = {
 };
 
 export const POPULAR_SORT_SEO_PHRASES: Record<PopularSort, string> = {
-  views: "再生数が多い",
+  views: "視聴数が多い",
   likes: "高評価が多い",
 };
 
