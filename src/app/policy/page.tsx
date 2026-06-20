@@ -9,6 +9,10 @@ export const metadata: Metadata = {
 };
 
 export default async function PolicyPage() {
+   // プライバシーポリシー上の連絡先は、問い合わせ送信先と同じ環境変数から表示します。
+   const contactEmail =
+      process.env.NEXT_PUBLIC_CONTACT_TO_EMAIL ?? process.env.CONTACT_TO_EMAIL ?? "yokonari10@gmail.com";
+
    // 外部読み込みを避け、ビルドに同梱したMarkdown本文を直接埋め込みます。
    const policyMarkdown = `# Lafter プライバシーポリシー
 
@@ -20,7 +24,7 @@ Lafter（以下「本サービス」といいます。）は、本サービス�
 
 - サービス名：Lafter
 - 運営者：よこなり
-- 連絡先：[お問い合わせフォーム](#contact)
+- 連絡先：[${contactEmail}](mailto:${contactEmail})
 
 ## 第2条（取得する情報）
 

@@ -516,7 +516,7 @@ export function SearchResults({
                 className={`${styles.periodTab} ${selectedSort === "views" ? styles.periodTabActive : ""}`}
                 onClick={() => handleSortChange("views")}
               >
-                再生数
+                視聴数
               </button>
               <button
                 type="button"
@@ -544,7 +544,7 @@ export function SearchResults({
                 className={`${styles.raceTab} ${selectedSort === "views" ? styles.active : ""}`}
                 onClick={() => handleSortChange("views")}
               >
-                再生数
+                視聴数
               </button>
               <button
                 className={`${styles.raceTab} ${selectedSort === "likes" ? styles.active : ""}`}

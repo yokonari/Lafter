@@ -37,7 +37,7 @@ export function UserFooter() {
             rel="noreferrer"
             className={styles.footerLink}
           >
-            OGP背景画像素材：SVGBackgrounds.com
+            OGP素材：SVGBackgrounds.com
           </a>
         </p>
 

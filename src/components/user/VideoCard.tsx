@@ -11,23 +11,23 @@ type VideoCardProps = {
   displayStat?: "views" | "likes"; // 表示する統計情報を指定
 };
 
-// 数値を日本語形式でフォーマットする関数（単位付き）
-function formatNumber(num: number, unit: string): string {
+// API 由来の統計値だと分かるよう、表示ラベルを固定の文言で付与します。
+function formatNumber(num: number, label: string): string {
   if (num >= 100000000) {
     // 1億以上は小数点なしで整数表示
-    return `${Math.round(num / 100000000)} 億${unit}`;
+    return `${Math.round(num / 100000000)} 億${label}`;
   }
   if (num >= 100000) {
     // 10万以上は小数点なしで整数表示
-    return `${Math.round(num / 10000)} 万${unit}`;
+    return `${Math.round(num / 10000)} 万${label}`;
   }
   if (num >= 10000) {
     // 1万以上10万未満は、小数点以下が0なら整数表示、それ以外は小数点1桁表示
     const manValue = num / 10000;
     const rounded = Math.round(manValue * 10) / 10; // 小数点1桁に丸める
-    return rounded % 1 === 0 ? `${Math.round(rounded)} 万${unit}` : `${rounded.toFixed(1)} 万${unit}`;
+    return rounded % 1 === 0 ? `${Math.round(rounded)} 万${label}` : `${rounded.toFixed(1)} 万${label}`;
   }
-  return `${num.toLocaleString("ja-JP")} ${unit}`;
+  return `${num.toLocaleString("ja-JP")} ${label}`;
 }
 
 export function VideoCard({ video, onSelect, onChannelSelect, displayStat }: VideoCardProps) {
@@ -39,10 +39,12 @@ export function VideoCard({ video, onSelect, onChannelSelect, displayStat }: Vid
   let statLabel: string | undefined;
   if (displayStat === "views" && video.viewCount !== undefined) {
     statValue = video.viewCount;
-    statLabel = "回";
+    // 再生数は「〜回視聴」に統一し、YouTube 上の統計値として自然な表記へ合わせます。
+    statLabel = "回視聴";
   } else if (displayStat === "likes" && video.likeCount !== undefined) {
     statValue = video.likeCount;
-    statLabel = "件";
+    // 高評価数も「〜件高評価」に統一します。
+    statLabel = "件高評価";
   }
 
   return (
