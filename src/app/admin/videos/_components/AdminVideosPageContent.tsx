@@ -100,6 +100,7 @@ type ShortcutKey = keyof typeof SHORTCUT_CONFIG;
 type SearchContextMode = "form" | "shortcut" | "channel" | null;
 
 const defaultVideoStatus = 3; // 初期表示では AI OK 判定済みの動画を優先して確認できるようにします。
+const CHANNEL_FILTER_PAGE_SIZE = 10; // 動画一覧は通常時・チャンネル絞り込み時ともに 10 件ずつ確認できるようにします。
 
 // OK/NG の内部値が混在しないよう、表示用の値を丁寧に正規化します。
 const resolveStatusValue = (value?: number | string | null) => {
@@ -252,6 +253,8 @@ export default function AdminVideosPageContent() {
                     search.set("page", String(targetPage));
                 }
                 search.set("video_status", String(statusFilter));
+                // 未選択時もチャンネル絞り込み時と同じ 10 件ページングに揃えます。
+                search.set("limit", String(CHANNEL_FILTER_PAGE_SIZE));
                 if (reportedOnly) {
                     search.set("reported_only", "1");
                 }
@@ -421,6 +424,7 @@ export default function AdminVideosPageContent() {
         pageNumber = 1,
         statusFilter: number,
         reportedOnly = reportedOnlyFilter,
+        limit = CHANNEL_FILTER_PAGE_SIZE,
     ) => {
         if (!channelId) {
             throw new Error("チャンネルIDが指定されていません。");
@@ -429,6 +433,7 @@ export default function AdminVideosPageContent() {
         searchParams.set("page", String(pageNumber));
         searchParams.set("video_status", String(statusFilter));
         searchParams.set("channel_id", channelId);
+        searchParams.set("limit", String(limit));
         if (reportedOnly) {
             searchParams.set("reported_only", "1");
         }
@@ -458,58 +463,6 @@ export default function AdminVideosPageContent() {
         return payload as AdminVideosResponse;
     }, [reportedOnlyFilter]);
 
-    const fetchAllChannelVideos = useCallback(async (
-        channelId: string,
-        statusFilter: number,
-        reportedOnly: boolean,
-    ): Promise<AdminVideosResponse> => {
-        if (!channelId) {
-            throw new Error("チャンネルIDが指定されていません。");
-        }
-        // チャンネル絞り込みではページングを廃止するため、全ページを丁寧に走査してまとめます。
-        const mergedVideos = new Map<string, AdminVideo>();
-        const mergedChannels = new Map<string, ChannelSummary>();
-        let totalCount: number | null = null;
-        let limitValue: number | null = null;
-        const maxPages = 50;
-        for (let pageNumber = 1; pageNumber <= maxPages; pageNumber += 1) {
-            const data = await fetchVideosByChannel(channelId, pageNumber, statusFilter, reportedOnly);
-            if (limitValue === null && typeof data.limit === "number") {
-                limitValue = data.limit;
-            }
-            if (typeof data.totalCount === "number") {
-                totalCount = data.totalCount;
-            }
-            for (const video of data.videos) {
-                if (!mergedVideos.has(video.id)) {
-                    mergedVideos.set(video.id, video);
-                }
-            }
-            if (Array.isArray(data.channels)) {
-                for (const channel of data.channels) {
-                    if (!channel?.id) continue;
-                    if (!mergedChannels.has(channel.id)) {
-                        mergedChannels.set(channel.id, channel);
-                    }
-                }
-            }
-            if (!data.hasNext) {
-                break;
-            }
-            if (pageNumber === maxPages) {
-                toast.warn("対象チャンネルの動画が多いため、全件を取得できませんでした。");
-            }
-        }
-        return {
-            videos: Array.from(mergedVideos.values()),
-            channels: Array.from(mergedChannels.values()),
-            page: 1,
-            limit: limitValue ?? mergedVideos.size,
-            hasNext: false,
-            totalCount: typeof totalCount === "number" ? totalCount : mergedVideos.size,
-        };
-    }, [fetchVideosByChannel]);
-
     const executeVideoSearch = useCallback(
         async (keyword: string) => {
             latestSearchChannelsRef.current = [];
@@ -528,7 +481,8 @@ export default function AdminVideosPageContent() {
         [fetchVideosByKeyword, reportedOnlyFilter, videoStatusFilter],
     );
 
-    const shouldShowVideoGrid = searchContext !== null;
+    // 対象チャンネル未選択時は全チャンネル動画をそのまま表示します。
+    const shouldShowVideoGrid = searchContext !== null || videos.length > 0 || loading;
     const filteredVideos = useMemo(
         () => (shouldShowVideoGrid ? videos : []),
         [videos, shouldShowVideoGrid],
@@ -747,11 +701,17 @@ export default function AdminVideosPageContent() {
                 selected: true,
             };
             try {
-                const data = await fetchAllChannelVideos(channelId, videoStatusFilter, reportedOnlyFilter);
+                const data = await fetchVideosByChannel(
+                    channelId,
+                    1,
+                    videoStatusFilter,
+                    reportedOnlyFilter,
+                    CHANNEL_FILTER_PAGE_SIZE,
+                );
                 const channelList = Array.isArray(data.channels) ? data.channels : [];
                 applySearchResults(
                     data.videos,
-                    { hasNext: false, totalCount: data.totalCount },
+                    { hasNext: Boolean(data.hasNext), totalCount: data.totalCount },
                     { defaults, mode: "channel", channelFilter: { id: channelId, name: channelName } },
                     channelList,
                 );
@@ -770,7 +730,7 @@ export default function AdminVideosPageContent() {
         [
             activeChannelFilter,
             applySearchResults,
-            fetchAllChannelVideos,
+            fetchVideosByChannel,
             loadVideos,
             reportedOnlyFilter,
             searchContext,
@@ -933,10 +893,12 @@ export default function AdminVideosPageContent() {
                     if (!activeChannelFilter) {
                         return null;
                     }
-                    data = await fetchAllChannelVideos(
+                    data = await fetchVideosByChannel(
                         activeChannelFilter.id,
+                        targetPage,
                         videoStatusFilter,
                         reportedOnlyFilter,
+                        CHANNEL_FILTER_PAGE_SIZE,
                     );
                 } else {
                     const keyword = currentSearchKeyword ?? searchKeywordRef.current;
@@ -1009,7 +971,7 @@ export default function AdminVideosPageContent() {
             activeChannelFilter,
             currentSearchKeyword,
             searchContext,
-            fetchAllChannelVideos,
+            fetchVideosByChannel,
             fetchVideosByKeyword,
             createInitialSelections,
             searchSelectionDefaults,
@@ -1101,7 +1063,7 @@ export default function AdminVideosPageContent() {
             const wasSearchContext = Boolean(currentSearchMode);
             if (wasSearchContext) {
                 if (currentSearchMode === "channel") {
-                    // チャンネル絞り込みでは全件を都度再取得し、同じチャンネルでの確認作業を継続しやすくします。
+                    // チャンネル絞り込みでは同じ条件の先頭ページを再取得し、確認作業を継続しやすくします。
                     const channelResult = await loadSearchPage(1);
                     if (!channelResult || channelResult.videos.length === 0) {
                         // 更新後に対象動画がなくなった場合は、チャンネル一覧画面へ戻して仕切り直せるようにします。
@@ -1132,10 +1094,6 @@ export default function AdminVideosPageContent() {
 
     const goToPage = (targetPage: number) => {
         if (searchContext) {
-            if (searchContext === "channel") {
-                // チャンネル絞り込みではページングを無効化するため、遷移は行いません。
-                return;
-            }
             void loadSearchPage(targetPage);
             return;
         }
@@ -1477,7 +1435,6 @@ export default function AdminVideosPageContent() {
                         {shouldShowVideoGrid ? (
                             // フッターに専用の一括操作エリアを設け、OK/NG の一括反映をすぐ実行できるようにします。
                             <ListFooter
-                                hidePaging={searchContext === "channel"}
                                 selectionContent={(
                                     <div className="flex flex-wrap items-center gap-3 text-sm">
                                         <label className="inline-flex items-center gap-2">
@@ -1554,4 +1511,3 @@ export default function AdminVideosPageContent() {
         </>
     );
 }
-

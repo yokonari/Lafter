@@ -21,6 +21,10 @@ export const getAuth = (db: D1Database, allowedEmail?: string) => {
       provider: "sqlite",
       schema: authSchema,
     }),
+    session: {
+      // 管理画面のログイン有効期限を 30 日に明示します。
+      expiresIn: 60 * 60 * 24 * 30,
+    },
     emailAndPassword: {
       enabled: true,
     },
