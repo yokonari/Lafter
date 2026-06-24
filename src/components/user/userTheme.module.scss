@@ -683,6 +683,13 @@ $title-font-weight: 400;
   margin-left: 1rem;
 }
 
+.popularRankingNote {
+  margin: 0.15rem 0 0;
+  color: var(--user-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 .errorCard {
   margin-bottom: 1.5rem;
   border-radius: 0.75rem;

@@ -387,6 +387,11 @@ export function SearchResults({
       : mode === "new"
         ? NEW_PAGE_SEO_TITLE
         : titleText;
+  // 人気画面では、公開期間で絞った動画を現在の YouTube 統計値で並べていることを明示します。
+  const popularRankingNote =
+    selectedPeriod === "all"
+      ? `全期間の動画を${selectedSort === "likes" ? "高評価順" : "視聴数順"}で表示`
+      : `${selectedPeriod === "year" ? "1年以内" : "1ヶ月以内"}に公開された動画を${selectedSort === "likes" ? "高評価順" : "視聴数順"}で表示`;
 
   return (
     // 検索結果ページもダークトーンへ合わせ、各状態メッセージの色味を丁寧に調整します。
@@ -575,7 +580,7 @@ export function SearchResults({
                   className={`${styles.periodTab} ${selectedPeriod === "all" ? styles.periodTabActive : ""}`}
                   onClick={() => handlePeriodChange("all")}
                 >
-                  累計
+                  全期間
                 </button>
               </div>
               {canShowShareButton && (
@@ -584,6 +589,7 @@ export function SearchResults({
                 </div>
               )}
             </div>
+            <p className={styles.popularRankingNote}>{popularRankingNote}</p>
           </>
         )}
       </div>
