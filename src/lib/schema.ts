@@ -110,6 +110,60 @@ export const videos = sqliteTable(
   }),
 );
 
+/* =========================
+   video_classification_results
+   ========================= */
+export const videoClassificationResults = sqliteTable(
+  "video_classification_results",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    videoId: text("video_id")
+      .notNull()
+      .references(() => videos.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    model: text("model").notNull(),
+    promptVersion: text("prompt_version").notNull(),
+    predictedLabel: integer("predicted_label").notNull(),
+    rawResponse: text("raw_response").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+  },
+  (table) => ({
+    // 動画ごとの最新予測とモデル別評価を効率良く取得します。
+    idxVideoClassificationResultsVideoCreated: index(
+      "idx_video_classification_results_video_created",
+    ).on(table.videoId, table.createdAt),
+    idxVideoClassificationResultsModel: index(
+      "idx_video_classification_results_model",
+    ).on(table.model),
+  }),
+);
+
+/* =========================
+   video_manual_labels
+   ========================= */
+export const videoManualLabels = sqliteTable(
+  "video_manual_labels",
+  {
+    videoId: text("video_id")
+      .primaryKey()
+      .references(() => videos.id, { onDelete: "cascade", onUpdate: "cascade" }),
+    label: integer("label").notNull(),
+    source: text("source").notNull().default("admin"),
+    reviewedAt: text("reviewed_at").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
+  },
+  (table) => ({
+    // チャンネル内のfew-shot抽出ではvideosとの結合後にラベルで絞り込みます。
+    idxVideoManualLabelsLabel: index("idx_video_manual_labels_label").on(table.label),
+  }),
+);
+
 
 
 /* =========================

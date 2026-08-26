@@ -190,6 +190,13 @@
       "when": 1770125363655,
       "tag": "0026_shocking_gravity",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1787753221334,
+      "tag": "0027_happy_ikaris",
+      "breakpoints": true
     }
   ]
 }

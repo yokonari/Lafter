@@ -51,10 +51,13 @@ type SelectionDefaults = {
     selected?: boolean;
 };
 
+type ClassificationDecision = "ok" | "not_content" | "unofficial" | "unavailable";
+
 type VideoSelection = {
     selected: boolean;
     videoStatus: string;
     reportStatus: string;
+    classificationDecision?: ClassificationDecision;
 };
 
 const VIDEO_STATUS_OPTIONS = [
@@ -552,7 +555,11 @@ export default function AdminVideosPageContent() {
                             reportStatus: String(video.report_status ?? 0),
                         };
                     next[video.id] = fallback.selected
-                        ? { ...fallback, videoStatus: statusValue }
+                        ? {
+                            ...fallback,
+                            videoStatus: statusValue,
+                            classificationDecision: statusValue === "1" ? "ok" : "not_content",
+                        }
                         : fallback;
                 }
                 return next;
@@ -560,6 +567,37 @@ export default function AdminVideosPageContent() {
         },
         [filteredVideos, selections, videoStatusFilter],
     );
+
+    // 公式外・再生不可は非表示にしつつ、ネタ以外の教師データには含めません。
+    const handleBulkExcluded = useCallback((decision: "unofficial" | "unavailable") => {
+        const hasSelectedEntries = filteredVideos.some((video) => {
+            const entry = selections[video.id];
+            return entry ? entry.selected : true;
+        });
+        if (!hasSelectedEntries) {
+            toast.info("一括変更する動画を選択してください。");
+            return;
+        }
+        setSelections((prev) => {
+            const next: Record<string, VideoSelection> = { ...prev };
+            for (const video of filteredVideos) {
+                const fallback = next[video.id] ?? {
+                    selected: true,
+                    videoStatus: resolveStatusValue(videoStatusFilter),
+                    reportStatus: String(video.report_status ?? 0),
+                };
+                next[video.id] = fallback.selected
+                    ? {
+                        ...fallback,
+                        videoStatus: "2",
+                        reportStatus: decision === "unofficial" ? "2" : "3",
+                        classificationDecision: decision,
+                    }
+                    : fallback;
+            }
+            return next;
+        });
+    }, [filteredVideos, selections, videoStatusFilter]);
 
     // 選択済み動画の報告ステータスを一括で「報告なし」に変更するハンドラーです。
     const handleBulkReportStatusClear = useCallback(() => {
@@ -995,19 +1033,28 @@ export default function AdminVideosPageContent() {
                 // video_status と report_status の変更を判定します。
                 const videoStatusChanged = currentStatus !== videoStatusFilter;
                 const reportStatusChanged = currentReportStatus !== originalReportStatus;
+                const classificationDecisionChanged = entry.classificationDecision !== undefined;
 
                 // いずれかの変更がある場合のみ送信対象にします。
-                if (!videoStatusChanged && !reportStatusChanged) {
+                if (!videoStatusChanged && !reportStatusChanged && !classificationDecisionChanged) {
                     return null;
                 }
 
-                const item: { id: string; video_status: number; report_status?: number } = {
+                const item: {
+                    id: string;
+                    video_status: number;
+                    report_status?: number;
+                    classification_decision?: ClassificationDecision;
+                } = {
                     id,
                     video_status: currentStatus,
                 };
                 // 報告ステータスに変更がある場合のみ送信データに含めます。
                 if (reportStatusChanged) {
                     item.report_status = currentReportStatus;
+                }
+                if (entry.classificationDecision) {
+                    item.classification_decision = entry.classificationDecision;
                 }
                 return item;
             })
@@ -1055,6 +1102,7 @@ export default function AdminVideosPageContent() {
                             reportStatus: String(video.report_status ?? 0),
                         }),
                         selected: true,
+                        classificationDecision: undefined,
                     };
                 }
                 return next;
@@ -1389,7 +1437,11 @@ export default function AdminVideosPageContent() {
                                                         <div className={styles.radioOptions}>
                                                             {VIDEO_STATUS_OPTIONS.map((option) => {
                                                                 const inputId = `video-status-${video.id}-${option.value}`;
-                                                                const isChecked = entry.videoStatus === option.value;
+                                                                const isExcludedDecision =
+                                                                    entry.classificationDecision === "unofficial" ||
+                                                                    entry.classificationDecision === "unavailable";
+                                                                const isChecked =
+                                                                    entry.videoStatus === option.value && !isExcludedDecision;
                                                                 const activeClass =
                                                                     isChecked && option.value === "1"
                                                                         ? styles.radioOptionOkActive
@@ -1415,6 +1467,10 @@ export default function AdminVideosPageContent() {
                                                                                     [video.id]: {
                                                                                         ...entry,
                                                                                         videoStatus: event.target.value,
+                                                                                        classificationDecision:
+                                                                                            event.target.value === "1"
+                                                                                                ? "ok"
+                                                                                                : "not_content",
                                                                                     },
                                                                                 }))
                                                                             }
@@ -1423,6 +1479,50 @@ export default function AdminVideosPageContent() {
                                                                     </label>
                                                                 );
                                                             })}
+                                                            {showStatusBadges && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        setSelections((prev) => ({
+                                                                            ...prev,
+                                                                            [video.id]: {
+                                                                                ...entry,
+                                                                                videoStatus: "2",
+                                                                                reportStatus: "2",
+                                                                                classificationDecision: "unofficial",
+                                                                            },
+                                                                        }))
+                                                                    }
+                                                                    className={`${styles.radioOption} ${
+                                                                        entry.classificationDecision === "unofficial"
+                                                                            ? styles.radioOptionNgActive
+                                                                            : ""
+                                                                    }`}
+                                                                >
+                                                                    非公式
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() =>
+                                                                    setSelections((prev) => ({
+                                                                        ...prev,
+                                                                        [video.id]: {
+                                                                            ...entry,
+                                                                            videoStatus: "2",
+                                                                            reportStatus: "3",
+                                                                            classificationDecision: "unavailable",
+                                                                        },
+                                                                    }))
+                                                                }
+                                                                className={`${styles.radioOption} ${
+                                                                    entry.classificationDecision === "unavailable"
+                                                                        ? styles.radioOptionNgActive
+                                                                        : ""
+                                                                }`}
+                                                            >
+                                                                削除済
+                                                            </button>
                                                         </div>
                                                     </fieldset>
                                                 </div>
@@ -1467,6 +1567,24 @@ export default function AdminVideosPageContent() {
                                                 className="rounded-full border border-rose-400/70 px-3 py-1 text-xs font-semibold text-rose-100 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                                             >
                                                 選択をNGにする
+                                            </button>
+                                            {showStatusBadges && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleBulkExcluded("unofficial")}
+                                                    disabled={bulkStatusDisabled}
+                                                    className="rounded-full border border-amber-400/70 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    選択を非公式にする
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => handleBulkExcluded("unavailable")}
+                                                disabled={bulkStatusDisabled}
+                                                className="rounded-full border border-amber-400/70 px-3 py-1 text-xs font-semibold text-amber-100 transition hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                                選択を削除済にする
                                             </button>
                                             {/* 報告ありフィルター時のみ、報告をクリアする一括操作ボタンを表示します。 */}
                                             {showStatusBadges && (

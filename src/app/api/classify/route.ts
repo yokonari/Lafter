@@ -2,8 +2,13 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { and, desc, eq } from "drizzle-orm";
 import { CLASSIFIER_THRESHOLD, classifyTitle } from "@/lib/video-classifier";
 import { getOpenAIClient } from "@/lib/openai-client";
-import { classifyTitleWithLLM, type FewShotExample } from "@/lib/llm-classifier";
-import { channels, videos } from "@/lib/schema";
+import {
+  classifyTitleWithLLM,
+  LLM_VIDEO_CLASSIFIER_MODEL,
+  LLM_VIDEO_CLASSIFIER_PROMPT_VERSION,
+  type FewShotExample,
+} from "@/lib/llm-classifier";
+import { channels, videoClassificationResults, videoManualLabels, videos } from "@/lib/schema";
 import { createDatabase, type AppDatabase } from "@/app/api/[[...hono]]/context";
 import { verifyApiSecret } from "@/lib/api-secret";
 import type { KVNamespace } from "@cloudflare/workers-types";
@@ -101,6 +106,15 @@ export async function POST(request: Request) {
         });
         const nextStatus = resolveStatusFromLabel(classification.label);
         const checkedAt = new Date().toISOString();
+        // 予測と人間の正解を後から比較できるよう、公開ステータスとは別に履歴を保存します。
+        await db.insert(videoClassificationResults).values({
+          videoId: video.id,
+          model: LLM_VIDEO_CLASSIFIER_MODEL,
+          promptVersion: LLM_VIDEO_CLASSIFIER_PROMPT_VERSION,
+          predictedLabel: classification.label === "true" ? 1 : 0,
+          rawResponse: classification.rawResponse,
+          createdAt: checkedAt,
+        });
         await db
           .update(videos)
           .set({
@@ -224,8 +238,8 @@ function resolveStatusFromLabel(label: "true" | "false"): number {
 
 const CHANNEL_FEW_SHOT_KV_PREFIX = "llm:few-shots:";
 const FEW_SHOT_LIMIT_PER_LABEL = 12;
-const FEW_SHOT_TRUE_STATUS = 1;
-const FEW_SHOT_FALSE_STATUS = 2;
+const FEW_SHOT_TRUE_LABEL = 1;
+const FEW_SHOT_FALSE_LABEL = 0;
 // KV にキャッシュした few-shot は 30 日に 1 度の頻度で丁寧に更新し、新鮮なサンプルを使い続けます。
 const FEW_SHOT_REFRESH_INTERVAL_MS = 1000 * 60 * 60 * 24 * 30;
 
@@ -331,10 +345,9 @@ async function saveChannelFewShotsToKv(
 }
 
 async function buildFewShotsFromDatabase(db: AppDatabase, channelId: string): Promise<FewShotExample[]> {
-  // LLM に確信度の高いシグナルを与えるため、手動で確定済み (status=1,2) の動画タイトルを丁寧に抽出します。
-  // publishedAt 降順で取得するため、自然と直近公開動画から候補が優先されます。
-  const trueSamples = await selectVideoTitlesByStatus(db, channelId, FEW_SHOT_TRUE_STATUS);
-  const falseSamples = await selectVideoTitlesByStatus(db, channelId, FEW_SHOT_FALSE_STATUS);
+  // 削除・非公式動画を混ぜないよう、人間がネタ区分を確定したラベルだけを参照します。
+  const trueSamples = await selectVideoTitlesByLabel(db, channelId, FEW_SHOT_TRUE_LABEL);
+  const falseSamples = await selectVideoTitlesByLabel(db, channelId, FEW_SHOT_FALSE_LABEL);
   const normalized = [
     ...trueSamples.map((row) => ({ title: row.title, label: "true" as const })),
     ...falseSamples.map((row) => ({ title: row.title, label: "false" as const })),
@@ -342,17 +355,18 @@ async function buildFewShotsFromDatabase(db: AppDatabase, channelId: string): Pr
   return normalizeFewShots(normalized) ?? [];
 }
 
-async function selectVideoTitlesByStatus(
+async function selectVideoTitlesByLabel(
   db: AppDatabase,
   channelId: string,
-  status: number,
+  label: number,
 ): Promise<{ title: string }[]> {
-  // 公開日順で降順取得することで、最近公開されたデータが常にfew-shot先頭になるよう配慮しています。
+  // 最近レビューされた正解例を優先し、運用ルールの変化をfew-shotへ反映します。
   return db
     .select({ title: videos.title })
-    .from(videos)
-    .where(and(eq(videos.channelId, channelId), eq(videos.status, status)))
-    .orderBy(desc(videos.publishedAt), desc(videos.createdAt))
+    .from(videoManualLabels)
+    .innerJoin(videos, eq(videoManualLabels.videoId, videos.id))
+    .where(and(eq(videos.channelId, channelId), eq(videoManualLabels.label, label)))
+    .orderBy(desc(videoManualLabels.reviewedAt), desc(videos.publishedAt))
     .limit(FEW_SHOT_LIMIT_PER_LABEL);
 }
 

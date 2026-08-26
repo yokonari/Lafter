@@ -40,6 +40,10 @@ const PROMPT_HEADER = `
 - 細かいルールよりも、「例」と似たパターンかどうかを優先して判断してください。
 `;
 
+export const LLM_VIDEO_CLASSIFIER_MODEL = "gpt-5.5-2026-04-23";
+// プロンプト変更前後の精度を判別できるよう、履歴へ保存する版を固定します。
+export const LLM_VIDEO_CLASSIFIER_PROMPT_VERSION = "video-title-v1";
+
 // scripts/classify_titles_with_llm.mjs の fewShots と同一内容に揃え、LLMへの参照例を丁寧に同期させます。
 export type FewShotExample = {
   title: string;
@@ -110,7 +114,7 @@ export async function classifyTitleWithLLM(
   const fewShots = resolveFewShots(options);
   const fewShotText = formatFewShotText(fewShots);
   const completion = await client.responses.create({
-    model: "gpt-5.4-nano",
+    model: LLM_VIDEO_CLASSIFIER_MODEL,
     input: [
       {
         role: "system",

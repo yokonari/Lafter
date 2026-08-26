@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-import { videos } from "@/lib/schema";
+import { videoManualLabels, videos } from "@/lib/schema";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
@@ -10,7 +10,10 @@ type BulkItem = {
   id?: unknown;
   video_status?: unknown;
   report_status?: unknown;
+  classification_decision?: unknown;
 };
+
+type ClassificationDecision = "ok" | "not_content" | "unofficial" | "unavailable";
 
 type BulkRequestBody = {
   items?: BulkItem[];
@@ -43,7 +46,7 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
     }
 
     let processed = 0;
-    // ステータスを 1 または 2 に変更する際に、few-shot キャッシュ更新が必要なチャンネルIDを収集します。
+    // 人間の分類判断が変わったチャンネルだけfew-shotを更新します。
     const channelsNeedingFewShotRefresh = new Set<string>();
 
     for (const [index, item] of items.entries()) {
@@ -69,7 +72,22 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
 
       const videoUpdates: Partial<VideoInsert> = {};
 
-      const videoStatus = normalizeInt(item.video_status);
+      const rawDecision = item.classification_decision;
+      const explicitDecision = normalizeClassificationDecision(rawDecision);
+      if (rawDecision !== undefined && !explicitDecision) {
+        return fail(
+          `${path}.classification_decision には ok / not_content / unofficial / unavailable を指定してください。`,
+        );
+      }
+
+      const requestedVideoStatus = normalizeInt(item.video_status);
+      const classificationDecision = explicitDecision ?? resolveDecisionFromStatusChange(
+        videoRow.status,
+        requestedVideoStatus,
+      );
+      const videoStatus = classificationDecision
+        ? resolveVideoStatusFromDecision(classificationDecision)
+        : requestedVideoStatus;
       if (videoStatus === undefined || ![0, 1, 2, 3, 4].includes(videoStatus)) {
         return fail(`${path}.video_status には 0〜4 の整数を指定してください。`);
       }
@@ -83,9 +101,16 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
         }
         videoUpdates.reportStatus = reportStatus;
       }
+      if (classificationDecision === "unavailable") {
+        // 削除・再生不可は非表示にしますが、ネタ以外の正解ラベルには含めません。
+        videoUpdates.reportStatus = 3;
+      } else if (classificationDecision === "unofficial") {
+        // 公式外の動画も公開対象から外しますが、内容自体のネタ判定には利用しません。
+        videoUpdates.reportStatus = 2;
+      }
 
-      // ステータスを 1 または 2 に変更する場合、few-shot 更新対象としてチャンネルを記録します。
-      if ((videoStatus === 1 || videoStatus === 2) && videoRow.channelId) {
+      // 人間のネタ判定が変わった場合だけfew-shotキャッシュを更新します。
+      if (classificationDecision && videoRow.channelId) {
         channelsNeedingFewShotRefresh.add(videoRow.channelId);
       }
 
@@ -93,10 +118,39 @@ export function registerPostAdminVideoBulk(app: Hono<AdminEnv>) {
         await db.update(videos).set(videoUpdates).where(eq(videos.id, videoId));
       }
 
+      if (classificationDecision === "ok" || classificationDecision === "not_content") {
+        const now = new Date().toISOString();
+        const label = classificationDecision === "ok" ? 1 : 0;
+        await db
+          .insert(videoManualLabels)
+          .values({
+            videoId,
+            label,
+            source: "admin",
+            reviewedAt: now,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: videoManualLabels.videoId,
+            set: {
+              label,
+              source: "admin",
+              reviewedAt: now,
+              updatedAt: now,
+            },
+          });
+      } else if (
+        classificationDecision === "unavailable" ||
+        classificationDecision === "unofficial"
+      ) {
+        // 区分対象外への変更時は、過去の誤った手動ラベルを外します。
+        await db.delete(videoManualLabels).where(eq(videoManualLabels.videoId, videoId));
+      }
+
       processed += 1;
     }
 
-    // ステータスを 1 または 2 に変更したチャンネルの few-shot キャッシュを KV から削除し、次回 classify 時に再構築させます。
+    // 正解ラベルを変更したチャンネルのfew-shotを次回判定時に再構築します。
     if (channelsNeedingFewShotRefresh.size > 0 && env.LAFTER) {
       for (const channelId of channelsNeedingFewShotRefresh) {
         const key = `${CHANNEL_FEW_SHOT_KV_PREFIX}${channelId}`;
@@ -127,6 +181,39 @@ function normalizeInt(value: unknown): number | undefined {
     if (Number.isFinite(parsed)) {
       return Math.trunc(parsed);
     }
+  }
+  return undefined;
+}
+
+function normalizeClassificationDecision(value: unknown): ClassificationDecision | undefined {
+  if (
+    value === "ok" ||
+    value === "not_content" ||
+    value === "unofficial" ||
+    value === "unavailable"
+  ) {
+    return value;
+  }
+  return undefined;
+}
+
+function resolveVideoStatusFromDecision(decision: ClassificationDecision): number {
+  return decision === "ok" ? 1 : 2;
+}
+
+function resolveDecisionFromStatusChange(
+  currentStatus: number,
+  requestedStatus: number | undefined,
+): ClassificationDecision | undefined {
+  // 管理画面でOK/NGへ確定する既存操作も、人間の正解ラベルとして記録します。
+  if (requestedStatus === currentStatus) {
+    return undefined;
+  }
+  if (requestedStatus === 1) {
+    return "ok";
+  }
+  if (requestedStatus === 2) {
+    return "not_content";
   }
   return undefined;
 }
