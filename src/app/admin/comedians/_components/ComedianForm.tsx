@@ -492,12 +492,13 @@ export function ComedianForm({ comedian, returnPage = 1 }: ComedianFormProps) {
               id="startedOn"
               value={formData.startedOn}
               onChange={(e) => {
-                const value = e.target.value;
-                if (value === "9999") {
-                  setFormData({ ...formData, startedOn: value, agencyId: "other" });
-                } else {
-                  setFormData({ ...formData, startedOn: value });
-                }
+                const startedOn = e.target.value;
+                // 解散時は所属事務所も「その他」へ変更します。
+                setFormData((previous) => ({
+                  ...previous,
+                  startedOn,
+                  agencyId: startedOn === "9999" ? "other" : previous.agencyId,
+                }));
               }}
               className={styles.input}
             >
