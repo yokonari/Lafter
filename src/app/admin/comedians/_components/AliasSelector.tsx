@@ -7,7 +7,7 @@ import styles from "../../adminTheme.module.scss";
 
 export type ArtistAlias = {
   name: string;
-  kana: string;
+  kana?: string;
 };
 
 type AliasSelectorProps = {
@@ -57,7 +57,7 @@ export function AliasSelector({ selectedAliases, onChange }: AliasSelectorProps)
       ...selectedAliases,
       {
         name: newAliasName.trim(),
-        kana: newAliasKana.trim(),
+        kana: newAliasKana.trim() || undefined,
       },
     ]);
 
@@ -152,7 +152,7 @@ export function AliasSelector({ selectedAliases, onChange }: AliasSelectorProps)
                 />
                 <input
                   type="text"
-                  value={alias.kana}
+                  value={alias.kana ?? ""}
                   onChange={(e) => handleKanaChange(alias.name, e.target.value)}
                   className={styles.smallInput}
                   placeholder="読み仮名"

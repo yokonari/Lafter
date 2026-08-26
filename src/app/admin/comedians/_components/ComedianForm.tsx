@@ -242,7 +242,7 @@ export function ComedianForm({ comedian, returnPage = 1 }: ComedianFormProps) {
           formData.aliases.length > 0
             ? formData.aliases.map((a) => ({
                 name: a.name.trim(),
-                kana: a.kana.trim() || undefined,
+                kana: a.kana?.trim() || undefined,
               }))
             : [],
         description: formData.description.trim() || undefined,
