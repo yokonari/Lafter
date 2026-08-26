@@ -62,6 +62,7 @@ export function ComedianForm({ comedian, returnPage = 1 }: ComedianFormProps) {
   });
 
   const [agencies, setAgencies] = useState<Agency[]>([]);
+  const hasOtherAgency = agencies.some((agency) => agency.id === "other");
   const [styleOptions, setStyleOptions] = useState<StyleOption[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [slugError, setSlugError] = useState<string | null>(null);
@@ -493,11 +494,14 @@ export function ComedianForm({ comedian, returnPage = 1 }: ComedianFormProps) {
               value={formData.startedOn}
               onChange={(e) => {
                 const startedOn = e.target.value;
-                // 解散時は所属事務所も「その他」へ変更します。
+                // 「その他」が存在する場合のみ、解散時の所属事務所を自動で切り替えます。
                 setFormData((previous) => ({
                   ...previous,
                   startedOn,
-                  agencyId: startedOn === "9999" ? "other" : previous.agencyId,
+                  agencyId:
+                    startedOn === "9999" && hasOtherAgency
+                      ? "other"
+                      : previous.agencyId,
                 }));
               }}
               className={styles.input}
