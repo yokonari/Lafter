@@ -126,6 +126,7 @@ export function ContactPage() {
                             name="name"
                             type="text"
                             autoComplete="name"
+                            maxLength={100}
                             className={styles.contactInput}
                         />
                     </label>
@@ -137,6 +138,7 @@ export function ContactPage() {
                             name="email"
                             type="email"
                             autoComplete="email"
+                            maxLength={254}
                             className={styles.contactInput}
                         />
                         <span className={styles.contactHelper}>返信を希望される場合はメールアドレスをご記入ください。</span>
@@ -149,6 +151,7 @@ export function ContactPage() {
                             name="message"
                             required
                             rows={6}
+                            maxLength={5000}
                             value={messageDraft}
                             onChange={(event) => setMessageDraft(event.target.value)}
                             className={styles.contactTextarea}

@@ -615,7 +615,7 @@ export function SearchResults({
         <>
           {/* 動画グリッド */}
           <div className={styles.searchGrid}>
-            {videos.map((video) => {
+            {videos.map((video, index) => {
               // 人気モードまたは検索結果でソート順が再生数/高評価の場合、統計情報を表示
               const displayStat =
                 mode === "popular" && (selectedSort === "views" || selectedSort === "likes")
@@ -631,6 +631,7 @@ export function SearchResults({
                   onSelect={onVideoSelect}
                   onChannelSelect={onChannelSelect}
                   displayStat={displayStat}
+                  eager={index < 5}
                 />
               );
             })}

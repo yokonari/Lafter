@@ -5,7 +5,12 @@ import * as schema from "@/lib/schema";
 
 import { APIError } from "better-auth/api";
 
-export const getAuth = (db: D1Database, allowedEmail?: string) => {
+export const getAuth = (db: D1Database, allowedEmail?: string, authSecret?: string) => {
+  const resolvedSecret = authSecret ?? process.env.BETTER_AUTH_SECRET;
+  if (!resolvedSecret || resolvedSecret.length < 32) {
+    throw new Error("BETTER_AUTH_SECRET must be at least 32 characters.");
+  }
+
   // Cloudflare D1 を用いた認証セットアップを丁寧に組み立てます。
   const drizzleDb = drizzle(db, { schema });
   const authSchema = {
@@ -17,30 +22,39 @@ export const getAuth = (db: D1Database, allowedEmail?: string) => {
   };
   // Drizzle インスタンスを丁寧に整えて Better Auth へお渡しいたします。
   return betterAuth({
+    secret: resolvedSecret,
     database: drizzleAdapter(drizzleDb, {
       provider: "sqlite",
       schema: authSchema,
     }),
     session: {
-      // 管理画面のログイン有効期限を 30 日に明示します。
-      expiresIn: 60 * 60 * 24 * 30,
+      // 個人運用の利便性と漏えい時の影響を両立するため、7日間有効にします。
+      expiresIn: 60 * 60 * 24 * 7,
+      updateAge: 60 * 60 * 24,
     },
     emailAndPassword: {
       enabled: true,
     },
-    hooks: {
-      before: {
-        signUpEmail: async (ctx: { email: string }) => {
-          if (!allowedEmail) {
-            throw new APIError("FORBIDDEN", {
-              message: "管理者登録は現在許可されていません。",
-            });
-          }
-          if (ctx.email.toLowerCase() !== allowedEmail.trim().toLowerCase()) {
-            throw new APIError("FORBIDDEN", {
-              message: "このメールアドレスは登録許可リストに含まれていません。",
-            });
-          }
+    rateLimit: {
+      enabled: true,
+      window: 60,
+      max: 10,
+    },
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            if (!allowedEmail) {
+              throw new APIError("FORBIDDEN", {
+                message: "管理者登録は現在許可されていません。",
+              });
+            }
+            if (user.email.toLowerCase() !== allowedEmail.trim().toLowerCase()) {
+              throw new APIError("FORBIDDEN", {
+                message: "このメールアドレスは登録許可リストに含まれていません。",
+              });
+            }
+          },
         },
       },
     },

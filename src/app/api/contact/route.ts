@@ -1,10 +1,13 @@
 // Resend SDK を利用してお問い合わせ内容をメール送信するエンドポイントです。
 import { Resend } from "resend";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
+import { parseLimitedJson, protectPublicPost } from "@/lib/public-api-security";
 
 // フィールドごとの文字数制限
 const MAX_NAME_LENGTH = 100;
 const MAX_EMAIL_LENGTH = 254; // RFC 5321 で規定されたメールアドレスの最大長
 const MAX_MESSAGE_LENGTH = 5000;
+const MAX_BODY_BYTES = 8_192;
 
 type ContactPayload = {
   name?: unknown;
@@ -103,14 +106,26 @@ function isValidEmail(email: string): boolean {
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    },
   });
 }
 
 export async function POST(req: Request) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  const to = process.env.CONTACT_TO_EMAIL;
+  const { env } = getCloudflareContext();
+  const securityResponse = await protectPublicPost(req, env.LAFTER, {
+    namespace: "contact",
+    limit: 5,
+    windowSeconds: 60 * 60,
+    maxBodyBytes: MAX_BODY_BYTES,
+  });
+  if (securityResponse) return securityResponse;
+
+  const apiKey = env.RESEND_API_KEY ?? process.env.RESEND_API_KEY;
+  const from = env.RESEND_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL;
+  const to = env.CONTACT_TO_EMAIL ?? process.env.CONTACT_TO_EMAIL;
 
   // 必須の環境変数が欠けている場合はここで弾いて利用者に分かりやすいメッセージを返します。
   const missingKeys = [
@@ -123,17 +138,12 @@ export async function POST(req: Request) {
     console.error("Contact API misconfiguration", { missingKeys });
     return json(500, {
       message: "メール送信に失敗しました。時間を置いて再度お試しください。",
-      missingKeys,
     });
   }
 
-  // フロントエンドから送られてきた JSON を安全にパースします。
-  let payload: ContactPayload;
-  try {
-    payload = await req.json();
-  } catch {
-    return json(400, { message: "JSON ボディを解析できませんでした。" });
-  }
+  const parsedBody = await parseLimitedJson<ContactPayload>(req, MAX_BODY_BYTES);
+  if (!parsedBody.ok) return parsedBody.response;
+  const payload = parsedBody.value;
 
   // サニタイズ処理: UTF-8正規化、制御文字除去、文字数制限
   const nameRaw = typeof payload.name === "string" ? payload.name : "";

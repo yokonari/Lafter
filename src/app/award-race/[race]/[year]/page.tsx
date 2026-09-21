@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { UserHome } from "@/components/user/UserHome";
-import { RACE_NAMES, AVAILABLE_YEARS, type RaceType } from "@/../../data/award-races/types";
+import { RACE_NAMES, AVAILABLE_YEARS, type RaceType } from "@data/award-races/types";
 
 // 賞レースページも動的レンダリングを強制します。
 export const dynamic = "force-dynamic";

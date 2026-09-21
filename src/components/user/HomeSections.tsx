@@ -201,13 +201,14 @@ export function HomeSections({
               </button>
             </div>
             <div className={styles.sectionGrid}>
-              {newVideos.map((video) => {
+              {newVideos.map((video, index) => {
                 return (
                   <VideoCard
                     key={`new-${video.id}`}
                     video={video}
                     onSelect={onVideoSelect}
                     onChannelSelect={onChannelSelect}
+                    eager={index < 5}
                   />
                 );
               })}

@@ -9,6 +9,7 @@ type VideoCardProps = {
   onSelect: (video: VideoItem) => void;
   onChannelSelect: (channelId: string) => void;
   displayStat?: "views" | "likes"; // 表示する統計情報を指定
+  eager?: boolean;
 };
 
 // API 由来の統計値だと分かるよう、表示ラベルを固定の文言で付与します。
@@ -30,7 +31,7 @@ function formatNumber(num: number, label: string): string {
   return `${num.toLocaleString("ja-JP")} ${label}`;
 }
 
-export function VideoCard({ video, onSelect, onChannelSelect, displayStat }: VideoCardProps) {
+export function VideoCard({ video, onSelect, onChannelSelect, displayStat, eager = false }: VideoCardProps) {
   // タイトル・サムネイル両方のホバーで同じモーションを発火させるためのフラグです。
   const [isHoverActive, setIsHoverActive] = useState(false);
 
@@ -79,6 +80,7 @@ export function VideoCard({ video, onSelect, onChannelSelect, displayStat }: Vid
           alt={video.title}
           fill
           sizes="(max-width: 768px) 50vw, 25vw"
+          loading={eager ? "eager" : "lazy"}
           className={styles.thumbnailImage}
         />
       </motion.div>

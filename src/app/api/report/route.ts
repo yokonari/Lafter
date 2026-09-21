@@ -1,6 +1,8 @@
 // 報告内容を Resend 経由でメール送信するエンドポイントです。
 import { Resend } from "resend";
+import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { ReportReasonKey } from "@/lib/reportReasons";
+import { parseLimitedJson, protectPublicPost } from "@/lib/public-api-security";
 
 type ReportPayload = {
   videoId?: unknown;
@@ -21,17 +23,35 @@ const REASON_LABELS: Record<ReportReasonKey, string> = {
   cannot_play: "再生できない",
 };
 
+const MAX_BODY_BYTES = 4_096;
+const MAX_TITLE_LENGTH = 300;
+const MAX_CHANNEL_NAME_LENGTH = 200;
+const VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
+const CHANNEL_ID_PATTERN = /^UC[A-Za-z0-9_-]{22}$/;
+
 function json(status: number, body: Record<string, unknown>) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+    },
   });
 }
 
 export async function POST(req: Request) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
-  const to = process.env.CONTACT_TO_EMAIL;
+  const { env } = getCloudflareContext();
+  const securityResponse = await protectPublicPost(req, env.LAFTER, {
+    namespace: "report-email",
+    limit: 10,
+    windowSeconds: 60 * 60,
+    maxBodyBytes: MAX_BODY_BYTES,
+  });
+  if (securityResponse) return securityResponse;
+
+  const apiKey = env.RESEND_API_KEY ?? process.env.RESEND_API_KEY;
+  const from = env.RESEND_FROM_EMAIL ?? process.env.RESEND_FROM_EMAIL;
+  const to = env.CONTACT_TO_EMAIL ?? process.env.CONTACT_TO_EMAIL;
 
   const missingKeys = [
     !apiKey && "RESEND_API_KEY",
@@ -43,16 +63,12 @@ export async function POST(req: Request) {
     console.error("Report API misconfiguration", { missingKeys });
     return json(500, {
       message: "報告の送信に失敗しました。時間を置いて再度お試しください。",
-      missingKeys,
     });
   }
 
-  let payload: ReportPayload;
-  try {
-    payload = await req.json();
-  } catch {
-    return json(400, { message: "JSON ボディを解析できませんでした。" });
-  }
+  const parsedBody = await parseLimitedJson<ReportPayload>(req, MAX_BODY_BYTES);
+  if (!parsedBody.ok) return parsedBody.response;
+  const payload = parsedBody.value;
 
   const videoId = typeof payload.videoId === "string" ? payload.videoId.trim() : "";
   const videoTitle = typeof payload.videoTitle === "string" ? payload.videoTitle.trim() : "";
@@ -62,6 +78,15 @@ export async function POST(req: Request) {
 
   if (!videoTitle) {
     return json(400, { message: "動画情報が不足しています。" });
+  }
+
+  if (
+    videoTitle.length > MAX_TITLE_LENGTH ||
+    channelName.length > MAX_CHANNEL_NAME_LENGTH ||
+    (videoId && !VIDEO_ID_PATTERN.test(videoId)) ||
+    (channelId && !CHANNEL_ID_PATTERN.test(channelId))
+  ) {
+    return json(400, { message: "動画情報の形式が正しくありません。" });
   }
 
   if (!Object.keys(REASON_LABELS).includes(reasonRaw)) {

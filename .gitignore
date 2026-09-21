@@ -8,6 +8,16 @@
 .wrangler/
 data/samples/
 
+# local source lists and generated datasets
+/data/artists/*
+!/data/artists/types.ts
+/data/channels/
+/data/ng_word_ranking.csv
+/data/status2_videos.json
+/channels.txt
+/migrations-temp/
+/update_artists.js
+
 # testing
 /coverage
 
@@ -43,3 +53,6 @@ next-env.d.ts
 
 # OpenNext
 /.open-next
+
+# local implementation documents
+/docs/

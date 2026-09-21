@@ -1,9 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
-import { createAuthClient } from "better-auth/react";
-import type { ClientOptions } from "better-auth/types";
 import { Bounce, ToastContainer } from "react-toastify";
 import { Video, Component, UserRound, LogOut } from "lucide-react";
 import "react-toastify/dist/ReactToastify.css";
@@ -21,17 +18,9 @@ const TAB_ITEMS = [
 ] as const;
 
 export function AdminTabsLayout({ activeTab, children }: AdminTabsLayoutProps) {
-  const authClient = useMemo(() => {
-    const client = createAuthClient<ClientOptions>({
-      baseURL: typeof window === "undefined" ? undefined : `${window.location.origin}/api/auth`,
-    });
-    return client as typeof client & {
-      signOut: () => Promise<{ data?: unknown; error?: unknown }>;
-    };
-  }, []);
-
   const handleSignOut = async () => {
-    await authClient.signOut();
+    // Better Auth の標準ルートでサーバー側セッションを確実に破棄します。
+    await fetch("/api/auth/sign-out", { method: "POST" });
     window.location.href = "/admin";
   };
 

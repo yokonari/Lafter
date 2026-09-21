@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { RACE_NAMES } from "@/../../data/award-races/types";
+import { RACE_NAMES } from "@data/award-races/types";
 
 export const runtime = "nodejs";
 

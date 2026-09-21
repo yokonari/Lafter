@@ -5,8 +5,8 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Trophy, Crown, Medal } from 'lucide-react';
 
-import awardRacesData from '@/../../data/award-races/award-races.json';
-import { RACE_NAMES, AVAILABLE_YEARS, type RaceType, type AwardRacesData } from '@/../../data/award-races/types';
+import awardRacesData from '@data/award-races/award-races.json';
+import { RACE_NAMES, AVAILABLE_YEARS, type RaceType, type AwardRacesData } from '@data/award-races/types';
 import { XShareButton } from './XShareButton';
 import { BackToTopLink } from './BackToTopLink';
 import styles from './userTheme.module.scss';

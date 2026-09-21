@@ -22,7 +22,7 @@ function resolveExpectedSecret(env?: EnvSource): string | null {
   }
   for (const candidate of candidates) {
     const trimmed = candidate?.trim();
-    if (trimmed) {
+    if (trimmed && new TextEncoder().encode(trimmed).byteLength >= 32) {
       return trimmed;
     }
   }
@@ -47,6 +47,19 @@ function extractSecretFromHeaders(headers: Headers): string | null {
   return null;
 }
 
+function secretsMatch(provided: string, expected: string): boolean {
+  const providedBytes = new TextEncoder().encode(provided);
+  const expectedBytes = new TextEncoder().encode(expected);
+  const comparisonLength = Math.max(providedBytes.length, expectedBytes.length);
+  let difference = providedBytes.length ^ expectedBytes.length;
+
+  // 先頭の不一致位置を応答時間から推測されにくいよう、全バイトを比較します。
+  for (let index = 0; index < comparisonLength; index += 1) {
+    difference |= (providedBytes[index] ?? 0) ^ (expectedBytes[index] ?? 0);
+  }
+  return difference === 0;
+}
+
 // API シークレットを検証し、失敗した場合は丁寧に理由を返却します。
 export function verifyApiSecret(headers: Headers, env?: EnvSource): ApiSecretValidationResult {
   const expected = resolveExpectedSecret(env);
@@ -54,11 +67,11 @@ export function verifyApiSecret(headers: Headers, env?: EnvSource): ApiSecretVal
     return {
       ok: false,
       status: 500,
-      message: "API_SECRET が設定されていません。",
+      message: "管理者APIを現在利用できません。",
     };
   }
   const provided = extractSecretFromHeaders(headers);
-  if (!provided || provided !== expected) {
+  if (!provided || !secretsMatch(provided, expected)) {
     return {
       ok: false,
       status: 401,

@@ -114,7 +114,7 @@ export async function generateMetadata(
     const description = buildChannelDescription(channelName);
 
     const resolvedParent = await parent;
-    const metadataBase = resolvedParent.metadataBase ?? new URL("https://lafter.day");
+    const metadataBase = new URL(resolvedParent.metadataBase?.toString() ?? "https://lafter.day");
     const ogImageUrl = buildChannelImageUrl(heading, channelName, metadataBase);
     const parentOpenGraph = resolvedParent.openGraph ?? undefined;
     const ogImages = [{ url: ogImageUrl }];

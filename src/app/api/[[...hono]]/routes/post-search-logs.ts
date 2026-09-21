@@ -3,34 +3,46 @@ import type { Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { searchLogs } from "@/lib/schema";
+import { parseLimitedJson, protectPublicPost } from "@/lib/public-api-security";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
 type SearchLogsRequest = {
-    keyword: string;
+    keyword?: unknown;
 };
+
+const MAX_BODY_BYTES = 1_024;
+const MAX_KEYWORD_LENGTH = 100;
 
 export function registerPostSearchLogs(app: Hono<AdminEnv>) {
     app.post("/search-logs", async (c) => {
         const { env } = getCloudflareContext();
         const db = createDatabase(env);
 
+        const securityResponse = await protectPublicPost(c.req.raw, env.LAFTER, {
+            namespace: "search-log",
+            limit: 120,
+            windowSeconds: 60 * 60,
+            maxBodyBytes: MAX_BODY_BYTES,
+        });
+        if (securityResponse) return securityResponse;
+
         const fail = (message: string, status: ContentfulStatusCode = 400) => c.json({ message }, status);
 
-        let body: SearchLogsRequest;
-        try {
-            body = (await c.req.json()) as SearchLogsRequest;
-        } catch {
-            return fail("リクエスト本文を JSON として解釈できませんでした。", 400);
-        }
+        const parsedBody = await parseLimitedJson<SearchLogsRequest>(c.req.raw, MAX_BODY_BYTES);
+        if (!parsedBody.ok) return parsedBody.response;
+        const body = parsedBody.value;
 
         const { keyword } = body;
 
-        if (!keyword || typeof keyword !== "string" || !keyword.trim()) {
+        if (typeof keyword !== "string" || !keyword.trim()) {
             return fail("キーワードは必須です。", 400);
         }
 
-        const normalizedKeyword = keyword.trim();
+        const normalizedKeyword = keyword.normalize("NFC").trim();
+        if (normalizedKeyword.length > MAX_KEYWORD_LENGTH) {
+            return fail(`キーワードは${MAX_KEYWORD_LENGTH}文字以内で入力してください。`, 400);
+        }
 
         try {
             const existingLogs = await db

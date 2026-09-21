@@ -8,8 +8,12 @@ declare global {
     DB: D1Database;
     YOUTUBE_API_KEY?: string;
     ADMIN_EMAIL?: string;
+    BETTER_AUTH_SECRET?: string;
     OPENAI_API_KEY?: string;
     API_SECRET?: string;
+    RESEND_API_KEY?: string;
+    RESEND_FROM_EMAIL?: string;
+    CONTACT_TO_EMAIL?: string;
     LAFTER?: KVNamespace;
     "lafter-artist"?: KVNamespace;
   }
