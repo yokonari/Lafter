@@ -1351,10 +1351,12 @@ export default function AdminVideosPageContent() {
                                                 style={{ aspectRatio: "16 / 9" }}
                                                 onClick={() => handleThumbnailDialogOpen(video, video.id)}
                                             >
+                                                {/* YouTubeの配信元を直接参照し、サムネイルの変換・再キャッシュを避けます。 */}
                                                 <Image
                                                     src={`https://i.ytimg.com/vi/${video.id}/mqdefault.jpg`}
                                                     alt={video.title}
                                                     fill
+                                                    unoptimized
                                                     sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
                                                     className={styles.thumbnailImage}
                                                 />

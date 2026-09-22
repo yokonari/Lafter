@@ -75,10 +75,12 @@ export function VideoCard({ video, onSelect, onChannelSelect, displayStat, eager
           }
         }}
       >
+        {/* YouTubeの配信元を直接参照し、サムネイルの変換・再キャッシュを避けます。 */}
         <Image
           src={video.thumbnail}
           alt={video.title}
           fill
+          unoptimized
           sizes="(max-width: 768px) 50vw, 25vw"
           loading={eager ? "eager" : "lazy"}
           className={styles.thumbnailImage}

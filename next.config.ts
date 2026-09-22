@@ -28,6 +28,8 @@ const contentSecurityPolicy = [
 
 const nextConfig: NextConfig = {
   images: {
+    // Cloudflareで画像を変換・再キャッシュせず、各配信元の画像を直接参照します。
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",

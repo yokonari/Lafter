@@ -282,10 +282,12 @@ function renderLatestVideoEmbed(channel: ChannelRow) {
         className={styles.thumbnailLink}
         aria-label={`${channel.name} の最新動画を開く`}
       >
+        {/* YouTubeの配信元を直接参照し、サムネイルの変換・再キャッシュを避けます。 */}
         <Image
           src={thumbnailUrl}
           alt={channel.latestVideoTitle ?? `${channel.name} の最新動画`}
           fill
+          unoptimized
           sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 20vw"
           className={styles.thumbnailImage}
         />
