@@ -119,7 +119,7 @@ async function fetchLikesVideos(
           v.id AS video_id,
           v.title AS video_title,
           v.like_count AS like_count
-        FROM videos v
+        FROM videos v INDEXED BY idx_videos_active_like_count_published
         INNER JOIN channels c ON v.channel_id = c.id
         WHERE
           v.status IN (1, 3)

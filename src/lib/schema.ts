@@ -102,14 +102,18 @@ export const videos = sqliteTable(
     idxVideosStatusLastCheckedPublished: index(
       "idx_videos_status_last_checked_published",
     ).on(table.status, table.lastCheckedAt, table.publishedAt),
-    // 再生数でのソートを最適化するための複合インデックスです (status, view_count DESC, published_at DESC)
-    idxVideosStatusViewCountPublished: index(
-      "idx_videos_status_view_count_published",
-    ).on(table.status, table.viewCount, table.publishedAt),
-    // 高評価数でのソートを最適化するための複合インデックスです (status, like_count DESC, published_at DESC)
-    idxVideosStatusLikeCountPublished: index(
-      "idx_videos_status_like_count_published",
-    ).on(table.status, table.likeCount, table.publishedAt),
+    // 公開対象の再生数ランキングを上位から少数だけ読み出す部分インデックスです。
+    idxVideosActiveViewCountPublished: index(
+      "idx_videos_active_view_count_published",
+    )
+      .on(table.viewCount, table.publishedAt)
+      .where(sql`${table.status} IN (1, 3) AND ${table.viewCount} IS NOT NULL`),
+    // 公開対象の高評価ランキングも同じ方式で全件ソートを避けます。
+    idxVideosActiveLikeCountPublished: index(
+      "idx_videos_active_like_count_published",
+    )
+      .on(table.likeCount, table.publishedAt)
+      .where(sql`${table.status} IN (1, 3) AND ${table.likeCount} IS NOT NULL`),
     // 公開対象だけをランダム起点から順に読むための部分インデックスです。
     idxVideosActiveRandomKey: index("idx_videos_active_random_key")
       .on(table.randomKey)
