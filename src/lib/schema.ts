@@ -3,6 +3,7 @@ import {
   sqliteTable,
   text,
   integer,
+  real,
   index,
   unique,
 } from "drizzle-orm/sqlite-core";
@@ -78,6 +79,8 @@ export const videos = sqliteTable(
     likeCount: integer("like_count"),
     // 並び替え用の人気度スコアを保持します(NULL可能)
     popularityScore: integer("popularity_score"),
+    // ランダム動画を全件ソートせず取得するため、登録時に固定の乱数を保持します。
+    randomKey: real("random_key"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`),
@@ -107,6 +110,14 @@ export const videos = sqliteTable(
     idxVideosStatusLikeCountPublished: index(
       "idx_videos_status_like_count_published",
     ).on(table.status, table.likeCount, table.publishedAt),
+    // 公開対象だけをランダム起点から順に読むための部分インデックスです。
+    idxVideosActiveRandomKey: index("idx_videos_active_random_key")
+      .on(table.randomKey)
+      .where(sql`${table.status} IN (1, 3)`),
+    // 最新500件の除外・キャッシュ生成も公開対象だけを公開日順に走査します。
+    idxVideosActivePublished: index("idx_videos_active_published")
+      .on(table.publishedAt)
+      .where(sql`${table.status} IN (1, 3)`),
   }),
 );
 

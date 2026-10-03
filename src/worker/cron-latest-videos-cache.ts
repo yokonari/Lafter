@@ -85,7 +85,7 @@ async function fetchLatestVideos(db: D1Database, limit: number): Promise<LatestV
           c.name AS channel_name,
           v.id AS video_id,
           v.title AS video_title
-        FROM videos v
+        FROM videos v INDEXED BY idx_videos_active_published
         INNER JOIN channels c ON v.channel_id = c.id
         WHERE
           v.status IN (1, 3)

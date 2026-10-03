@@ -560,6 +560,8 @@ async function insertVideo(
     // report_status を 0 指定で丁寧に初期化し、追加カラムの必須制約へ確実に対応します。
     reportStatus: 0,
     lastCheckedAt: new Date().toISOString(),
+    // 固定乱数を保存し、ランダム抽出をインデックス検索にします。
+    randomKey: Math.random(),
   });
 }
 

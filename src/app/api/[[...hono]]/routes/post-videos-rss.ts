@@ -100,6 +100,8 @@ export function registerPostVideosRss(app: Hono<AdminEnv>) {
             status: 0,
             reportStatus: 0,
             lastCheckedAt: now,
+            // 固定乱数を保存し、ランダムキャッシュ生成時の全件ソートを避けます。
+            randomKey: Math.random(),
           }));
 
         if (insertable.length > 0) {

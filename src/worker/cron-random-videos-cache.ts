@@ -76,47 +76,71 @@ async function runRandomVideosCacheCron(env: CronEnv) {
 
 async function fetchRandomVideos(db: D1Database, limit: number): Promise<RandomVideoRow[]> {
   try {
-    const result = await db
-      .prepare(
-        `
+    const randomStart = Math.random();
+    const firstRows = await fetchRandomVideoRange(db, randomStart, 1, limit);
+    if (firstRows.length >= limit) {
+      return firstRows;
+    }
+
+    // 起点より後ろで不足した分だけ先頭側から補い、重複なしで循環させます。
+    const wrappedRows = await fetchRandomVideoRange(
+      db,
+      randomStart,
+      -1,
+      limit - firstRows.length,
+    );
+    return [...firstRows, ...wrappedRows];
+  } catch (error) {
+    console.error("[cron-random-videos] 動画一覧の取得に失敗しました。", error);
+    return [];
+  }
+}
+
+async function fetchRandomVideoRange(
+  db: D1Database,
+  randomStart: number,
+  direction: 1 | -1,
+  limit: number,
+): Promise<RandomVideoRow[]> {
+  const rangeCondition = direction === 1 ? "v.random_key >= ?" : "v.random_key < ?";
+  const result = await db
+    .prepare(
+      `
         SELECT
           v.channel_id AS channel_id,
           c.name AS channel_name,
           v.id AS video_id,
           v.title AS video_title
-        FROM videos v
+        FROM videos v INDEXED BY idx_videos_active_random_key
         INNER JOIN channels c ON v.channel_id = c.id
         WHERE
           v.status IN (1, 3)
           AND c.status = 1
+          AND ${rangeCondition}
           AND v.id NOT IN (
             SELECT v2.id
-            FROM videos v2
+            FROM videos v2 INDEXED BY idx_videos_active_published
             INNER JOIN channels c2 ON v2.channel_id = c2.id
             WHERE v2.status IN (1, 3) AND c2.status = 1
             ORDER BY v2.published_at DESC
             LIMIT 500
           )
-        ORDER BY RANDOM()
+        ORDER BY v.random_key ASC
         LIMIT ?
       `,
-      )
-      .bind(limit)
-      .all<RandomVideoRow>();
-    const rows = Array.isArray(result?.results) ? result.results : [];
-    return rows.filter(
-      (row): row is RandomVideoRow =>
-        typeof row?.channel_id === "string" &&
-        row.channel_id !== "" &&
-        typeof row?.video_id === "string" &&
-        row.video_id !== "" &&
-        typeof row?.video_title === "string" &&
-        row.video_title !== "",
-    );
-  } catch (error) {
-    console.error("[cron-random-videos] 動画一覧の取得に失敗しました。", error);
-    return [];
-  }
+    )
+    .bind(randomStart, limit)
+    .all<RandomVideoRow>();
+  const rows = Array.isArray(result?.results) ? result.results : [];
+  return rows.filter(
+    (row): row is RandomVideoRow =>
+      typeof row?.channel_id === "string" &&
+      row.channel_id !== "" &&
+      typeof row?.video_id === "string" &&
+      row.video_id !== "" &&
+      typeof row?.video_title === "string" &&
+      row.video_title !== "",
+  );
 }
 
 async function saveToKv(kv: KVNamespace, payload: RandomVideoPayload[]): Promise<void> {

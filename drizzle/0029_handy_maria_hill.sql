@@ -1,0 +1,1 @@
+CREATE INDEX `idx_videos_active_published` ON `videos` (`published_at`) WHERE "videos"."status" IN (1, 3);
