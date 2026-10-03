@@ -1,5 +1,6 @@
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { Hono } from "hono";
+import { saveVideoCache } from "@/lib/video-cache";
 
 type CronEnv = Env & {
   DB?: D1Database;
@@ -21,11 +22,6 @@ type PopularVideoPayload = {
   video_id: string;
   video_title: string;
   view_count: number;
-};
-
-type PopularVideoCache = {
-  updated_at: string;
-  items: PopularVideoPayload[];
 };
 
 type PopularPeriod = "all" | "year" | "month";
@@ -95,6 +91,7 @@ async function runPopularVideosCacheCron(env: CronEnv) {
       console.warn("[cron-popular-videos] KV へ保存する人気動画が見つかりませんでした。", {
         period: config.period,
       });
+      continue;
     }
 
     const payload: PopularVideoPayload[] = rows.map((row) => ({
@@ -162,11 +159,7 @@ async function saveToKv(
   period: PopularPeriod,
 ): Promise<void> {
   try {
-    const cache: PopularVideoCache = {
-      updated_at: new Date().toISOString(),
-      items: payload,
-    };
-    await kv.put(key, JSON.stringify(cache));
+    await saveVideoCache(kv, key, payload);
     console.log("[cron-popular-videos] 人気動画リストを KV へ保存しました。", {
       count: payload.length,
       key,

@@ -5,6 +5,7 @@ import { and, desc, eq, gte, inArray, like, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { aliases, channels, videos } from "@/lib/schema";
 import { loadActiveChannels } from "@/lib/active-channels-cache";
+import { loadVideoCache } from "@/lib/video-cache";
 import { createDatabase } from "../context";
 import type { AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -694,20 +695,11 @@ async function loadCachedVideos(
   kv: KVNamespace,
   key: string,
 ): Promise<LatestVideoCache | null> {
-  try {
-    const text = await kv.get(key, "text");
-    if (!text) {
-      return null;
-    }
-    const parsed = JSON.parse(text) as LatestVideoCache | RandomVideoCache | ViewCountVideoCache;
-    if (!parsed || !Array.isArray(parsed.items)) {
-      return null;
-    }
-    return parsed;
-  } catch (error) {
-    console.error("[get-videos] KV キャッシュの取得に失敗しました。", key, error);
-    return null;
+  const loaded = await loadVideoCache<CachedVideoItem>(kv, key);
+  if (loaded?.source === "stale") {
+    console.warn("[get-videos] 主キャッシュの代わりに直前の正常値を返します。", key);
   }
+  return loaded?.cache ?? null;
 }
 
 function respondWithCache(

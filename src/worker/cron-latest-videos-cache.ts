@@ -1,5 +1,6 @@
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { Hono } from "hono";
+import { saveVideoCache } from "@/lib/video-cache";
 
 type CronEnv = Env & {
   DB?: D1Database;
@@ -19,11 +20,6 @@ type LatestVideoPayload = {
   channel_name: string;
   video_id: string;
   video_title: string;
-};
-
-type LatestVideoCache = {
-  updated_at: string;
-  items: LatestVideoPayload[];
 };
 
 const CACHE_LIMIT = 500;
@@ -61,6 +57,7 @@ async function runLatestVideosCacheCron(env: CronEnv) {
   const rows = await fetchLatestVideos(db, CACHE_LIMIT);
   if (rows.length === 0) {
     console.warn("[cron-latest-videos] KV へ保存する対象動画が見つかりませんでした。");
+    return;
   }
 
   const payload: LatestVideoPayload[] = rows.map((row) => ({
@@ -115,12 +112,7 @@ async function fetchLatestVideos(db: D1Database, limit: number): Promise<LatestV
 
 async function saveToKv(kv: KVNamespace, payload: LatestVideoPayload[]): Promise<void> {
   try {
-    // 最新更新時刻と動画リストを一つの JSON value にまとめて保存し、後段利用時の拡張性を丁寧に確保します。
-    const cache: LatestVideoCache = {
-      updated_at: new Date().toISOString(),
-      items: payload,
-    };
-    await kv.put(CACHE_KEY, JSON.stringify(cache));
+    await saveVideoCache(kv, CACHE_KEY, payload);
     console.log("[cron-latest-videos] 最新動画リストを KV へ保存しました。", {
       count: payload.length,
       key: CACHE_KEY,

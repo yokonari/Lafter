@@ -1,5 +1,6 @@
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { Hono } from "hono";
+import { saveVideoCache } from "@/lib/video-cache";
 
 type CronEnv = Env & {
     DB?: D1Database;
@@ -21,11 +22,6 @@ type LikesVideoPayload = {
     video_id: string;
     video_title: string;
     like_count: number;
-};
-
-type LikesVideoCache = {
-    updated_at: string;
-    items: LikesVideoPayload[];
 };
 
 type LikesPeriod = "all" | "year" | "month";
@@ -95,6 +91,7 @@ async function runLikesVideosCacheCron(env: CronEnv) {
             console.warn("[cron-likes-videos] KV へ保存する高評価動画が見つかりませんでした。", {
                 period: config.period,
             });
+            continue;
         }
 
         const payload: LikesVideoPayload[] = rows.map((row) => ({
@@ -162,11 +159,7 @@ async function saveToKv(
     period: LikesPeriod,
 ): Promise<void> {
     try {
-        const cache: LikesVideoCache = {
-            updated_at: new Date().toISOString(),
-            items: payload,
-        };
-        await kv.put(key, JSON.stringify(cache));
+        await saveVideoCache(kv, key, payload);
         console.log("[cron-likes-videos] 高評価動画リストを KV へ保存しました。", {
             count: payload.length,
             key,

@@ -1,5 +1,6 @@
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { Hono } from "hono";
+import { saveVideoCache } from "@/lib/video-cache";
 
 type CronEnv = Env & {
   DB?: D1Database;
@@ -19,11 +20,6 @@ type RandomVideoPayload = {
   channel_name: string;
   video_id: string;
   video_title: string;
-};
-
-type RandomVideoCache = {
-  updated_at: string;
-  items: RandomVideoPayload[];
 };
 
 const CACHE_LIMIT = 500;
@@ -61,6 +57,7 @@ async function runRandomVideosCacheCron(env: CronEnv) {
   const rows = await fetchRandomVideos(db, CACHE_LIMIT);
   if (rows.length === 0) {
     console.warn("[cron-random-videos] KV へ保存するランダム動画が見つかりませんでした。");
+    return;
   }
 
   const payload: RandomVideoPayload[] = rows.map((row) => ({
@@ -145,11 +142,7 @@ async function fetchRandomVideoRange(
 
 async function saveToKv(kv: KVNamespace, payload: RandomVideoPayload[]): Promise<void> {
   try {
-    const cache: RandomVideoCache = {
-      updated_at: new Date().toISOString(),
-      items: payload,
-    };
-    await kv.put(CACHE_KEY, JSON.stringify(cache));
+    await saveVideoCache(kv, CACHE_KEY, payload);
     console.log("[cron-random-videos] ランダム動画リストを KV へ保存しました。", {
       count: payload.length,
       key: CACHE_KEY,
