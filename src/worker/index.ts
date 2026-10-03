@@ -23,6 +23,7 @@ const CHANNEL_CHECK_QUEUE_REBUILD_MINUTE = 4 * 60 + 5;  // UTC 04:05
 const CHANNEL_CHECK_RUN_MINUTE = 4 * 60 + 10;  // UTC 04:10
 const VIEW_COUNT_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 20;
 const LIKES_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 30;
+const RANDOM_VIDEOS_CACHE_RUN_MINUTE = 4 * 60 + 50;
 
 
 // OpenNext の fetch を明示的に型付けし、ビルド時の推論抜けを防ぎます。
@@ -85,7 +86,7 @@ const scheduled: ExportedHandlerScheduledHandler = async (event, env, ctx) => {
         await cronLatestVideosCache.scheduled(event, env, ctx);
       }
     }
-    // ランダム動画キャッシュ更新は 6 時間ごとの 50 分に実施し、最新キャッシュとの被りを防ぎます。
+    // ランダム動画キャッシュ更新は日次 04:50 UTC に実施し、全走査の頻度を抑えます。
     if (runRandomCache) {
       if (typeof cronRandomVideosCache.scheduled === "function") {
         await cronRandomVideosCache.scheduled(event, env, ctx);
@@ -169,9 +170,10 @@ function shouldRunLatestVideosCacheJob(event: ScheduledEventParam): boolean {
 }
 
 function shouldRunRandomVideosCacheJob(event: ScheduledEventParam): boolean {
-  // ランダム動画キャッシュも 6 時間 (=360 分) ごとの 50 分タイミングで走らせ、最新キャッシュと 10 分ずらしで安定性を保ちます。
+  // ランダム動画キャッシュは日次 04:50 UTC に限定し、最新キャッシュとも10分ずらします。
   const epochMinutes = Math.floor(event.scheduledTime / 60_000);
-  return epochMinutes % 360 === 50;
+  const minuteOfDay = ((epochMinutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) % MINUTES_PER_DAY;
+  return minuteOfDay === RANDOM_VIDEOS_CACHE_RUN_MINUTE;
 }
 
 function shouldRunViewCountVideosCacheJob(event: ScheduledEventParam): boolean {
