@@ -4,6 +4,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { and, desc, eq, gte, inArray, like, or, sql } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 import { aliases, channels, videos } from "@/lib/schema";
+import { loadActiveChannels } from "@/lib/active-channels-cache";
 import { createDatabase } from "../context";
 import type { AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -118,14 +119,8 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     // 型定義済みの env から安全に DB インスタンスを取得いたします。
     const db = createDatabase(env);
     const kv = env.LAFTER ?? null;
-    // 時々刻々と変化するチャンネル状況は DB から素直に取得し、KV 非依存で最新の状態を共有します。
-    const activeChannelRows = await db
-      .select({
-        id: channels.id,
-        name: channels.name,
-      })
-      .from(channels)
-      .where(eq(channels.status, 1));
+    // 変更頻度の低いアクティブチャンネル一覧はKVを優先し、リクエストごとのD1全件取得を避けます。
+    const activeChannelRows = await loadActiveChannels(env.DB, kv);
     const activeChannelMap = new Map<string, string>();
     for (const channel of activeChannelRows) {
       activeChannelMap.set(channel.id, channel.name ?? "");

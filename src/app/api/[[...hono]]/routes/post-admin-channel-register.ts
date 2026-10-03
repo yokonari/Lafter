@@ -2,6 +2,7 @@ import { type Hono } from "hono";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import { channels } from "@/lib/schema";
+import { rebuildActiveChannelsCache } from "@/lib/active-channels-cache";
 import { createDatabase, type AppDatabase } from "../context";
 import { z } from "zod";
 
@@ -72,6 +73,15 @@ export function registerPostAdminChannelRegister<
 
         const successCount = results.filter((r) => r.success).length;
         const message = `${successCount} 件のチャンネルを登録しました。`;
+
+        if (successCount > 0 && env.LAFTER) {
+            try {
+                // 登録結果を公開検索へ反映するため、処理完了後に一度だけKVを再構築します。
+                await rebuildActiveChannelsCache(env.DB, env.LAFTER);
+            } catch (error) {
+                console.error("アクティブチャンネルKVの更新に失敗しました。", error);
+            }
+        }
 
         return c.json({ message, results }, 200);
     });

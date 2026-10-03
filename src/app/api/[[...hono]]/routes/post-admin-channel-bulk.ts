@@ -3,6 +3,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { eq } from "drizzle-orm";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { channels } from "@/lib/schema";
+import { rebuildActiveChannelsCache } from "@/lib/active-channels-cache";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 
@@ -89,6 +90,7 @@ export function registerPostAdminChannelBulk(app: Hono<AdminEnv>) {
         await Promise.all([
           kv.delete("latest_active_videos"),
           kv.delete("random_active_videos"),
+          rebuildActiveChannelsCache(env.DB, kv),
         ]);
       } catch (error) {
         console.error("Workers KV のキャッシュ削除に失敗しました。", error);

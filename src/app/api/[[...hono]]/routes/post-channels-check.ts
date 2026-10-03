@@ -4,6 +4,7 @@ import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { asc, eq, inArray } from "drizzle-orm";
 import type { KVNamespace } from "@cloudflare/workers-types";
 import { channels } from "@/lib/schema";
+import { rebuildActiveChannelsCache } from "@/lib/active-channels-cache";
 import { createDatabase } from "../context";
 import type { AdminEnv } from "../types";
 import type { AppDatabase } from "../context";
@@ -217,6 +218,15 @@ export function registerPostChannelsCheck(app: Hono<AdminEnv>) {
 
     if (useQueue && kv) {
       await saveCursorToKv(kv, nextCursor);
+    }
+
+    if (kv) {
+      try {
+        // 日次確認の完了時に正本から再構築し、名前変更・削除と更新漏れをまとめて修復します。
+        await rebuildActiveChannelsCache(env.DB, kv);
+      } catch (error) {
+        console.error("[channels/check] アクティブチャンネルKVの更新に失敗しました。", error);
+      }
     }
 
     return c.json(
