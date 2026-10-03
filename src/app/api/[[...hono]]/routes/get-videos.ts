@@ -147,6 +147,8 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     // 「ダ/ダ」などの正規化差異も吸収するため、NFC/NFD 両方のパターンを用意します。
     const keywords = q ? q.split(/\s+/u).filter(Boolean) : [];
     const normalizedPatternsPerWord = keywords.map((word) => buildLikePatterns(word));
+    // 緊急時は環境変数を false にして従来のLIKE検索へ切り戻せます。
+    const useFtsSearch = env.VIDEO_SEARCH_USE_FTS !== "false";
     const mode = c.req.query("mode");
 
     const period = c.req.query("period") ?? "month"; // 期間フィルタ: all, month, year
@@ -179,6 +181,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
           .filter((id) => id.length > 0),
       ),
     );
+    let shouldUseRowIdLookup = false;
     const offsetParam = Number(c.req.query("offset") ?? 0);
     const safeOffset = Number.isFinite(offsetParam) && offsetParam > 0 ? offsetParam : 0;
     const limitParam = Number(c.req.query("limit") ?? MAX_LIMIT);
@@ -314,7 +317,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
       let channelScopeCondition: SQL<boolean> | null = null;
       if (channelIdsFilter.length > 0 && channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
         // official とそれ以外で条件を分け、非公式チャンネルにはキーワード検索を適用します。
-        const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase);
+        const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase, useFtsSearch);
         channelScopeCondition = or(
           inArray(videos.channelId, channelIdsFilter) as SQL<boolean>,
           and(inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>, keywordCondition) as SQL<boolean>,
@@ -324,7 +327,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         channelScopeCondition = inArray(videos.channelId, channelIdsFilter) as SQL<boolean>;
       } else if (channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
         // キーワード検索対象のチャンネルだけで絞り込みます。
-        const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase);
+        const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase, useFtsSearch);
         channelScopeCondition = and(
           inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>,
           keywordCondition,
@@ -359,31 +362,22 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     }
 
     if (normalizedPatternsPerWord.length) {
-      // キーワードごとに (タイトルLIKE または チャンネルID一致) を作り、すべて AND で縛ります。
-      const keywordConditions: SQL<boolean>[] = normalizedPatternsPerWord.map((patterns) => {
-        const titleMatches = patterns.map((pattern) => like(videos.title, pattern) as SQL<boolean>);
-        const checks: SQL<boolean>[] = titleMatches;
-        if (channelIdsMatchingQuery.length) {
-          // inArray も SQL<unknown> を返すため、boolean 条件へそろえます。
-          checks.push(inArray(videos.channelId, channelIdsMatchingQuery) as SQL<boolean>);
-        }
-        if (checks.length === 1) {
-          return checks[0];
-        }
-        const combined = or(...checks);
-        return combined as SQL<boolean>;
-      });
-
-      if (keywordConditions.length === 1) {
-        videoConditions.push(keywordConditions[0]);
-      } else if (keywordConditions.length > 1) {
-        videoConditions.push(and(...keywordConditions) as SQL<boolean>);
-      }
+      const searchCondition = buildMainSearchCondition(
+        normalizedPatternsPerWord,
+        channelIdsMatchingQuery,
+        useFtsSearch,
+      );
+      videoConditions.push(searchCondition.condition);
+      shouldUseRowIdLookup = searchCondition.usesFts;
     }
     const videoWhere =
       videoConditions.length === 1 ? videoConditions[0] : and(...videoConditions);
 
     // DB 上の channels.status=1 を直接参照しながら、videos テーブルから対象レコードを丁寧に抽出します。
+    // FTS候補がある場合は通常インデックスの全走査を避け、候補rowidから動画を引きます。
+    const videoSource = shouldUseRowIdLookup
+      ? sql.raw('videos AS "videos" NOT INDEXED')
+      : videos;
     const baseVideoQuery = db
       .select({
         id: videos.id,
@@ -394,7 +388,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
         viewCount: videos.viewCount, // 再生数を追加
         likeCount: videos.likeCount, // 高評価数を追加
       })
-      .from(videos)
+      .from(videoSource)
       .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(videoWhere);
 
@@ -465,7 +459,15 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     // ユーザーへのレスポンスはブロックせず、バックグラウンドで全件取得を行います
     if (kv && artistSlug && videoRows.length > 0 && ctx) {
       ctx.waitUntil(
-        cacheAllArtistVideos(db, kv, artistSlug, channelIdsFilter, channelIdsForQuery, channelQueryPatternsPerPhrase)
+        cacheAllArtistVideos(
+          db,
+          kv,
+          artistSlug,
+          channelIdsFilter,
+          channelIdsForQuery,
+          channelQueryPatternsPerPhrase,
+          useFtsSearch,
+        )
       );
     }
 
@@ -502,9 +504,19 @@ function splitChannelQueryPhrases(query: string): string[] {
   return parts.length > 0 ? parts : [query];
 }
 
-function buildTitleKeywordCondition(patternsPerWord: string[][]): SQL<boolean> {
+function buildTitleKeywordCondition(
+  patternsPerWord: string[][],
+  useFtsSearch: boolean,
+): SQL<boolean> {
   // NFC/NFD を含むタイトル一致条件を AND で束ね、名前検索用の判定に使います。
   const perWordConditions = patternsPerWord.map((patterns) => {
+    const ftsQuery = useFtsSearch ? buildFtsMatchQuery(patterns) : null;
+    if (ftsQuery) {
+      // FTS候補のrowidだけを既存の絞り込み条件へ渡します。
+      return sql<boolean>`${sql.raw('"videos".rowid')} IN (
+        SELECT rowid FROM videos_fts WHERE videos_fts MATCH ${ftsQuery}
+      )`;
+    }
     const titleMatches = patterns.map((pattern) => like(videos.title, pattern) as SQL<boolean>);
     if (titleMatches.length === 1) {
       return titleMatches[0];
@@ -520,20 +532,71 @@ function buildTitleKeywordCondition(patternsPerWord: string[][]): SQL<boolean> {
   return and(...perWordConditions) as SQL<boolean>;
 }
 
+function buildMainSearchCondition(
+  patternsPerWord: string[][],
+  channelIds: string[],
+  useFtsSearch: boolean,
+): { condition: SQL<boolean>; usesFts: boolean } {
+  const ftsQueries = useFtsSearch
+    ? patternsPerWord.map(buildFtsMatchQuery)
+    : [];
+  if (ftsQueries.length === patternsPerWord.length && ftsQueries.every(Boolean)) {
+    const combinedFtsQuery = (ftsQueries as string[])
+      .map((query) => `(${query})`)
+      .join(" AND ");
+    const channelCandidateSql = channelIds.length > 0
+      ? sql` UNION SELECT rowid FROM videos WHERE ${inArray(videos.channelId, channelIds)}`
+      : sql``;
+    return {
+      condition: sql<boolean>`${sql.raw('"videos".rowid')} IN (
+        SELECT rowid FROM videos_fts WHERE videos_fts MATCH ${combinedFtsQuery}
+        ${channelCandidateSql}
+      )`,
+      usesFts: true,
+    };
+  }
+
+  const titleCondition = buildTitleKeywordCondition(patternsPerWord, false);
+  if (channelIds.length === 0) {
+    return { condition: titleCondition, usesFts: false };
+  }
+  return {
+    condition: or(
+      titleCondition,
+      inArray(videos.channelId, channelIds) as SQL<boolean>,
+    ) as SQL<boolean>,
+    usesFts: false,
+  };
+}
+
 function buildTitleKeywordConditionForPhrases(
   patternsPerPhrase: string[][][],
+  useFtsSearch: boolean,
 ): SQL<boolean> {
   if (patternsPerPhrase.length === 0) {
     return sql`1 = 1` as SQL<boolean>;
   }
   const phraseConditions = patternsPerPhrase.map((patternsPerWord) =>
-    buildTitleKeywordCondition(patternsPerWord),
+    buildTitleKeywordCondition(patternsPerWord, useFtsSearch),
   );
   if (phraseConditions.length === 1) {
     return phraseConditions[0];
   }
   // 複数の別名フレーズを OR で束ねて、いずれかが一致すればヒットさせます。
   return or(...phraseConditions) as SQL<boolean>;
+}
+
+function buildFtsMatchQuery(patterns: string[]): string | null {
+  const keywords = Array.from(
+    new Set(patterns.map(stripLikeWildcards).filter(Boolean)),
+  );
+  // trigram FTSは3文字未満を検索できないため、短い語だけ従来のLIKEへ戻します。
+  if (keywords.length === 0 || keywords.some((keyword) => Array.from(keyword).length < 3)) {
+    return null;
+  }
+  return keywords
+    .map((keyword) => `"${keyword.replace(/"/g, '""')}"`)
+    .join(" OR ");
 }
 
 function findChannelIdsByKeyword(
@@ -781,6 +844,7 @@ async function cacheAllArtistVideos(
   channelIdsFilter: string[],
   channelIdsForQuery: string[],
   channelQueryPatternsPerPhrase: string[][][],
+  useFtsSearch: boolean,
 ): Promise<void> {
   try {
     // 芸人ページ用の条件を構築
@@ -788,7 +852,7 @@ async function cacheAllArtistVideos(
 
     let channelScopeCondition: SQL<boolean> | null = null;
     if (channelIdsFilter.length > 0 && channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
-      const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase);
+      const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase, useFtsSearch);
       channelScopeCondition = or(
         inArray(videos.channelId, channelIdsFilter) as SQL<boolean>,
         and(inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>, keywordCondition) as SQL<boolean>,
@@ -796,7 +860,7 @@ async function cacheAllArtistVideos(
     } else if (channelIdsFilter.length > 0) {
       channelScopeCondition = inArray(videos.channelId, channelIdsFilter) as SQL<boolean>;
     } else if (channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
-      const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase);
+      const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase, useFtsSearch);
       channelScopeCondition = and(
         inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>,
         keywordCondition,

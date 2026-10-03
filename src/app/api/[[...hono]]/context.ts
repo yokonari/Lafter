@@ -14,6 +14,7 @@ declare global {
     RESEND_API_KEY?: string;
     RESEND_FROM_EMAIL?: string;
     CONTACT_TO_EMAIL?: string;
+    VIDEO_SEARCH_USE_FTS?: string;
     LAFTER?: KVNamespace;
     "lafter-artist"?: KVNamespace;
   }
