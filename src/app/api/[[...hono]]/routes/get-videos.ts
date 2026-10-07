@@ -311,9 +311,16 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     }
 
     const videoConditions = [inArray(videos.status, [1, 3]), eq(channels.status, 1)];
+    const artistCandidates = artistSlug && !q && !channelIdFilter
+      ? buildArtistCandidateCondition(channelIdsFilter, channelIdsForQuery, channelQueryPatternsPerPhrase, useFtsSearch)
+      : null;
     if (channelIdFilter) {
       // チャンネル指定がある場合は最優先でそのチャンネルに絞ります。
       videoConditions.push(eq(videos.channelId, channelIdFilter));
+    } else if (artistCandidates) {
+      // 芸人ページは公式動画と名前一致動画の候補rowidを先に確定します。
+      videoConditions.push(artistCandidates);
+      shouldUseRowIdLookup = true;
     } else {
       let channelScopeCondition: SQL<boolean> | null = null;
       if (channelIdsFilter.length > 0 && channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
@@ -587,6 +594,39 @@ function buildTitleKeywordConditionForPhrases(
   return or(...phraseConditions) as SQL<boolean>;
 }
 
+function buildArtistCandidateCondition(
+  officialChannelIds: string[],
+  keywordChannelIds: string[],
+  patternsPerPhrase: string[][][],
+  useFtsSearch: boolean,
+): SQL<boolean> | null {
+  const branches: SQL[] = [];
+  if (officialChannelIds.length > 0) {
+    // 公式チャンネルはチャンネル起点の索引から動画候補を取ります。
+    branches.push(sql`SELECT videos.rowid FROM videos INDEXED BY idx_videos_channel_status_published
+      WHERE ${inArray(videos.channelId, officialChannelIds)} AND ${inArray(videos.status, [1, 3])}`);
+  }
+  if (keywordChannelIds.length > 0) {
+    for (const phrase of patternsPerPhrase) {
+      const ftsWords = useFtsSearch ? phrase.map(buildFtsMatchQuery) : [];
+      if (ftsWords.length === phrase.length && ftsWords.every(Boolean)) {
+        const matchQuery = (ftsWords as string[]).map((word) => `(${word})`).join(" AND ");
+        // FTSの候補を先に得てから、対象メディア・事務所チャンネルへ絞ります。
+        branches.push(sql`SELECT videos.rowid FROM videos_fts
+          INNER JOIN videos ON videos.rowid = videos_fts.rowid
+          WHERE videos_fts MATCH ${matchQuery} AND ${inArray(videos.channelId, keywordChannelIds)}`);
+      } else {
+        // 3文字未満はFTSで検索できないため、対象チャンネル内だけLIKEを使います。
+        branches.push(sql`SELECT videos.rowid FROM videos INDEXED BY idx_videos_channel_status_published
+          WHERE ${inArray(videos.channelId, keywordChannelIds)} AND ${inArray(videos.status, [1, 3])}
+          AND ${buildTitleKeywordCondition(phrase, false)}`);
+      }
+    }
+  }
+  if (branches.length === 0) return null;
+  return sql<boolean>`${sql.raw('"videos".rowid')} IN (${sql.join(branches, sql` UNION `)})`;
+}
+
 function buildFtsMatchQuery(patterns: string[]): string | null {
   const keywords = Array.from(
     new Set(patterns.map(stripLikeWildcards).filter(Boolean)),
@@ -842,16 +882,19 @@ async function cacheAllArtistVideos(
     // 芸人ページ用の条件を構築
     const videoConditions = [inArray(videos.status, [1, 3]), eq(channels.status, 1)];
 
-    let channelScopeCondition: SQL<boolean> | null = null;
-    if (channelIdsFilter.length > 0 && channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
+    // 表示用と同じ候補抽出を使い、キャッシュ生成でも全動画走査を避けます。
+    let channelScopeCondition: SQL<boolean> | null = buildArtistCandidateCondition(
+      channelIdsFilter, channelIdsForQuery, channelQueryPatternsPerPhrase, useFtsSearch,
+    );
+    if (!channelScopeCondition && channelIdsFilter.length > 0 && channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
       const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase, useFtsSearch);
       channelScopeCondition = or(
         inArray(videos.channelId, channelIdsFilter) as SQL<boolean>,
         and(inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>, keywordCondition) as SQL<boolean>,
       ) as SQL<boolean>;
-    } else if (channelIdsFilter.length > 0) {
+    } else if (!channelScopeCondition && channelIdsFilter.length > 0) {
       channelScopeCondition = inArray(videos.channelId, channelIdsFilter) as SQL<boolean>;
-    } else if (channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
+    } else if (!channelScopeCondition && channelIdsForQuery.length > 0 && channelQueryPatternsPerPhrase.length > 0) {
       const keywordCondition = buildTitleKeywordConditionForPhrases(channelQueryPatternsPerPhrase, useFtsSearch);
       channelScopeCondition = and(
         inArray(videos.channelId, channelIdsForQuery) as SQL<boolean>,
@@ -876,7 +919,7 @@ async function cacheAllArtistVideos(
         viewCount: videos.viewCount,
         likeCount: videos.likeCount,
       })
-      .from(videos)
+      .from(channelScopeCondition ? sql.raw('videos AS "videos" NOT INDEXED') : videos)
       .innerJoin(channels, eq(videos.channelId, channels.id))
       .where(videoWhere)
       .orderBy(desc(videos.publishedAt));
