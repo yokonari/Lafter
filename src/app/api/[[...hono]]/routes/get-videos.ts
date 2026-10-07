@@ -13,6 +13,11 @@ import type { AdminEnv } from "../types";
 const MAX_LIMIT = 20;
 const HOME_CACHE_LIMIT = 10; // ユーザートップ画面用のキャッシュ再抽選時は常に10件だけ返却します。
 const MAX_QUERY_LENGTH = 256; // 検索クエリの最大文字数制限
+const ARTIST_CACHE_TTL_SECONDS = 86400;
+const ARTIST_STALE_TTL_SECONDS = 2 * ARTIST_CACHE_TTL_SECONDS;
+const ARTIST_REFRESH_COOLDOWN_MS = 5 * 60 * 1000;
+const artistCacheRefreshes = new Map<string, Promise<void>>();
+const artistCacheRefreshAttemptedAt = new Map<string, number>();
 
 type CachedVideoItem = {
   channel_id?: string;
@@ -295,11 +300,17 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     const artistSlug = c.req.query("artistSlug");
     if (kv && artistSlug) {
       const artistCacheKey = `artist_videos_${artistSlug}`;
-      const artistCache = await loadCachedVideos(kv, artistCacheKey);
-      if (artistCache) {
+      const loadedArtistCache = await loadVideoCache<CachedVideoItem>(kv, artistCacheKey);
+      if (loadedArtistCache) {
+        if (loadedArtistCache.source === "stale" && ctx) {
+          // 期限切れ時は旧値を返し、同一Worker内の再生成を一本化します。
+          ctx.waitUntil(refreshArtistCacheOnce(
+            db, kv, artistSlug, channelIdsFilter, channelIdsForQuery, channelQueryPatternsPerPhrase, useFtsSearch,
+          ));
+        }
         return respondWithArtistCache(
           c,
-          artistCache,
+          loadedArtistCache.cache,
           safeOffset,
           safeLimit,
           sort,
@@ -467,7 +478,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
     // ユーザーへのレスポンスはブロックせず、バックグラウンドで全件取得を行います
     if (kv && artistSlug && videoRows.length > 0 && ctx) {
       ctx.waitUntil(
-        cacheAllArtistVideos(
+        refreshArtistCacheOnce(
           db,
           kv,
           artistSlug,
@@ -941,11 +952,39 @@ async function cacheAllArtistVideos(
       })),
     };
 
-    // 24時間 TTL で KV に保存
-    await kv.put(`artist_videos_${artistSlug}`, JSON.stringify(cachePayload), {
-      expirationTtl: 86400,
-    });
+    const cacheKey = `artist_videos_${artistSlug}`;
+    const serialized = JSON.stringify(cachePayload);
+    // 主キャッシュより長く旧値を残し、期限切れ直後のD1集中を防ぎます。
+    await kv.put(`${cacheKey}:stale`, serialized, { expirationTtl: ARTIST_STALE_TTL_SECONDS });
+    await kv.put(cacheKey, serialized, { expirationTtl: ARTIST_CACHE_TTL_SECONDS });
   } catch (error) {
     console.error(`[get-videos] 芸人キャッシュの保存に失敗しました: ${artistSlug}`, error);
   }
+}
+
+function refreshArtistCacheOnce(
+  db: AppDatabase,
+  kv: KVNamespace,
+  artistSlug: string,
+  channelIdsFilter: string[],
+  channelIdsForQuery: string[],
+  channelQueryPatternsPerPhrase: string[][][],
+  useFtsSearch: boolean,
+): Promise<void> {
+  const pending = artistCacheRefreshes.get(artistSlug);
+  if (pending) return pending;
+  const now = Date.now();
+  if (now - (artistCacheRefreshAttemptedAt.get(artistSlug) ?? 0) < ARTIST_REFRESH_COOLDOWN_MS) {
+    // KV反映までの短時間に同じ芸人を再生成し続けないようにします。
+    return Promise.resolve();
+  }
+  artistCacheRefreshAttemptedAt.set(artistSlug, now);
+  // KVに原子的なロックはないため、同一Worker内の同時要求だけをまとめます。
+  const refresh = cacheAllArtistVideos(
+    db, kv, artistSlug, channelIdsFilter, channelIdsForQuery, channelQueryPatternsPerPhrase, useFtsSearch,
+  ).finally(() => {
+    artistCacheRefreshes.delete(artistSlug);
+  });
+  artistCacheRefreshes.set(artistSlug, refresh);
+  return refresh;
 }
