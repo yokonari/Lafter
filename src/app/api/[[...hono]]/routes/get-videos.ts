@@ -6,6 +6,7 @@ import type { SQL } from "drizzle-orm";
 import { aliases, channels, videos } from "@/lib/schema";
 import { loadActiveChannels } from "@/lib/active-channels-cache";
 import { loadVideoCache } from "@/lib/video-cache";
+import { createPublicVideoQuery } from "@/lib/public-video-query";
 import { createDatabase } from "../context";
 import type { AppDatabase } from "../context";
 import type { AdminEnv } from "../types";
@@ -401,22 +402,7 @@ export function registerGetVideos(app: Hono<AdminEnv>) {
 
     // DB 上の channels.status=1 を直接参照しながら、videos テーブルから対象レコードを丁寧に抽出します。
     // FTS候補がある場合は通常インデックスの全走査を避け、候補rowidから動画を引きます。
-    const videoSource = shouldUseRowIdLookup
-      ? sql.raw('videos AS "videos" NOT INDEXED')
-      : videos;
-    const baseVideoQuery = db
-      .select({
-        id: videos.id,
-        title: videos.title,
-        publishedAt: videos.publishedAt,
-        channelId: videos.channelId,
-        channelName: channels.name,
-        viewCount: videos.viewCount, // 再生数を追加
-        likeCount: videos.likeCount, // 高評価数を追加
-      })
-      .from(videoSource)
-      .innerJoin(channels, eq(videos.channelId, channels.id))
-      .where(videoWhere);
+    const baseVideoQuery = createPublicVideoQuery(db, videoWhere, shouldUseRowIdLookup);
 
     // ソート順の決定: sort パラメータを優先し、次に mode を参照します。
     let orderedVideoQuery;
@@ -916,19 +902,7 @@ async function cacheAllArtistVideos(
     const videoWhere = videoConditions.length === 1 ? videoConditions[0] : and(...videoConditions);
 
     // 全件取得、公開日順でソート
-    const allVideoRows = await db
-      .select({
-        id: videos.id,
-        title: videos.title,
-        publishedAt: videos.publishedAt,
-        channelId: videos.channelId,
-        channelName: channels.name,
-        viewCount: videos.viewCount,
-        likeCount: videos.likeCount,
-      })
-      .from(channelScopeCondition ? sql.raw('videos AS "videos" NOT INDEXED') : videos)
-      .innerJoin(channels, eq(videos.channelId, channels.id))
-      .where(videoWhere)
+    const allVideoRows = await createPublicVideoQuery(db, videoWhere, Boolean(channelScopeCondition))
       .orderBy(desc(videos.publishedAt));
 
     const cachePayload = {
