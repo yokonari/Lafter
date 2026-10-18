@@ -1,3 +1,4 @@
+import { getAvailableYears } from '@data/award-races/types';
 import { MetadataRoute } from 'next'
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { createDatabase } from "@/app/api/[[...hono]]/context";
@@ -13,18 +14,15 @@ const BASE_URL = 'https://lafter.day';
 
 /**
  * Award Raceのページを動的に生成します。
- * 2020年から2025年までの全年度を含めます。
- * 新しい年度のページを作成したら、endYearを更新してください。
+ * 大会ごとにデータが存在する年度だけを含めます。
  */
 function generateAwardRaceRoutes(): MetadataRoute.Sitemap {
-    const startYear = 2020;
-    const endYear = 2025; // 実際に存在する最新の年度
     const currentYear = new Date().getFullYear();
     const races = ['m1', 'koc'] as const;
     const routes: MetadataRoute.Sitemap = [];
 
     for (const race of races) {
-        for (let year = startYear; year <= endYear; year++) {
+        for (const year of getAvailableYears(race)) {
             // 現在の年は更新頻度が高く、優先度も高い
             const isCurrentYear = year === currentYear;
             routes.push({

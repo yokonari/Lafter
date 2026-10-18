@@ -319,8 +319,8 @@ export function UserHome({
   }, [router]);
 
   const handleShowAwardRaceList = useCallback(() => {
-    // デフォルトの賞レースページ（M-1 2025）にナビゲート
-    router.push("/award-race/m1/2025");
+    // 共通の入口で最新結果の大会・年度を選択する。
+    router.push("/award-race");
   }, [router]);
   const handleShowComedianList = useCallback(() => {
     // 芸人一覧ページへ遷移します。

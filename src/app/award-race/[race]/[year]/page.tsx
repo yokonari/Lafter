@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { UserHome } from "@/components/user/UserHome";
-import { RACE_NAMES, AVAILABLE_YEARS, type RaceType } from "@data/award-races/types";
+import { RACE_NAMES, getAvailableYears, type RaceType } from "@data/award-races/types";
 
 // 賞レースページも動的レンダリングを強制します。
 export const dynamic = "force-dynamic";
@@ -28,8 +28,8 @@ export async function generateMetadata(
     const race = resolvedParams.race;
     const year = resolvedParams.year;
 
-    // バリデーション
-    if ((race !== "m1" && race !== "koc") || !AVAILABLE_YEARS.includes(parseInt(year, 10))) {
+    // 大会ごとにデータが存在する年度を検証する。
+    if ((race !== "m1" && race !== "koc") || !getAvailableYears(race).includes(Number(year))) {
         return {
             title: "賞レース | Lafter",
             description: "お笑い賞レースの動画をチェックできます。お笑い芸人の公式YouTubeチャンネルから、漫才・コントなどのネタ動画だけを検索できるサイト。",
@@ -74,8 +74,8 @@ export default async function AwardRaceDetailPage({ params }: AwardRaceDetailPag
     const year = resolvedParams.year;
 
     // バリデーション: 無効なrace/yearの場合はデフォルトにリダイレクト
-    if ((race !== "m1" && race !== "koc") || !AVAILABLE_YEARS.includes(parseInt(year, 10))) {
-        redirect("/award-race/m1/2025");
+    if ((race !== "m1" && race !== "koc") || !getAvailableYears(race).includes(Number(year))) {
+        redirect("/award-race");
     }
 
     return (

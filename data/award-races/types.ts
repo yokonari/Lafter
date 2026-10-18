@@ -1,16 +1,18 @@
+import awardRacesData from './award-races.json';
+
 // 賞レースデータの型定義
 
-// 決勝進出者（1-10位）
+// 決勝進出者（人数は大会・年度によって異なる）
 export interface Finalist {
-    rank: number; // 順位（1-10）
+    rank: number; // 順位（同順位を含む）
     name: string; // 芸人名
 }
 
 // 年度別データ
 export interface YearData {
-    finalists: Finalist[]; // 決勝進出者（1-10位）
-    semifinalists: string[]; // 準決勝進出者（11-30位）
-    quarterfinalists: string[]; // 準々決勝進出者（31-50位）
+    finalists: Finalist[]; // 決勝進出者（人数は大会・年度によって異なる）
+    semifinalists: string[]; // 準決勝進出者（決勝進出者を除く）
+    quarterfinalists: string[]; // 準々決勝進出者（準決勝進出者を除く）
 }
 
 // 賞レース別データ
@@ -33,5 +35,15 @@ export const RACE_NAMES: Record<RaceType, string> = {
     koc: 'キングオブコント',
 };
 
-// 利用可能な年度リスト（2020-2025）
-export const AVAILABLE_YEARS = [2025, 2024, 2023, 2022, 2021, 2020];
+// データが存在する年度だけを大会ごとに新しい順で返す。
+export function getAvailableYears(race: RaceType): number[] {
+    return Object.keys(awardRacesData[race]).map(Number).sort((a, b) => b - a);
+}
+
+// 最新年度を初期表示する。同年度なら開催時期が遅いM-1を優先する。
+export function getLatestAwardRace(): { race: RaceType; year: number } {
+    const races: RaceType[] = ['m1', 'koc'];
+    return races
+        .map((race) => ({ race, year: getAvailableYears(race)[0] }))
+        .sort((a, b) => b.year - a.year)[0];
+}

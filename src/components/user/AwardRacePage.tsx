@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { Trophy, Crown, Medal } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 import awardRacesData from '@data/award-races/award-races.json';
-import { RACE_NAMES, AVAILABLE_YEARS, type RaceType, type AwardRacesData } from '@data/award-races/types';
+import { RACE_NAMES, getAvailableYears, getLatestAwardRace, type RaceType, type AwardRacesData } from '@data/award-races/types';
 import { XShareButton } from './XShareButton';
 import { BackToTopLink } from './BackToTopLink';
 import styles from './userTheme.module.scss';
@@ -20,11 +19,11 @@ interface AwardRacePageProps {
 
 export function AwardRacePage({ onBackToTop, onComedianSearch, initialRace, initialYear }: AwardRacePageProps) {
     const router = useRouter();
-    const searchParams = useSearchParams();
 
-    // 初期値をpropsまたはデフォルト値から取得
-    const [selectedRace, setSelectedRace] = useState<RaceType>(initialRace || 'm1');
-    const [selectedYear, setSelectedYear] = useState<number>(initialYear || 2025);
+    // URLで指定された大会・年度を優先し、指定がなければ最新結果を表示する。
+    const defaultRace = initialRace ?? getLatestAwardRace().race;
+    const [selectedRace, setSelectedRace] = useState<RaceType>(defaultRace);
+    const [selectedYear, setSelectedYear] = useState<number>(initialYear ?? getAvailableYears(defaultRace)[0]);
 
     // initialRaceとinitialYearが変更されたときに状態を更新
     useEffect(() => {
@@ -42,8 +41,12 @@ export function AwardRacePage({ onBackToTop, onComedianSearch, initialRace, init
 
     // タブ切り替えハンドラー
     const handleRaceChange = (race: RaceType) => {
+        // 切替先に同じ年度がなければ、その大会の最新年度を表示する。
+        const years = getAvailableYears(race);
+        const year = years.includes(selectedYear) ? selectedYear : years[0];
         setSelectedRace(race);
-        updateUrl(race, selectedYear);
+        setSelectedYear(year);
+        updateUrl(race, year);
     };
 
     const handleYearChange = (year: number) => {
@@ -113,7 +116,7 @@ export function AwardRacePage({ onBackToTop, onComedianSearch, initialRace, init
                         onChange={(e) => handleYearChange(Number(e.target.value))}
                         className={styles.yearSelect}
                     >
-                        {AVAILABLE_YEARS.map((year) => (
+                        {getAvailableYears(selectedRace).map((year) => (
                             <option key={year} value={year}>
                                 {year}
                             </option>
@@ -127,7 +130,7 @@ export function AwardRacePage({ onBackToTop, onComedianSearch, initialRace, init
 
             {/* コンテンツエリア */}
             <div className={styles.awardRaceContent}>
-                {/* 決勝進出者（1-10位） */}
+                {/* 決勝進出者（同順位を含む） */}
                 <section className={styles.rankingSection}>
                     <h2 className={styles.sectionTitle}>
                         決勝進出者
@@ -148,7 +151,7 @@ export function AwardRacePage({ onBackToTop, onComedianSearch, initialRace, init
                     </div>
                 </section>
 
-                {/* 準決勝進出者（11-30位） */}
+                {/* 準決勝進出者（決勝進出者を除く） */}
                 <section className={styles.listSection}>
                     <h2 className={styles.sectionTitle}>
                         準決勝進出者
@@ -166,7 +169,7 @@ export function AwardRacePage({ onBackToTop, onComedianSearch, initialRace, init
                     </div>
                 </section>
 
-                {/* 準々決勝進出者（31-50位） */}
+                {/* 準々決勝進出者（準決勝進出者を除く） */}
                 <section className={styles.listSection}>
                     <h2 className={styles.sectionTitle}>
                         準々決勝進出者
