@@ -21,7 +21,8 @@ async function hasValidAdminSession(): Promise<boolean> {
     return false;
   }
 
-  const url = new URL("/api/auth/session", `${protocol}://${host}`);
+  // Better Auth のセッション取得エンドポイントを使用します。
+  const url = new URL("/api/auth/get-session", `${protocol}://${host}`);
 
   const cookieHeader = headerList.get("cookie");
   const authorizationHeader = headerList.get("authorization");

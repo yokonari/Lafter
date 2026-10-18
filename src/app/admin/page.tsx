@@ -20,7 +20,8 @@ async function hasValidAdminSession() {
     const cookieHeader = headerList.get("cookie");
     const authorizationHeader = headerList.get("authorization");
     const userAgentHeader = headerList.get("user-agent");
-    const url = new URL("/api/auth/session", `${protocol}://${host}`);
+    // Better Auth のセッション取得エンドポイントを使用します。
+    const url = new URL("/api/auth/get-session", `${protocol}://${host}`);
     const response = await fetch(url.toString(), {
       cache: "no-store",
       headers: {
